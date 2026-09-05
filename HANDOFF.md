@@ -2,7 +2,8 @@
 
 **Source publication (2026-09-05):** the owner authorized committing and pushing
 to `purduehackers/zedspaces` and forking Zed to `purduehackers/zed`. The private
-app repository's `main` branch pins `zed/` to the public fork's `zs` branch;
+app repository's `main` branch pins `zed/` to the public fork's default
+`zedspaces` branch (renamed from `zs` at the owner's request);
 the redundant editor-only branch in `zedspaces` was removed. The editor commit
 and upstream history are preserved. Clone with `--recurse-submodules`; existing
 clones should run `git submodule sync --recursive` before updating submodules.

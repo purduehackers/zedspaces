@@ -32,7 +32,8 @@ Creation is rate-limited and defaults to five active/admitted workspaces.
 ## Development
 
 The modified Zed fork at `zed/` is a pinned submodule of
-[purduehackers/zed](https://github.com/purduehackers/zed), on its `zs` branch.
+[purduehackers/zed](https://github.com/purduehackers/zed), on its default
+`zedspaces` branch.
 The app, supervisor, and documentation live here on `main`. Clone with
 submodules (repository access is required while the repository is private):
 
