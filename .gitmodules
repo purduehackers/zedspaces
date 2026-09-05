@@ -1,4 +1,4 @@
 [submodule "zed"]
 	path = zed
-	url = https://github.com/purduehackers/zedspaces.git
-	branch = zed
+	url = https://github.com/purduehackers/zed.git
+	branch = zs

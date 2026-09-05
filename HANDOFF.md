@@ -1,9 +1,12 @@
 # Handoff: Zed Codespaces
 
 **Source publication (2026-09-05):** the owner authorized committing and pushing
-to `purduehackers/zedspaces`: `main` contains the app and a pinned `zed/`
-submodule; `zed` contains the modified editor with its upstream history.
-Clone with `--recurse-submodules`. This supersedes the uncommitted/unpublished
+to `purduehackers/zedspaces` and forking Zed to `purduehackers/zed`. The private
+app repository's `main` branch pins `zed/` to the public fork's `zs` branch;
+the redundant editor-only branch in `zedspaces` was removed. The editor commit
+and upstream history are preserved. Clone with `--recurse-submodules`; existing
+clones should run `git submodule sync --recursive` before updating submodules.
+This supersedes the uncommitted/unpublished
 state recorded below; it does not authorize Vercel deployment or registry
 publication. Local state and compiled artifacts remain ignored.
 

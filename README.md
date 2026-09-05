@@ -31,8 +31,9 @@ Creation is rate-limited and defaults to five active/admitted workspaces.
 
 ## Development
 
-The modified Zed fork at `zed/` is a pinned submodule from this repository's
-`zed` branch. The app, supervisor, and documentation live on `main`. Clone with
+The modified Zed fork at `zed/` is a pinned submodule of
+[purduehackers/zed](https://github.com/purduehackers/zed), on its `zs` branch.
+The app, supervisor, and documentation live here on `main`. Clone with
 submodules (repository access is required while the repository is private):
 
 ```sh
@@ -40,8 +41,9 @@ git clone --recurse-submodules https://github.com/purduehackers/zedspaces.git
 cd zedspaces
 ```
 
-For an existing clone, run `git submodule update --init --recursive`. Compiled
-editor assets are not in Git; the local stack builds them when needed.
+For an existing clone, run `git submodule sync --recursive`, then
+`git submodule update --init --recursive`. Compiled editor assets are not in
+Git; the local stack builds them when needed.
 
 Requires Node 24, pnpm 11.20.0, and the fork's pinned Rust 1.97.1 toolchain.
 Read [HANDOFF.md](HANDOFF.md) before rebuilding WASM or changing an existing VM.
