@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1.7
+# Build the dirty local fork on Linux, without pushing it to GitHub or a registry.
+FROM rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    musl-tools clang lld llvm cmake pkg-config perl libssl-dev git curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+RUN rustup target add x86_64-unknown-linux-musl
+WORKDIR /src
+COPY zed/ ./
+ARG ZS_BUILD_ID
+ARG ZED_COMMIT_SHA
+ENV ZS_BUILD_ID=${ZS_BUILD_ID} ZED_BUILD_ID=${ZS_BUILD_ID} ZED_COMMIT_SHA=${ZED_COMMIT_SHA} \
+    CC_x86_64_unknown_linux_musl=musl-gcc RUSTFLAGS="-C target-feature=+crt-static" CARGO_BUILD_JOBS=2
+RUN test -n "$ZS_BUILD_ID" && test -n "$ZED_COMMIT_SHA"
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/src/target \
+    cargo --config .cargo/bundle-config.toml build --locked --release \
+      --target x86_64-unknown-linux-musl --package remote_server --features serve \
+ && llvm-objcopy --strip-debug target/x86_64-unknown-linux-musl/release/remote_server \
+ && install -m 0755 target/x86_64-unknown-linux-musl/release/remote_server /zed-remote-server \
+ && /zed-remote-server version \
+ && /zed-remote-server serve --help
+FROM scratch
+COPY --from=build /zed-remote-server /zed-remote-server

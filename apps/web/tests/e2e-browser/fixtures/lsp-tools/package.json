@@ -1,0 +1,10 @@
+{
+  "name": "zs-e2e-lsp-tools",
+  "private": true,
+  "description": "TypeScript language servers for the browser end-to-end suite's completions test; installed by scripts/dev-local.sh browser (pnpm install --ignore-workspace) and put on PATH.",
+  "devDependencies": {
+    "@vtsls/language-server": "^0.2.9",
+    "typescript": "^5.6.0",
+    "typescript-language-server": "^4.3.0"
+  }
+}

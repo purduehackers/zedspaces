@@ -1,0 +1,20 @@
+# Build context for sandbox/image/Dockerfile is the repository root (sandbox/image/build.sh).
+# Only sandbox/supervisor/ and sandbox/image/dist/ are needed; everything else is noise.
+.git
+.gitignore
+.github
+.zs-logs
+.vercel
+apps
+docs
+infra
+zed
+*.md
+**/node_modules
+**/.next
+**/.turbo
+**/target
+sandbox/image/test
+# Fixtures written by sandbox/image/test/run-local.sh; the image only needs dist/zed-remote-server.
+sandbox/image/dist/test
+sandbox/image/dist/image.json

@@ -1,0 +1,7 @@
+{
+  "build_id": "dev-0",
+  "commit": "0000000000000000000000000000000000000000",
+  "wasm_bytes": 0,
+  "wasm_brotli_bytes": 0,
+  "stub": true
+}

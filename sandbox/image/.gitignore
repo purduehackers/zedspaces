@@ -1,0 +1,3 @@
+# Build outputs: the fork's zed-remote-server, the pushed-image descriptor and test fixtures.
+dist/*
+!dist/.gitkeep

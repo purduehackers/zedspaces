@@ -1,0 +1,12 @@
+/* Editor root: a full-viewport, unstyled surface for the wasm canvas.
+   No inline styles anywhere in the editor tree (CSP style-src has no 'unsafe-inline'). */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #1e1e1e;
+  color: #e6e6e6;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}

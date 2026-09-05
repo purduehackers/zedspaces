@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.next-*/
+test-results/
+target/
+.env
+.env.*.local
+.vercel/
+*.log
+.DS_Store

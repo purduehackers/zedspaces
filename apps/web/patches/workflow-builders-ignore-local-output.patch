@@ -1,0 +1,13 @@
+diff --git a/dist/base-builder.js b/dist/base-builder.js
+--- a/dist/base-builder.js
++++ b/dist/base-builder.js
+@@ -212,6 +212,9 @@
+             '**/node_modules/**',
+             '**/.git/**',
+             '**/.next/**',
++            '**/.next-*/**',
++            '**/.zs-dev/**',
++            '**/test-results/**',
+             '**/.nitro/**',
+             '**/.nuxt/**',
+             '**/.output/**',

@@ -1,0 +1,66 @@
+// Minimal copy of the Zed envelope schema used by the prebuild warm-up client (brief §3.2a).
+//
+// Tag numbers match `zed/crates/proto/proto/zed.proto` (Envelope), `worktree.proto`
+// (AddWorktree/AddWorktreeResponse), `buffer.proto` (OpenBufferByPath/OpenBufferResponse),
+// `lsp.proto` (UpdateLanguageServer) and `core.proto` (PeerId). Prost skips unknown fields and
+// unknown oneof variants, so any envelope the server sends decodes (with `payload: None` for
+// variants this subset does not name). `tests/proto_tags.rs` guards against upstream renumbering.
+syntax = "proto3";
+package zed.messages;
+
+message PeerId { uint32 owner_id = 1; uint32 id = 2; }
+
+message Envelope {
+  uint32 id = 1;
+  optional uint32 responding_to = 2;
+  optional PeerId original_sender_id = 3;
+  optional uint32 ack_id = 266;
+  oneof payload {
+    Ack ack = 5;
+    Error error = 6;
+    Ping ping = 7;
+    UpdateWorktree update_worktree = 45;
+    UpdateLanguageServer update_language_server = 55;
+    OpenBufferByPath open_buffer_by_path = 57;
+    OpenBufferResponse open_buffer_response = 58;
+    AddWorktree add_worktree = 222;
+    AddWorktreeResponse add_worktree_response = 223;
+    ShutdownRemoteServer shutdown_remote_server = 257;
+    LanguageServerLog language_server_log = 260;
+    FlushBufferedMessages flush_buffered_messages = 267;
+    RemoteStarted remote_started = 381;
+  }
+}
+
+message Ack {}
+message Ping {}
+message Error { string message = 1; int32 code = 2; repeated string tags = 3; }
+// Only the two fields the client reads.
+message UpdateWorktree { uint64 project_id = 1; uint64 worktree_id = 2; }
+message AddWorktree { string path = 1; uint64 project_id = 2; bool visible = 3; }
+message AddWorktreeResponse { uint64 worktree_id = 1; string canonicalized_path = 2; }
+message OpenBufferByPath { uint64 project_id = 1; uint64 worktree_id = 2; string path = 3; }
+message OpenBufferResponse { uint64 buffer_id = 1; }
+message ShutdownRemoteServer {}
+message FlushBufferedMessages {}
+message RemoteStarted {}
+message LanguageServerLog { uint64 project_id = 1; uint64 language_server_id = 2; string message = 3; }
+message UpdateLanguageServer {
+  uint64 project_id = 1;
+  uint64 language_server_id = 2;
+  optional string server_name = 8;
+  oneof variant {
+    LspWorkStart work_start = 3;
+    LspWorkProgress work_progress = 4;
+    LspWorkEnd work_end = 5;
+    StatusUpdate status_update = 9;
+    RegisteredForBuffer registered_for_buffer = 10;
+    ServerRemoved removed = 12;
+  }
+}
+message LspWorkStart {}
+message LspWorkProgress {}
+message LspWorkEnd {}
+message StatusUpdate {}
+message RegisteredForBuffer {}
+message ServerRemoved {}

@@ -1,0 +1,215 @@
+/* Editor shell chrome (b9 §3.26).
+   `gpui_web` owns a full-viewport canvas appended to <body>, so every piece of
+   shell chrome floats above it with `position: fixed`. No `style` attribute is
+   ever emitted: the CSP has no 'unsafe-inline' for styles, and the only
+   dynamic value (`--zs-progress`) is written through the CSSOM after mount. */
+
+.zs-shell {
+  --zs-bg: #17181c;
+  --zs-panel: #1f2127;
+  --zs-border: #33363f;
+  --zs-text: #e7e8ea;
+  --zs-muted: #9aa0aa;
+  --zs-accent: #64a0ff;
+  --zs-danger: #ff6f6f;
+  --zs-progress: 0;
+
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: block;
+  color: var(--zs-text);
+  font: 13px/1.45 ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.zs-shell > * {
+  pointer-events: auto;
+}
+
+/* Top strip -------------------------------------------------------------- */
+
+.zs-strip {
+  position: fixed;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-bottom-left-radius: 8px;
+  border-left: 1px solid var(--zs-border);
+  border-bottom: 1px solid var(--zs-border);
+  background: color-mix(in srgb, var(--zs-panel) 88%, transparent);
+}
+
+.zs-strip__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.zs-strip__name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zs-strip__detail {
+  color: var(--zs-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zs-strip__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Buttons ---------------------------------------------------------------- */
+
+.zs-button {
+  appearance: none;
+  border: 1px solid var(--zs-border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 3px 9px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.zs-button:hover:not(:disabled) {
+  border-color: var(--zs-accent);
+}
+
+.zs-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.zs-button--primary {
+  border-color: var(--zs-accent);
+  background: color-mix(in srgb, var(--zs-accent) 20%, transparent);
+}
+
+.zs-button--danger:hover:not(:disabled) {
+  border-color: var(--zs-danger);
+  color: var(--zs-danger);
+}
+
+/* Overlay ---------------------------------------------------------------- */
+
+.zs-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--zs-bg) 92%, transparent);
+}
+
+.zs-overlay[data-phase="ready"] {
+  display: none;
+}
+
+.zs-card {
+  width: min(480px, calc(100vw - 32px));
+  padding: 22px 24px;
+  border: 1px solid var(--zs-border);
+  border-radius: 12px;
+  background: var(--zs-panel);
+  text-align: left;
+}
+
+.zs-card__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.zs-card__body {
+  margin: 0;
+  color: var(--zs-muted);
+}
+
+.zs-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.zs-card__hint {
+  margin: 12px 0 0;
+  color: var(--zs-muted);
+  font-size: 12px;
+}
+
+.zs-code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* Progress bar ----------------------------------------------------------- */
+
+.zs-progress {
+  height: 3px;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: var(--zs-border);
+  overflow: hidden;
+}
+
+.zs-progress__bar {
+  height: 100%;
+  width: calc(var(--zs-progress) * 100%);
+  border-radius: inherit;
+  background: var(--zs-accent);
+  transition: width 220ms ease-out;
+}
+
+/* Toasts ----------------------------------------------------------------- */
+
+.zs-toasts {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 24px));
+}
+
+.zs-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--zs-border);
+  border-radius: 8px;
+  background: var(--zs-panel);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 35%);
+}
+
+.zs-toast__text {
+  flex: 1 1 auto;
+}
+
+.zs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

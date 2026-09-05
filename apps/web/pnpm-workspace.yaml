@@ -1,0 +1,10 @@
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+  # Platform binaries arrive as optional dependencies; the postinstall scripts are not needed.
+  "@swc/core": false
+  cbor-extract: false
+  esbuild: false
+
+patchedDependencies:
+  "@workflow/builders@4.1.10": patches/workflow-builders-ignore-local-output.patch

@@ -1,0 +1,10 @@
+# Base image for sandbox/image/Dockerfile, pinned so builds are reproducible
+# (BUILD-SPEC §10 item 6). One ref per file: the first non-comment line wins.
+#
+# Refresh with `sandbox/image/build.sh --update-base`, which resolves the rolling tag to a digest
+# (`docker buildx imagetools inspect … --format '{{json .Manifest.Digest}}'`) and rewrites the ref
+# below; commit the result. Resolving and pulling the base both need `vercel vcr login docker`.
+#
+# Until the first --update-base run this is the rolling tag and builds are not reproducible;
+# build.sh warns when the ref carries no digest.
+vcr.vercel.com/vercel/sandbox/universal:latest

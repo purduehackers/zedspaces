@@ -1,0 +1,12 @@
+**
+!zed
+!zed/**
+zed/.git
+zed/target
+zed/node_modules
+zed/web
+zed/.worktrees
+**/.DS_Store
+**/.env*
+**/node_modules
+**/target

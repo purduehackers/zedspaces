@@ -1,0 +1,5 @@
+# Build output directory.
+#
+# `sandbox/image/build-server.sh` writes `zed-remote-server` here and the Dockerfile's
+# `server-fetch` stage COPYs the whole directory, so it must exist even for a `--source release`
+# build. Keep this file; everything else here is ignored by git.

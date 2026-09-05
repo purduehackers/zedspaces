@@ -1,0 +1,154 @@
+name: sandbox-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sandbox/**"
+      - "docs/contracts/**"
+      - "zed"
+      - ".github/workflows/sandbox-image.yml"
+  pull_request:
+    paths:
+      - "sandbox/**"
+      - "docs/contracts/**"
+      - "zed"
+      - ".github/workflows/sandbox-image.yml"
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "ZS_BUILD_ID (defaults to <zed short sha>-<run number>)"
+        required: false
+      publish:
+        description: "Publish the workspace image to the configured Vercel project"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sandbox-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lint:
+    name: lint image inputs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Dockerfile lint (BuildKit check)
+        run: |
+          docker buildx build --check \
+            --build-arg BASE_IMAGE=ubuntu:26.04 \
+            -f sandbox/image/Dockerfile sandbox/image
+      - name: shellcheck the image scripts
+        run: shellcheck sandbox/image/build.sh sandbox/image/build-server.sh sandbox/image/test/run-local.sh
+      - name: parse the test harness
+        run: |
+          node --check sandbox/image/test/mock-control-plane.mjs
+          python3 -m py_compile sandbox/image/test/fake-zed-remote-server.py
+
+  agent-tests:
+    name: zs-agent fmt, clippy, test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sandbox/supervisor
+      - run: cargo fmt --check
+        working-directory: sandbox/supervisor
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: sandbox/supervisor
+      - run: ZS_RUN_START_INTEGRATION=1 cargo test
+        working-directory: sandbox/supervisor
+
+  server:
+    name: zed-remote-server (musl)
+    runs-on: ubuntu-24.04
+    outputs:
+      build_id: ${{ steps.id.outputs.build_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      # Zed's own Linux bundling prerequisites (zed/.github/workflows/run_bundling.yml).
+      - run: ./script/linux && ./script/download-wasi-sdk
+        working-directory: zed
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zed
+      - id: id
+        run: |
+          if [ -n "${{ inputs.build_id }}" ]; then
+            echo "build_id=${{ inputs.build_id }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_id=$(git -C zed rev-parse --short HEAD)-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          fi
+      - run: ZS_BUILD_ID="${{ steps.id.outputs.build_id }}" sandbox/image/build-server.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zed-remote-server
+          path: sandbox/image/dist/zed-remote-server
+          if-no-files-found: error
+
+  image:
+    name: build, push and smoke-test the image
+    needs: [server, agent-tests, lint]
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && vars.VERCEL_PROJECT_SLUG != ''
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+      VERCEL_PROJECT_SLUG: ${{ vars.VERCEL_PROJECT_SLUG }}
+      ZS_BUILD_ID: ${{ needs.server.outputs.build_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: zed-remote-server
+          path: sandbox/image/dist
+      - run: chmod 0755 sandbox/image/dist/zed-remote-server
+      - uses: docker/setup-buildx-action@v3
+      - name: link the Vercel project
+        run: |
+          npm i -g vercel@latest
+          vercel link --yes --project "$VERCEL_PROJECT_SLUG" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN"
+      # Needed to pull the digest-pinned base as well as to push; the credential lasts 12 h.
+      - run: vercel vcr login docker
+      - run: sandbox/image/build.sh --push
+      - name: smoke test against the mock control plane (fake server)
+        run: |
+          ref="vcr.vercel.com/$VERCEL_TEAM_SLUG/$VERCEL_PROJECT_SLUG/zs-workspace:$ZS_BUILD_ID"
+          docker pull "$ref"
+          sandbox/image/test/run-local.sh --image "$ref" --fake-server --linger-child
+      - name: smoke test against the real zed-remote-server
+        run: |
+          ref="vcr.vercel.com/$VERCEL_TEAM_SLUG/$VERCEL_PROJECT_SLUG/zs-workspace:$ZS_BUILD_ID"
+          sandbox/image/test/run-local.sh --image "$ref" --with-restore
+      # b10 §6.5: the manifest's devcontainer block (source manifest, services [dockerd]) starts
+      # dockerd beside the server; `docker info` answers inside the container and its output is
+      # shipped under log source `services`. Privileged docker-in-docker on the runner.
+      - name: smoke test the manifest-driven dockerd service (fake server)
+        run: |
+          ref="vcr.vercel.com/$VERCEL_TEAM_SLUG/$VERCEL_PROJECT_SLUG/zs-workspace:$ZS_BUILD_ID"
+          sandbox/image/test/run-local.sh --image "$ref" --fake-server --with-services --container zs-local-services
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-ref
+          path: sandbox/image/dist/image.json
+          if-no-files-found: error
