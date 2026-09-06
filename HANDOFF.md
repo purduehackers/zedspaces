@@ -1,12 +1,24 @@
 # Handoff: Zed Codespaces
 
+**Multiplayer deployed (2026-09-06, 20:19 UTC):**
+[code.purduehackers.com](https://code.purduehackers.com) serves app `8e2e3df`
+and matching production WASM/server `648cf2f80-34054725092.1` (fork `648cf2f801`).
+[Release CI passed](https://github.com/purduehackers/zedspaces/actions/runs/34054725092);
+image/assets and Vercel deployment were published with the existing local Vercel login.
+The Turso multiplayer index migration is applied. Two independent Chromium sessions
+edited bidirectionally; the survivor saved after the first closed, and the exact
+126 bytes were read back from the real sandbox. Normal-profile boot passed with
+cache unchanged. See [deployment evidence and diagnostic caveat](docs/status/deployment.md).
+This is live for **new workspaces**. Existing owner workspaces were not changed;
+old generations need recreation. Only the current editor bundle is served.
+
 **Latest owner direction (2026-09-06): no tests in `zedspaces`.** All web,
 supervisor, and image test suites, fixtures, test-only runtime helpers and CI
 test jobs have been removed. Keep lint, type checking and production builds.
 Tests in the separate `zed/` fork are unchanged. Older test plans, orchestration
 scripts and results below are historical, not instructions to restore tests.
 The test-heavy CI rerun `34051650584` was canceled during this cleanup.
-No deployment was performed; multiplayer remains undeployed.
+Cleanup was pushed as `8e2e3df` and deployed in the release above.
 Cleanup validation: web lint/typecheck/production build, supervisor fmt/Clippy/release
 build, actionlint, shellcheck, Dockerfile `--check`, and `git diff --check` passed.
 The web build retained dynamic-filesystem tracing warnings; its packaging guard
@@ -19,9 +31,10 @@ to preserve old editor generations. Multiplayer now replaces the web singleton
 path: no feature flag or takeover UI. See [the current implementation](docs/briefs/multiplayer.md).
 Before removal, the full Chromium suite passed 19/19; app/Rust checks and the production web build passed.
 Multiplayer and layout also passed on Firefox and WebKit; see the brief for historical evidence.
-Multiplayer is not yet deployed. Its fork implementation is published as
+Multiplayer is deployed in the release above. Its fork implementation is published as
 `648cf2f801`; the app and release-gate changes accompany this revision.
-The production CI environment still lacks `VERCEL_TOKEN`.
+The production CI environment still lacks `VERCEL_TOKEN`; local authenticated
+CLI publication works without adding one.
 
 **CI repair (2026-09-06):** multiplayer is pushed in app `dc6b60a` / fork
 `648cf2f801`, not deployed. [Its build-only run](https://github.com/purduehackers/zedspaces/actions/runs/34044679645)

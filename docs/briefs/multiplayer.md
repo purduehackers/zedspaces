@@ -1,9 +1,13 @@
 # Multiplayer: the sandbox hosts Zed's shared project
 
-Implemented in source, 2026-09-06; not yet deployed. The owner explicitly chose
+Deployed 2026-09-06 as `648cf2f80-34054725092.1` at
+[code.purduehackers.com](https://code.purduehackers.com). Two live Chromium sessions
+exchanged exact edits, and the survivor saved after the first closed; VM readback
+matched. See [deployment evidence and limits](../status/deployment.md).
+Existing workspaces need recreation. The owner explicitly chose
 a breaking replacement, with no single-editor mode or old-build compatibility.
 
-Validated locally: the full Chromium suite passes (19/19), including first-run
+Historical local validation before test removal: the full Chromium suite passed (19/19), including first-run
 terminal working directories, saved dock layout, dirty stop/resume, crash recovery
 and deletion. Layout restoration and the two-browser case pass on Chromium,
 Firefox and WebKit: concurrent edits, cursors,
@@ -12,8 +16,8 @@ stale drafts, and continued editing/saving after another tab closes. App checks:
 395 unit tests, six workflow integration tests, lint, typecheck and the production
 web build passed. Rust:
 215 server, 69 remote, three proto and 41 web-core unit tests passed, including the
-saved-version recovery regression and required participant isolation. Production CI
-and a live multiplayer deployment are not yet verified.
+saved-version recovery regression and required participant isolation. These are
+historical results, not tests rerun for the production release above.
 
 Evidence: `apps/web/.zs-dev/mp-browser-full-3.log` (19/19),
 `mp-browser-cross-2.log` (Firefox/WebKit layout passed; its WebKit multiplayer case
@@ -24,7 +28,7 @@ bundle is `dev-multiplayer-final-test`; the native binary is
 `mp-webcore-tests-9.log` record the Rust passes. Optional native subprocess tests
 guarded by `ZED_RUN_SERVE_INTEGRATION` were not run. The fork implementation is
 published as `648cf2f801`; the app and release-gate changes accompany this revision.
-Multiplayer has not been deployed.
+The production release above uses that fork commit.
 
 - Each signed anonymous participant gets a Zed replica ID, independent RPC
   sequence/replay broker, and saved layout. Identity survives reload and stop/resume.
