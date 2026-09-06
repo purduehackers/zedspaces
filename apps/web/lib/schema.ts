@@ -230,7 +230,7 @@ export const workspaces = sqliteTable(
 );
 
 /**
- * Editor sessions (ses_…): internal bookkeeping for takeover and the ledger.
+ * Per-tab editor sessions (ses_…).
  * NOT the JWT `sid`, which is minted per connect (D1) and recorded in
  * `lastConnectId`.
  */
@@ -247,7 +247,7 @@ export const sessions = sqliteTable(
     sandboxGeneration: integer("sandbox_generation").notNull(),
     /** Vercel session id. */
     sandboxSessionId: text("sandbox_session_id"),
-    /** sessionStorage id of the tab that holds the session (same tab reload → silent takeover). */
+    /** sessionStorage id, stable across reloads. */
     holderTabId: text("holder_tab_id").notNull(),
     wsHost: text("ws_host").notNull(),
     clientBuild: text("client_build"),
@@ -261,7 +261,7 @@ export const sessions = sqliteTable(
   },
   (t) => [
     index("sessions_ws_started_idx").on(t.workspaceId, t.startedAt),
-    uniqueIndex("sessions_open_idx").on(t.workspaceId).where(sql`ended_at IS NULL`),
+    uniqueIndex("sessions_open_idx").on(t.workspaceId, t.holderTabId).where(sql`ended_at IS NULL`),
   ],
 );
 

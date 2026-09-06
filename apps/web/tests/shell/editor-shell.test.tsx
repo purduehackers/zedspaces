@@ -144,7 +144,7 @@ describe("EditorShell", () => {
 
     const connect = shell.calls.find((call) => call.url.endsWith("/connect"));
     expect(connect?.method).toBe("POST");
-    expect(connect?.body).toMatchObject({ takeover: false, clientBuild: "b-1", reason: "open" });
+    expect(connect?.body).toMatchObject({ clientBuild: "b-1", reason: "open" });
     expect(sessionStorage.getItem(TAB_ID_KEY)).toBeTruthy();
 
     const config = shell.bootCalls[0].config;
@@ -162,12 +162,12 @@ describe("EditorShell", () => {
   });
 
   it("reconnect_intent_from_session_storage_drives_the_connect_reason", async () => {
-    sessionStorage.setItem(NEXT_BOOT_KEY, JSON.stringify({ resume: true, takeover: true }));
+    sessionStorage.setItem(NEXT_BOOT_KEY, JSON.stringify({ resume: true }));
     const shell = renderShell();
     await shell.host();
 
     const connect = shell.calls.find((call) => call.url.endsWith("/connect"));
-    expect(connect?.body).toMatchObject({ reason: "resume", takeover: true });
+    expect(connect?.body).toMatchObject({ reason: "resume" });
     // Read once, then cleared, so a plain reload is a normal open.
     expect(sessionStorage.getItem(NEXT_BOOT_KEY)).toBeNull();
   });
@@ -185,28 +185,17 @@ describe("EditorShell", () => {
     expect(screen.getByText(/Attempt 3 of 20/)).toBeTruthy();
   });
 
-  it("session_busy_opens_the_takeover_dialog_and_reboots_with_takeover", async () => {
-    const shell = renderShell();
-    const host = await shell.host();
 
-    act(() => host.bootProgress("stopped", "session_busy"));
-    await waitFor(() => expect(overlay(shell.container).dataset.phase).toBe("takeover-required"));
-
-    fireEvent.click(screen.getByRole("button", { name: "Take over" }));
-    expect(sessionStorage.getItem(NEXT_BOOT_KEY)).toBe(JSON.stringify({ takeover: true }));
-    expect(shell.navigation.reload).toHaveBeenCalledTimes(1);
-  });
-
-  it("a_taken_over_start_rejection_offers_take_back", async () => {
+  it("a_replaced_connection_does_not_offer_to_take_over", async () => {
     const shell = renderShell();
     await shell.host();
 
     await act(async () => {
-      shell.rejectStart({ code: "taken_over", message: "superseded" });
+      shell.rejectStart({ code: "connection_replaced", message: "replaced" });
       await Promise.resolve();
     });
-    await waitFor(() => expect(overlay(shell.container).dataset.phase).toBe("taken-over"));
-    expect(screen.getByRole("button", { name: "Take back" })).toBeTruthy();
+    await waitFor(() => expect(overlay(shell.container).dataset.phase).toBe("error"));
+    expect(screen.queryByRole("button", { name: /Take back|Take over/ })).toBeNull();
   });
 
   it("lifecycle_notices_toast_keep_alive_and_end_in_the_stopped_state", async () => {
@@ -282,7 +271,7 @@ describe("EditorShell", () => {
   it("never_flushes_after_losing_the_session", async () => {
     const shell = renderShell();
     const host = await shell.host();
-    act(() => host.bootProgress("stopped", "taken_over"));
+    act(() => host.bootProgress("stopped", "connection_replaced"));
 
     Object.defineProperty(document, "hidden", { configurable: true, value: true });
     await act(async () => {

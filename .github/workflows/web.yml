@@ -2,6 +2,10 @@ name: web
 
 on:
   workflow_call:
+    inputs:
+      browser_e2e:
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -52,12 +56,13 @@ jobs:
     # SQLite/libSQL. Nightly, or on demand with `browser_e2e`; never part of a push/PR run.
     name: browser e2e (chromium, local backend)
     runs-on: ubuntu-24.04
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.browser_e2e)
+    if: github.event_name == 'schedule' || inputs.browser_e2e == true
     timeout-minutes: 120
     concurrency:
       group: browser-e2e
       cancel-in-progress: false
     env:
+      CARGO_BUILD_JOBS: "2"
       ZS_DEV_DB: sqlite
       ZS_E2E_CI: "1"
       # Ubuntu runners have no GPU: the config asks Chromium for SwiftShader off macOS.

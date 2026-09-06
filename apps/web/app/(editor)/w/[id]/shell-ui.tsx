@@ -27,8 +27,6 @@ export interface ShellActions {
   reconnect: () => void;
   /** `reconnect({ resume: true })` for a stopped workspace. */
   resume: () => void;
-  /** `reconnect({ takeover: true })`. */
-  takeover: () => void;
   /** Opens a control-plane page in a new tab. */
   openExternal: (url: string) => void;
 }
@@ -146,36 +144,6 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
           <p className="zs-card__body">
             {stopReasonText(phase.reason)} Resuming starts the sandbox again and reopens your files.
           </p>
-        </Card>
-      );
-
-    case "takeover-required":
-      return (
-        <Card
-          title="Already open somewhere else"
-          actions={
-            <button type="button" className="zs-button zs-button--primary" onClick={actions.takeover}>
-              Take over
-            </button>
-          }
-        >
-          <p className="zs-card__body">
-            Another tab or device is holding this workspace. Taking over closes that session.
-          </p>
-        </Card>
-      );
-
-    case "taken-over":
-      return (
-        <Card
-          title="Taken over"
-          actions={
-            <button type="button" className="zs-button zs-button--primary" onClick={actions.takeover}>
-              Take back
-            </button>
-          }
-        >
-          <p className="zs-card__body">Another session took this workspace over. This tab is no longer connected.</p>
         </Card>
       );
 

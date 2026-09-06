@@ -30,7 +30,7 @@ import { createHost, type ShellController } from "./zs-host";
  * The editor shell (b9 §3.26): it authenticates the page's connection, loads
  * `/editor/<build>/zed_web.js`, hands it a {@link createHost} bridge and
  * renders every out-of-canvas state — boot overlay, reconnect overlay,
- * takeover dialog, lifecycle toasts and the terminal "stopped" state that
+ * lifecycle toasts and the terminal "stopped" state that
  * offers a resume.
  */
 
@@ -45,7 +45,6 @@ export const LOCKED_KEYS = ["KeyW", "KeyT", "KeyN", "KeyQ", "Tab"];
 
 /** What `reconnect()` asks the next page load to do. */
 export interface NextBoot {
-  takeover?: boolean;
   resume?: boolean;
 }
 
@@ -155,8 +154,6 @@ export function transitionForConnectError(err: unknown): ShellTransition {
     };
   }
   switch (err.code) {
-    case "session_active":
-      return { phase: { kind: "takeover-required" } };
     case "stopped":
       return { phase: { kind: "stopped", reason: "unknown" } };
     case "build_mismatch":
@@ -233,8 +230,8 @@ export function EditorShell({
   const applyTransition = useCallback(
     (transition: ShellTransition) => {
       setPhase(transition.phase);
-      if (transition.phase.kind === "taken-over" || transition.phase.kind === "takeover-required") {
-        // b7 §7.20: never flush the client state after losing the session.
+      if (transition.phase.kind === "error" && transition.phase.code === "connection_replaced") {
+        // A replaced copy of the same tab must not overwrite its successor's layout.
         flushAllowedRef.current = false;
       }
       if (transition.effect === "reload") {
@@ -292,14 +289,13 @@ export function EditorShell({
 
   /** One `connect()` call, with the overlay wired to its progress. */
   const connect = useCallback(
-    async (reason: ConnectReason, takeover: boolean): Promise<ZsConnectInfo> => {
+    async (reason: ConnectReason): Promise<ZsConnectInfo> => {
       const info = await connectWorkspace(
         {
           workspaceId,
           build,
           tabId: tabId(),
           reason,
-          takeover,
           onProgress: (detail) => setPhase({ kind: "booting", stage: "connecting", detail }),
         },
         deps,
@@ -308,7 +304,6 @@ export function EditorShell({
         wsUrl: info.wsUrl,
         token: info.token,
         sessionId: info.sessionId,
-        takeover,
         serverBuild: info.serverBuild,
         sessionExpiresAt: info.sessionExpiresAt,
       };
@@ -326,7 +321,7 @@ export function EditorShell({
       lifecycle,
       refreshConnectInfo: async () => {
         try {
-          return await connect("reconnect", false);
+          return await connect("reconnect");
         } catch (err) {
           applyTransition(transitionForConnectError(err));
           throw err;
@@ -373,7 +368,7 @@ export function EditorShell({
     try {
       setPhase({ kind: "booting", stage: "connecting" });
       const [connectInfo, settingsDoc, keymapDoc] = await Promise.all([
-        connect(next?.resume ? "resume" : "open", next?.takeover ?? false),
+        connect(next?.resume ? "resume" : "open"),
         fetchSettingsDocument(settingsUrl, deps),
         fetchSettingsDocument(keymapUrl, deps),
       ]);
@@ -463,7 +458,6 @@ export function EditorShell({
     () => ({
       reconnect: () => reconnect(),
       resume: () => reconnect({ resume: true }),
-      takeover: () => reconnect({ takeover: true }),
       openExternal,
     }),
     [reconnect],

@@ -35,14 +35,14 @@ describe("shell phase mapping", () => {
     expect(transitionForBootProgress("reconnecting", "").phase).toEqual({ kind: "reconnecting", attempt: 1 });
   });
 
-  // b9 §3.26 bullet 4 / CONTRACTS.md §8.4: the `stopped` detail code is the contract.
-  it("taken_over_offers_take_back", () => {
-    const transition = transitionForBootProgress("stopped", "taken_over");
-    expect(transition.phase).toEqual({ kind: "taken-over" });
+  it("a replaced copy of a tab is terminal without taking over another participant", () => {
+    expect(transitionForBootProgress("stopped", "connection_replaced").phase).toMatchObject({ kind: "error", retryable: false });
   });
 
-  it("session_busy_asks_for_a_takeover", () => {
-    expect(transitionForBootProgress("stopped", "session_busy").phase).toEqual({ kind: "takeover-required" });
+  it("a stale replica never silently reloads or claims someone took over", () => {
+    const transition = transitionForBootFailure("rejoin_required");
+    expect(transition.effect).toBeUndefined();
+    expect(transition.phase).toMatchObject({ kind: "error", retryable: false, message: expect.stringContaining("Copy any unsynced edits") });
   });
 
   it("incompatible_server_reloads", () => {
@@ -70,8 +70,6 @@ describe("shell phase mapping", () => {
 
   // D23 `close_code_detail` names map exactly like b7's legacy names.
   it("d23_close_code_details_map_to_the_same_phases", () => {
-    expect(transitionForBootProgress("stopped", "superseded").phase).toEqual({ kind: "taken-over" });
-    expect(transitionForBootProgress("stopped", "session_active").phase).toEqual({ kind: "takeover-required" });
     expect(transitionForBootProgress("stopped", "build_mismatch").effect).toBe("reload");
     expect(transitionForBootProgress("stopped", "bad_hello").effect).toBe("reload");
     expect(transitionForBootProgress("stopped", "going_away", { stopReason: "cap" }).phase).toEqual({

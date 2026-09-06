@@ -77,7 +77,7 @@ describe("createHost", () => {
     expect(refreshFailureFor(new ConnectError("build_mismatch", "old")).code).toBe("stopped");
     expect(refreshFailureFor(new ConnectError("unauthorized", "no")).code).toBe("unauthorized");
     expect(refreshFailureFor(new ConnectError("forbidden", "no")).code).toBe("unauthorized");
-    expect(refreshFailureFor(new ConnectError("session_active", "busy")).code).toBe("unavailable");
+    expect(refreshFailureFor(new ConnectError("unavailable", "busy")).code).toBe("unavailable");
     expect(refreshFailureFor(new Error("offline")).code).toBe("unavailable");
 
     const { host } = harness({

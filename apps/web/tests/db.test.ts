@@ -16,16 +16,17 @@ describe("schema and migrations", () => {
 
   });
 
-  it("only_one_open_session_per_workspace", async () => {
+  it("allows_multiple_tabs_but_only_one_open_session_per_tab", async () => {
     const db = await testDb();
     const ws = await seedWorkspace(db);
     const base = { workspaceId: ws.id, userId: SEED.userId, sandboxGeneration: 1, holderTabId: "tab-1", wsHost: "h" };
     await db.insert(sessions).values({ id: newId("ses"), ...base });
+    await db.insert(sessions).values({ id: newId("ses"), ...base, holderTabId: "tab-2" });
     await expect(db.insert(sessions).values({ id: newId("ses"), ...base })).rejects.toThrow();
-    await db.update(sessions).set({ endedAt: new Date(), endReason: "takeover" }).where(eq(sessions.workspaceId, ws.id));
+    await db.update(sessions).set({ endedAt: new Date(), endReason: "stopped" }).where(eq(sessions.workspaceId, ws.id));
     await db.insert(sessions).values({ id: newId("ses"), ...base });
     const open = await db.select().from(sessions).where(eq(sessions.workspaceId, ws.id));
-    expect(open).toHaveLength(2);
+    expect(open).toHaveLength(3);
   });
 
   it("forward_slots_are_unique_per_workspace_but_nulls_do_not_collide", async () => {

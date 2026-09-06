@@ -12,7 +12,6 @@ import { apiErrorBody, refreshEditorSession, type ApiDeps } from "./api-client";
 export type ConnectErrorCode =
   | "stopped"
   | "unauthorized"
-  | "session_active"
   | "build_mismatch"
   | "plan_limit"
   | "forbidden"
@@ -49,11 +48,9 @@ export interface ConnectRequest {
   workspaceId: string;
   /** Bundle build id of this page, checked against the workspace's server build. */
   build: string;
-  /** `sessionStorage` tab id: the same tab reconnecting is not a takeover. */
+  /** Stable `sessionStorage` participant identity. */
   tabId: string;
   reason: ConnectReason;
-  /** Close another tab's session instead of answering `409 session_active`. */
-  takeover?: boolean;
   /** How long `202`/`423` may be polled inside one call (default 5 min). */
   deadlineMs?: number;
   /** Boot detail for the overlay, e.g. `boot:clone`. */
@@ -90,14 +87,13 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const now = deps.now ?? (() => Date.now());
   const deadline = now() + (req.deadlineMs ?? CONNECT_DEADLINE_MS);
-  const takeover = req.takeover ?? false;
   let remintedCookie = false;
 
   for (;;) {
     const res = await doFetch(`/api/workspaces/${req.workspaceId}/connect`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ takeover, clientBuild: req.build, reason: req.reason, tabId: req.tabId }),
+      body: JSON.stringify({ clientBuild: req.build, reason: req.reason, tabId: req.tabId }),
       cache: "no-store",
       signal: req.signal,
     });
@@ -130,7 +126,6 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
         throw new ConnectError("deleted", body.message, 410, body.details);
       case 409:
         if (body.code === "workspace_stopped") throw new ConnectError("stopped", body.message, 409, body.details);
-        if (body.code === "session_active") throw new ConnectError("session_active", body.message, 409, body.details);
         if (body.code === "client_build_mismatch") {
           throw new ConnectError("build_mismatch", body.message, 409, body.details);
         }

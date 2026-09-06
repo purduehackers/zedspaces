@@ -70,7 +70,7 @@ describe("connect()", () => {
     expect(info.sessionId).toBe("con_1");
     expect(calls[0].url).toBe(`/api/workspaces/${WORKSPACE}/connect`);
     expect(calls[0].method).toBe("POST");
-    expect(calls[0].body).toEqual({ takeover: false, clientBuild: "b-1", reason: "open", tabId: "tab-12345678" });
+    expect(calls[0].body).toEqual({ clientBuild: "b-1", reason: "open", tabId: "tab-12345678" });
   });
 
   it("polls_the_workspace_while_a_resume_runs_then_reconnects", async () => {
@@ -90,14 +90,7 @@ describe("connect()", () => {
     expect(progress).toEqual(["boot:resuming", "boot:clone", "boot:warm"]);
   });
 
-  it("session_active_is_the_takeover_dialog", async () => {
-    const { deps } = scripted([
-      () => json(409, { error: { code: "session_active", message: "held", details: { holder: { startedAt: "x" } } } }),
-    ]);
-    await expect(connectWorkspace(request, deps)).rejects.toMatchObject({ code: "session_active" });
-  });
 
-  // b9 §3.26 bullet 2 + D2: a stopped workspace is terminal, never a resume.
   it("workspace_stopped_rejects_with_stopped", async () => {
     const { deps } = scripted([() => json(409, { error: { code: "workspace_stopped", message: "stopped" } })]);
     const err = await connectWorkspace({ ...request, reason: "reconnect" }, deps).catch((e: unknown) => e);

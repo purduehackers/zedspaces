@@ -1,15 +1,28 @@
 # Handoff: Zed Codespaces
 
+**Owner direction (2026-09-06, latest):** this is greenfield with no users.
+Breaking production changes and removing obsolete code are authorized. Do not
+add legacy modes or compatibility shims. This supersedes the older instructions
+to preserve old editor generations. Multiplayer now replaces the web singleton
+path: no feature flag or takeover UI. See [the current implementation](docs/briefs/multiplayer.md).
+The full Chromium suite passes 19/19; app/Rust checks and the production web build pass.
+Multiplayer and layout also pass on Firefox and WebKit; see the brief for logs and artifacts.
+Multiplayer is not yet deployed. Its fork implementation is published as
+`648cf2f801`; the app and release-gate changes accompany this revision.
+The production CI environment still lacks `VERCEL_TOKEN`.
+
 **UX follow-up (2026-09-06):** the deployed cleanup removes the extra HTML status strip,
 fixes WASM title-bar padding and macOS Option shortcuts, bundles a Nerd Font plus
 Dockerfile/HTML/TOML syntax, and makes new clones fetch full history. See
 [current validation and publication state](docs/status/ux-cleanup.md); these
 changes are live for new workspaces. Existing workspaces keep their old editor
 until explicitly rebuilt; the owner's was not changed. The new manual release
-CI is written and locally validated, but still needs source publication and
-GitHub environment secrets before its first remote run. Multiplayer/P2P was investigated in
-[the new brief](docs/briefs/multiplayer.md), not implemented. Preserve the
-running owner's workspace and do not remove single-client guards as a shortcut.
+CI is pushed (`a442675` in the app, fork `a1f0292686`) and its
+[first build-only run passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327),
+including native/WASM artifacts and production browser smoke. The `production`
+environment exists and its public Blob secret is set; `VERCEL_TOKEN` remains
+an owner setup step. That run did not deploy. The multiplayer implementation and
+new greenfield direction above supersede the earlier single-client plan.
 
 **Production deployment (2026-09-06 UTC):** the owner authorized deployment and
 completed DNS. [code.purduehackers.com](https://code.purduehackers.com) is live
@@ -17,7 +30,7 @@ on Vercel, backed by real Vercel Sandboxes, Drizzle/Turso and private Blob stora
 Public GitHub clone, browser save and stop/resume persistence passed live.
 See [deployment results](docs/status/deployment.md) for exact artifacts, evidence
 and remaining unverified cases. This supersedes the historical cloud blockers
-below. Deployment build/configuration fixes are local and **not yet pushed**;
+below. Deployment build/configuration fixes are now pushed in `a442675`;
 the deployed CLI upload includes the required root package-manager metadata and
 pnpm-hook upload exception. The owner's original local workspace was untouched.
 

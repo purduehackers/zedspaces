@@ -35,8 +35,8 @@ export type ZsBootErrorCode =
   | "settings"
   | "connect_failed"
   // b7's legacy close-code names.
-  | "session_busy"
-  | "taken_over"
+  | "connection_replaced"
+  | "rejoin_required"
   | "incompatible_server"
   | "server_stopping"
   | "unauthorized"
@@ -44,7 +44,6 @@ export type ZsBootErrorCode =
   // D23 `close_code_detail` names (4001, 4002, 4005, 4006, 1001).
   | "superseded"
   | "build_mismatch"
-  | "session_active"
   | "bad_hello"
   | "going_away"
   | "reconnect_exhausted"
@@ -64,7 +63,6 @@ export interface ZsConnectInfo {
   token: string;
   /** Fresh `con_…` on every `/connect`; informational (D1). */
   sessionId: string;
-  takeover?: boolean;
   serverBuild?: string;
   /** ISO 8601. */
   sessionExpiresAt?: string;

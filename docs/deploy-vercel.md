@@ -38,36 +38,43 @@ tests only; enable **deploy** to publish to the existing project/domain. The
 pipeline follows [wack-hacker's release pattern](https://github.com/purduehackers/wack-hacker/blob/main/.github/workflows/image.yml):
 one release at a time, immutable images, checks before promotion, and a release record.
 
-Before the first run, push the Zed fork changes and update the app's submodule
-pin. Create the GitHub `production` environment and configure two secrets:
+The source is pushed and the `production` environment is restricted to `main`.
+It needs two environment secrets:
 
 - `VERCEL_TOKEN`: a token authorized for the existing Purdue Hackers project/VCR.
 - `EDITOR_ASSETS_READ_WRITE_TOKEN`: the **public editor-assets** Blob store's
   token, not the private rebuild store token.
+
+The Blob token is configured. `VERCEL_TOKEN` still needs to be added in GitHub;
+the local Vercel CLI credential cannot create this token through its API.
 
 Use environment reviewers if deployment approval is desired; naming an
 environment alone does not enforce review. Project/team IDs are pinned in the
 workflow. An optional `ZS_BUILD_RUNNER` repository variable selects a larger
 Linux x64 runner; the default is `ubuntu-24.04` with two Cargo jobs.
 
-CI runs web/supervisor checks, builds matching production WASM and Linux server
-artifacts with separate Rust caches, then runs the production browser smoke
-tests. Deployment builds the OCI/zstd image, checks it locally and in a real
-temporary Sandbox, checks Turso read-only, checksum-verifies public assets, and
-deploys from the repository root. It retains old bundles and does not rebuild
-existing workspaces. Failed deployment restores the previous project pins;
+CI runs web/supervisor checks and the full Chromium suite (including multiplayer),
+builds matching production WASM and Linux server artifacts with separate Rust
+caches, then runs production browser smoke tests. Deployment builds the OCI/zstd image, checks it locally and in a real
+temporary Sandbox, applies pending Drizzle migrations and checks Turso, checksum-verifies public assets, and
+deploys from the repository root. Releases publish only the current bundle;
+there is no old-editor compatibility mode. Recreate workspaces after a breaking
+release. Failed deployment restores the previous project pins;
 the release record identifies the image/build and previous settings for recovery.
 The native/WASM artifacts are retained for 14 days, release records for 90 days.
 
 `vercel.ts` disables independent Git-triggered deployments so a push cannot
 bypass the matching-artifact pipeline. PR checks have no production secrets.
-No migrations are applied automatically. Full local browser E2E remains nightly
+Build-only runs never migrate or deploy. A deployment explicitly applies pending
+migrations. Restoring project pins does not undo a database migration.
+Full local browser E2E remains nightly
 or manually selectable in the `web` workflow; the release gate uses the smaller
 production smoke suite. First builds are cold; subsequent runs reuse caches.
 
-These workflows are authored and locally validated; they are not active until
-the source is pushed and the secrets are configured. A remote Actions run has
-not yet been performed.
+The [first build-only run passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327):
+web/supervisor checks, production WASM, Linux server, and production browser smoke.
+It used app `a442675` and fork `a1f0292686`. Deployment was skipped by request;
+the remote publishing/deployment lane is not yet verified.
 
 ## Matching artifacts
 
@@ -93,7 +100,7 @@ contain this server and the updated `zs-agent` (empty GitHub credentials).
 
 Host the packaged `editor/` directory without authentication. Configure
 `ZS_EDITOR_BUNDLE_SOURCE` to its parent URL, **not** the `/editor` URL, and
-`ZS_EDITOR_BUNDLES=0641c4c48-dd4fda5d,c3cf80c0d-db30d12a` (retain older builds still in use).
+`ZS_EDITOR_BUNDLES=<current-build>` and `ZS_EDITOR_BUNDLES_KEEP=1`.
 Vercel's prebuild downloads the bundle; WASM is not compiled during deployment.
 Local test assets and `.zs-dev` state are excluded from CLI uploads.
 

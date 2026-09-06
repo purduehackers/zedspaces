@@ -1,6 +1,6 @@
 # UX cleanup — 2026-09-06
 
-**Published to Vercel; source not committed or pushed.** Production is
+**Published to Vercel; source now pushed in app `a442675` / fork `a1f0292686`.** Production is
 `dpl_Erxk22dfUtWZJRC27T18nRW9vXi1` at code.purduehackers.com. New workspaces use
 `0641c4c48-dd4fda5d`; existing workspaces keep their pinned images/bundles until
 explicitly rebuilt. The owner's cloud workspace and original local server
@@ -76,7 +76,10 @@ environment. The old independent image-publishing lane was removed. Docker's
 build ID argument now comes after the expensive install layers (a cache-only
 change made after the published image build finished). See the short setup
 section in [deploy-vercel.md](../deploy-vercel.md). No GitHub Actions run, secret
-configuration, commit or push was performed. Local validation: actionlint,
+configuration, commit or push had been performed at that checkpoint. Follow-up:
+both repos are now pushed; the production environment/Blob secret are configured,
+and [build-only Actions passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327).
+`VERCEL_TOKEN` is still missing; deploy was skipped. Local validation: actionlint,
 ShellCheck, Dockerfile check, typecheck/lint, 399 unit tests (one skipped), and
 an isolated production build (44 traces, largest 14.7 MiB).
 

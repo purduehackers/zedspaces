@@ -65,9 +65,9 @@ describe("browser WASM trap diagnostics", () => {
     expect(log.errors).toHaveLength(2);
   });
 
-  it("records ordinary errors without mistaking a normal takeover for a WASM trap", async () => {
+  it("records connection replacement without mistaking it for a WASM trap", async () => {
     const { events, log } = watchedPage();
-    events.emit("console", { type: () => "error", text: () => "remote session ended because another client is attached to it" });
+    events.emit("console", { type: () => "error", text: () => "remote connection replaced by participant reload" });
     events.emit("pageerror", new Error("fetch failed"));
     expect(log.errors).toHaveLength(2);
     expect(log.firstPanic).toBeNull();

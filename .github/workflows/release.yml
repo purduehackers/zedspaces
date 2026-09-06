@@ -27,6 +27,8 @@ jobs:
   web:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/web.yml
+    with:
+      browser_e2e: true
   supervisor:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/sandbox-image.yml
@@ -47,7 +49,7 @@ jobs:
           echo "build=${zed_sha:0:9}-${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
   build:
-    needs: [identity, web, supervisor]
+    needs: [identity]
     runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 180
     strategy:
@@ -118,7 +120,7 @@ jobs:
 
   deploy:
     if: inputs.deploy && github.ref == 'refs/heads/main'
-    needs: [identity, smoke]
+    needs: [identity, smoke, web, supervisor]
     runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 90
     environment:
@@ -161,10 +163,10 @@ jobs:
           ref=$(jq -r '.tag | split(":")[0]' sandbox/image/dist/image.json)@$(jq -r .digest sandbox/image/dist/image.json)
           docker pull "$ref"
           sandbox/image/test/run-local.sh --image "$ref" --only-image --container zs-release-image-check
-      - name: Check Turso, boot the image, publish verified editor assets
+      - name: Migrate Turso, boot the image, publish verified editor assets
         working-directory: apps/web
         run: |
-          node --env-file=../../.env.production.local --import tsx scripts/check-remote-db.ts
+          node --env-file=../../.env.production.local --import tsx scripts/check-remote-db.ts --migrate
           pnpm editor:pack "$ZS_BUILD_ID" "$RUNNER_TEMP/editor-delivery"
           node --env-file=../../.env.production.local --import tsx scripts/release.ts publish "$ZS_BUILD_ID" "$RUNNER_TEMP/editor-delivery"
       - name: Pin the matching release

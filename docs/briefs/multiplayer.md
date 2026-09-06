@@ -1,70 +1,62 @@
-# Multiplayer: reuse Zed, keep the sandbox as host
+# Multiplayer: the sandbox hosts Zed's shared project
 
-Investigation, 2026-09-06. **Not implemented.** This proposes a new lane; the
-single-client safety rules remain in effect until the replacement is tested.
+Implemented in source, 2026-09-06; not yet deployed. The owner explicitly chose
+a breaking replacement, with no single-editor mode or old-build compatibility.
 
-Zed already supplies the hard editing machinery: replica-tagged operations in
-`zed/crates/text`, `BufferStore::handle_update_buffer` and per-peer buffer
-snapshots in `project/src/buffer_store.rs`, and the `JoinProject`,
-`AddProjectCollaborator`, `UpdateBuffer` and worktree protocols. Its collaboration
-join path assigns a unique replica and tracks collaborators. Reuse these, not a
-second CRDT or filesystem-watcher-based synchronization scheme.
+Validated locally: the full Chromium suite passes (19/19), including first-run
+terminal working directories, saved dock layout, dirty stop/resume, crash recovery
+and deletion. Layout restoration and the two-browser case pass on Chromium,
+Firefox and WebKit: concurrent edits, cursors,
+isolated terminal streams, warm reconnect, dirty reload/stop/resume, later-returning
+stale drafts, and continued editing/saving after another tab closes. App checks:
+395 unit tests, six workflow integration tests, lint, typecheck and the production
+web build passed. Rust:
+215 server, 69 remote, three proto and 41 web-core unit tests passed, including the
+saved-version recovery regression and required participant isolation. Production CI
+and a live multiplayer deployment are not yet verified.
 
-Why takeover cannot just be deleted:
+Evidence: `apps/web/.zs-dev/mp-browser-full-3.log` (19/19),
+`mp-browser-cross-2.log` (Firefox/WebKit layout passed; its WebKit multiplayer case
+exposed a fixture autosave), and `mp-browser-cross-3.log` (3/3 multiplayer with
+explicit test-user autosave off and unchanged-disk assertions). The final test
+bundle is `dev-multiplayer-final-test`; the native binary is
+`zed/target/zs-multiplayer-20260906/server-13`. `mp-rust-tests-8.log` and
+`mp-webcore-tests-9.log` record the Rust passes. Optional native subprocess tests
+guarded by `ZED_RUN_SERVE_INTEGRATION` were not run. The fork implementation is
+published as `648cf2f801`; the app and release-gate changes accompany this revision.
+Multiplayer has not been deployed.
 
-- `apps/web/lib/connect.ts` arbitrates one holder; `schema.ts` enforces one open
-  session per workspace with `sessions_open_idx`.
-- `remote_server/src/serve/session.rs::SessionBroker` owns one connection, epoch,
-  replay queue and watermark.
-- `HeadlessProject` uses one RPC session and `REMOTE_SERVER_PEER_ID`.
-  `reset_for_new_client` discards buffers/worktrees; a participant joining must
-  not reset the project. Its buffer-event forwarding sends only locally
-  generated operations, not edits received from another browser.
-- `Project::replica_id` gives every remote-development client the same
-  `ReplicaId::REMOTE_SERVER`; concurrent editors need distinct IDs.
-- `remote_server/src/client_state.rs` stores one layout database per workspace.
-  `title_bar/src/collab_web.rs` currently omits collaborator UI entirely.
+- Each signed anonymous participant gets a Zed replica ID, independent RPC
+  sequence/replay broker, and saved layout. Identity survives reload and stop/resume.
+- One sandbox-owned HeadlessProject holds buffers, worktrees, Git and language
+  servers. It forwards Zed CRDT text/selection operations and participant presence.
+  Closing the first tab does not reset or terminate the shared project.
+- Terminals are participant-owned: output, input, resize and attachment are routed
+  to that participant. They are not shared terminals or a permission boundary;
+  everyone still has access to the same sandbox filesystem and processes.
+- Both editor-tab restoration and stopping snapshots ask the server to restore
+  dirty text atomically. An older draft cannot overwrite newer edits or saves;
+  conflicting drafts become adjacent `.zedspaces-recovered-<uuid>.txt` files.
+- Drizzle's open-session index is `(workspace_id, holder_tab_id)`. No extra
+  participant database, login, feature flag, singleton broker, takeover handshake
+  or UI. The handshake requires a replica ID; client state requires a registered peer.
+- The release workflow gates deployment on the full Chromium suite, including
+  the two-participant lifecycle case, plus production client/server smoke.
 
-Recommended implementation order:
+## Bounds and remaining limits
 
-1. Build a sandbox-owned project hub with per-peer RPC routing, replica IDs,
-   snapshots and operation broadcasts, reusing Zed's existing protocol and merge
-   code. The VM is the host, so closing the first tab cannot end collaboration.
-2. Add anonymous participant identity (stable browser ID, display name/color),
-   separate connection IDs and reconnect queues. Scope saved layouts to each
-   participant. Keep internal signed tokens, origin checks and rate limits.
-3. Change the Drizzle/Turso session index and arbitration to permit participants;
-   retain same-tab reconnection and expire only the connection that leaves.
-   Any active participant keeps the VM alive. Restore Zed's cursor/selection
-   presence and a small participant list, without calls or screen sharing.
-4. Keep repository, buffers and language servers shared. Default to separately
-   owned terminals/layouts; terminal sharing can be a later explicit action.
-   All participants still have the existing shared workspace's permissions.
+The VM accepts 32 distinct tab identities over its lifetime; restarting it resets
+that count. Each peer's replay is bounded to 4,096 envelopes / 16 MiB. Overflow
+requires an explicit fresh join instead of silently reloading unsynced edits.
+Dirty buffers stay in the running VM; stop recovery also depends on the browser
+snapshot flush. Continuous server-side journaling of unsaved text is not implemented,
+so closing every tab before a later idle stop is not a durability guarantee.
 
-First acceptance gate: two browsers concurrently edit the same buffer, observe
-each other's edits/cursors, save identical expected text, and independently
-reload/reconnect without takeover or losing dirty edits. Then cover a slow peer,
-duplicate/replayed operations, joins during edits, terminal ownership and
-stop/resume persistence. Do not ship by weakening the current singleton check.
+Names are anonymous Guest numbers, assigned for that VM lifetime. There is no
+follow-user mode, terminal sharing, voice/video, private collaboration or access
+control. Existing old editor generations must be recreated after the breaking
+release; release manifests contain only the current bundle.
 
-The complete upstream `collab` service is not a drop-in fit: its production
-dependencies include SeaORM/SQLx Postgres and LiveKit. The
-[hosted collaboration UI also requires sign-in](https://zed.dev/docs/collaboration/overview).
-Keep the existing Vercel Sandbox + Drizzle/Turso architecture; adapt the useful
-project protocol instead of adding that account/channel/call stack.
-
-## WebRTC / P2P option
-
-WebRTC data channels can carry the same Zed operations; the CRDT does not require
-WebSockets. However, P2P still needs
-[signaling and ICE/STUN/TURN connectivity](https://webrtc.org/getting-started/peer-connections),
-plus participant IDs, initial snapshots, replay and recovery. It does not fix
-the single-replica and single-session assumptions above. A browser-hosted star
-also needs host transfer when that tab closes; a mesh adds per-peer connections.
-
-For the first version, relay operations over each browser's existing WebSocket
-to the sandbox. Files, Git, language servers and terminals already live there,
-so the VM must receive edits anyway. This recommendation is an architectural
-tradeoff, not a claim that WebRTC cannot work. Consider P2P later if measured
-edit latency warrants a direct fast path, or for optional voice/video; keep the
-sandbox authoritative for project services and persistence in either design.
+WebRTC is not needed for this version: files, terminals and language servers
+already live in the sandbox, and Zed's CRDT works over the existing WebSockets.
+No upstream hosted collab service, LiveKit, Postgres or second CRDT was added.

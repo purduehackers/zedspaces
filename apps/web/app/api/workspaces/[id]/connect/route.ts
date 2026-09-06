@@ -99,7 +99,7 @@ export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
     probe = liveness.probe;
   }
 
-  return connectRunning(live, probe, viewer.userId, input.tabId, input.takeover, input.clientBuild ?? null);
+  return connectRunning(live, probe, viewer.userId, input.tabId, input.clientBuild ?? null);
 });
 
 /** The supervisor answers but is not ready: the sandbox is alive, the client retries. */
@@ -154,7 +154,6 @@ async function connectRunning(
   probe: HealthProbe | null,
   userId: string,
   tabId: string,
-  takeover: boolean,
   clientBuild: string | null,
 ): Promise<Response> {
   const host = workspace.currentWsHost;
@@ -162,13 +161,12 @@ async function connectRunning(
     throw new ApiError(500, "sandbox_unhealthy", "The workspace has no live sandbox session");
   }
 
-  const { session } = await openOrReuseSession(workspace, {
+  const session = await openOrReuseSession(workspace, {
     userId,
     tabId,
     host,
     clientBuild,
     serverBuild: probe.build ?? workspace.serverBuild,
-    takeover,
   });
   return json(await mintConnectInfo(workspace, session));
 }

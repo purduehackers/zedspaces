@@ -128,7 +128,6 @@ export type PatchWorkspaceInput = z.infer<typeof patchWorkspaceInput>;
 
 /** `POST /api/workspaces/{id}/connect` body. */
 export const connectInput = z.object({
-  takeover: z.boolean().default(false),
   clientBuild: z.string().optional(),
   reason: z.enum(["open", "reconnect", "resume"]).default("open"),
   tabId: z.string().min(8).max(64),

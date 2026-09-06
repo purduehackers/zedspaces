@@ -15,8 +15,6 @@ export type ShellPhase =
   | { kind: "ready" }
   | { kind: "reconnecting"; attempt: number }
   | { kind: "stopped"; reason: StopReason }
-  | { kind: "takeover-required" }
-  | { kind: "taken-over" }
   | { kind: "restarting"; secondsLeft: number }
   | { kind: "unsupported-browser" }
   | { kind: "error"; message: string; retryable: boolean; code?: string };
@@ -96,20 +94,15 @@ function errorPhase(code: string, fallback: string): ShellPhase {
 
 /**
  * Maps a `stopped` progress event (or a `start()` rejection, which is handled
- * identically) to a transition. `detail` is a `close_code_detail` name — the
- * D23 vocabulary (`superseded` 4001, `build_mismatch` 4002, `unauthorized`
- * 4003, `session_active` 4005, `bad_hello` 4006, `going_away` 1001) and b7's
- * legacy names for the same codes are both accepted; the numeric close code
- * never reaches this function (`onClosed` is telemetry only).
+ * identically) to a transition. `detail` is the WASM close-detail name;
+ * `onClosed` reports numeric close codes only for telemetry.
  */
 export function transitionForBootFailure(code: string, hint?: { stopReason?: StopReason }): ShellTransition {
   switch (code) {
-    case "taken_over":
-    case "superseded":
-      return { phase: { kind: "taken-over" } };
-    case "session_busy":
-    case "session_active":
-      return { phase: { kind: "takeover-required" } };
+    case "rejoin_required":
+      return { phase: { kind: "error", code, message: "This connection needs a fresh snapshot. Copy any unsynced edits before reloading.", retryable: false } };
+    case "connection_replaced":
+      return { phase: { kind: "error", code, message: "This tab reconnected elsewhere. Reload to join again.", retryable: false } };
     case "incompatible_server":
     case "build_mismatch":
     case "bad_hello":

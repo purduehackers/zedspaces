@@ -88,6 +88,28 @@ afterEach(() => {
 });
 
 describe("POST /api/workspaces/{id}/connect", () => {
+  it("admits independent collaborative tabs and signs stable, distinct participant identities", async () => {
+    const ws = await runningWorkspace();
+    const connect = async (tabId: string) => {
+      const response = await POST(req("POST", "/c", { body: { tabId } }), ctx({ id: ws.id }));
+      expect(response.status).toBe(200);
+      return decodeJwt((await jsonBody<ConnectInfo>(response)).token);
+    };
+    const first = await connect("tab-aaaaaaaa");
+    const second = await connect("tab-bbbbbbbb");
+    const reload = await connect("tab-aaaaaaaa");
+    expect(first.pid).toMatch(/^p_[a-f0-9]{32}$/);
+    expect(second.pid).not.toBe(first.pid);
+    expect(reload.pid).toBe(first.pid);
+    expect(reload.sid).not.toBe(first.sid);
+    const open = await db.select().from(sessions).where(and(eq(sessions.workspaceId, ws.id), isNull(sessions.endedAt)));
+    expect(open).toHaveLength(2);
+    expect(open.map(row => row.holderTabId).sort()).toEqual(["tab-aaaaaaaa", "tab-bbbbbbbb"]);
+    // Closing the VM's session ledger on stop does not change a tab's layout identity.
+    await db.update(sessions).set({ endedAt: new Date(), endReason: "stop" }).where(eq(sessions.workspaceId, ws.id));
+    expect((await connect("tab-aaaaaaaa")).pid).toBe(first.pid);
+  });
+
   it("mints a fresh per-connect session id whose claims name the workspace", async () => {
     const ws = await runningWorkspace();
     const res = await POST(
@@ -132,45 +154,7 @@ describe("POST /api/workspaces/{id}/connect", () => {
     expect(rows[0].tokensMinted).toBe(2);
   });
 
-  it("reuses the session for the same tab and refuses a second tab without takeover", async () => {
-    const ws = await runningWorkspace();
-    await POST(req("POST", "/c", { body: { ...tab } }), ctx({ id: ws.id }));
 
-    const sameTab = await POST(req("POST", "/c", { body: { ...tab } }), ctx({ id: ws.id }));
-    expect(sameTab.status).toBe(200);
-
-    const otherTab = await POST(req("POST", "/c", { body: { tabId: "tab-bbbbbbbb" } }), ctx({ id: ws.id }));
-    expect(otherTab.status).toBe(409);
-    expect((await errorBody(otherTab)).code).toBe("session_active");
-  });
-
-  it("takes the session over and closes the previous holder's row", async () => {
-    await db.insert(orgs).values({ id: "org_1", slug: "acme", name: "Acme" });
-    await db.insert(memberships).values([
-      { orgId: "org_1", userId: SEED.userId, role: "owner" },
-      { orgId: "org_1", userId: SEED.otherUserId, role: "admin" },
-    ]);
-    const ws = await runningWorkspace({ orgId: "org_1" });
-    await POST(req("POST", "/c", { body: { ...tab } }), ctx({ id: ws.id }));
-    const [first] = await db.select().from(sessions).where(eq(sessions.workspaceId, ws.id));
-
-    setViewer(SEED.otherUserId);
-    const res = await POST(
-      req("POST", "/c", { body: { tabId: "tab-bbbbbbbb", takeover: true } }),
-      ctx({ id: ws.id }),
-    );
-    expect(res.status).toBe(200);
-
-    const [closed] = await db.select().from(sessions).where(eq(sessions.id, first.id));
-    expect(closed.endReason).toBe("takeover");
-    expect(closed.endedAt).not.toBeNull();
-    const open = await db
-      .select()
-      .from(sessions)
-      .where(and(eq(sessions.workspaceId, ws.id), isNull(sessions.endedAt)));
-    expect(open).toHaveLength(1);
-    expect(open[0].userId).toBe(SEED.otherUserId);
-  });
 
   it("refuses a client build that does not match the workspace's bundle", async () => {
     const ws = await runningWorkspace();
@@ -189,7 +173,7 @@ describe("POST /api/workspaces/{id}/connect", () => {
     const ok = await POST(req("POST", "/c", { body: { ...tab, clientBuild: "older-1" } }), ctx({ id: older.id }));
     expect(ok.status).toBe(200);
     const dev = await POST(
-      req("POST", "/c", { body: { tabId: "tab-devdevdev", clientBuild: "dev-local", takeover: true } }),
+      req("POST", "/c", { body: { tabId: "tab-devdevdev", clientBuild: "dev-local" } }),
       ctx({ id: older.id }),
     );
     expect(dev.status).toBe(200);
@@ -203,7 +187,7 @@ describe("POST /api/workspaces/{id}/connect", () => {
     ]);
     const ws = await runningWorkspace({ orgId: "org_1" });
     setViewer(SEED.otherUserId);
-    const res = await POST(req("POST", "/c", { body: { tabId: "tab-bbbbbbbb", takeover: true } }), ctx({ id: ws.id }));
+    const res = await POST(req("POST", "/c", { body: { tabId: "tab-bbbbbbbb" } }), ctx({ id: ws.id }));
     expect(res.status).toBe(200);
     expect((await res.json()).workspaceId).toBe(ws.id);
   });

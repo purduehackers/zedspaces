@@ -20,6 +20,8 @@ export interface SessionClaims extends JWTPayload {
   ws: string;
   /** Per-connect id `con_…` – informational (D1). */
   sid: string;
+  /** Signed participant identity, required by the sandbox RPC listener. */
+  pid?: string;
   aud: string;
   iat: number;
   exp: number;
@@ -146,6 +148,7 @@ export interface MintInput {
   workspaceId: string;
   /** The per-connect `con_…` id (D1). */
   sessionId: string;
+  participantId?: string;
   audience: string;
   /** Default and maximum 3600. */
   ttlSeconds?: number;
@@ -170,7 +173,7 @@ export async function mintSessionToken(input: MintInput, keys?: SigningKeys): Pr
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + ttl;
   const jti = newJti();
-  const token = await new SignJWT({ ws: input.workspaceId, sid: input.sessionId })
+  const token = await new SignJWT({ ws: input.workspaceId, sid: input.sessionId, ...(input.participantId ? { pid: input.participantId } : {}) })
     .setProtectedHeader({ alg: "ES256", typ: "JWT", kid: signing.active.kid })
     .setIssuer(signing.issuer)
     .setSubject(input.userId)

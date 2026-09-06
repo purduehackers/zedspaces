@@ -99,6 +99,8 @@ regex_escape() { printf '%s' "$1" | sed 's/[][\\.*^$+?(){}|]/\\&/g'; }
 SERVE_STASH="$ZED_DIR/target/zs-local/zed-remote-server"
 # A browser run must not replace the binary a developer's local workspaces resume with.
 [ "$MODE" != browser ] || SERVE_STASH="$ZED_DIR/target/zs-browser/zed-remote-server"
+# A feature test can use its own build without replacing either shared stash.
+SERVE_STASH="${ZS_SERVE_BIN:-$SERVE_STASH}"
 serve_bin() {
   if [ -x "$SERVE_STASH" ]; then
     echo "$SERVE_STASH"

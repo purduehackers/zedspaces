@@ -1,21 +1,4 @@
-/**
- * Session lifecycle in the browser (BUILD-SPEC 13 "take over from a second
- * tab", "stop and resume", the chaos case "kill the server mid-edit",
- * "delete"), one workspace shared by the serial cases below:
- *
- *  1. a second tab takes the workspace over and the first shows `taken-over`
- *     with the 4001 close frame the product names `taken_over` (CONTRACTS
- *     §8.4's spelling of D23's `superseded`);
- *  2. a stop through the API with a dirty buffer and a terminal open, then a
- *     resume: the server closes 1001 (`server_stopping`), the unsaved text
- *     comes back dirty (D6) and the terminal tab is recreated in its working
- *     directory (D28);
- *  3. the sandbox's processes are killed under a `running` row: `/connect`
- *     reconciles the row to `stopped` instead of answering `sandbox_unhealthy`
- *     for ever, and an explicit open resumes it (bug (a));
- *  4. the workspace is deleted: `DELETE` is accepted, the row goes away and
- *     the connect route refuses it.
- */
+/** Shared-session lifecycle: join, dirty stop/resume, crash recovery, and deletion. */
 import fs from "node:fs";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import {
@@ -72,42 +55,20 @@ test.afterAll(async () => {
   fixture?.remove();
 });
 
-test("a second tab takes the workspace over; the first is superseded (4001, taken_over)", async ({ browser }) => {
+test.afterEach(async ({}, info) => {
+  for (const [index, peer] of [first, second].entries()) {
+    if (!peer) continue;
+    await info.attach(`peer-${index}-console`, { body: peer.log.console.join("\n"), contentType: "text/plain" });
+    await info.attach(`peer-${index}-errors`, { body: peer.log.errors.join("\n"), contentType: "text/plain" });
+  }
+});
+
+test("a second tab joins without replacing the first", async ({ browser }) => {
   const context = await browser.newContext();
-  const page = await context.newPage();
-  const pageLog = watchPage(page);
-  second = { context, page, log: pageLog };
-  await page.goto(`/w/${workspace.id}`);
-  await expect(page.locator('[data-zs="overlay"]')).toHaveAttribute("data-phase", "takeover-required", { timeout: 120_000 });
-
-  // `reconnect({ takeover: true })` writes its intent and reloads. `reload()` returns before
-  // the new document commits, so the wait is stamped with the outgoing document's time origin:
-  // without that it could be satisfied by the page being replaced.
-  const beforeTakeover = await documentStamp(page);
-  await page.getByRole("button", { name: "Take over" }).click();
-  await waitForHooks(page, 180_000, pageLog, beforeTakeover);
-  await untilOrPanic(hooks(page).waitIdle(), pageLog);
-  expect(await overlayPhase(page)).toBe("ready");
-
-  await expect(first.page.locator('[data-zs="overlay"]')).toHaveAttribute("data-phase", "taken-over", { timeout: 60_000 });
-  const state = await pollUntil(
-    async () => {
-      const s = await hooks(first.page).connectionState();
-      return s.closeCode !== null ? s : null;
-    },
-    "the first tab's close frame",
-    { timeoutMs: 30_000 },
-  );
-  expect(state.closeCode).toBe(4001);
-  // What the product reported, on both surfaces: the close frame's name and the `stopped` detail
-  // the shell was told (CONTRACTS §8.4 `taken_over`; the shell maps it to `taken-over`).
-  expect(state.closeDetail).toBe("taken_over");
-  expect(state.phase).toBe("stopped");
-  expect(state.detail).toBe("taken_over");
-  const events = await hooks(first.page).connectionEvents();
-  expect(events.filter((event) => event.kind === "disconnected")).toHaveLength(1);
-  expect(events.find((event) => event.kind === "disconnected")?.closeCode).toBe(4001);
-  log(`first tab: ${state.phase} ${state.detail} (close ${state.closeCode} ${state.closeReason})`);
+  second = { context, ...(await bootedPage(context)) };
+  await pollUntil(async () => (await hooks(first.page).collaborationStatus()).peers.length === 2, "both participants joined");
+  expect(await overlayPhase(first.page)).toBe("ready");
+  expect(await overlayPhase(second.page)).toBe("ready");
   await first.context.close();
 });
 
@@ -122,11 +83,12 @@ test("stop with a dirty buffer and a terminal; resume restores the text dirty an
 
   // D47 already opens a shell. Await panel initialization and that spawn before
   // adding the src shell, then capture every actual tab that the stop must persist.
-  await zs.workspaceLayout();
+  log(`second participant layout: ${JSON.stringify(await zs.workspaceLayout())}; terminals: ${JSON.stringify(await zs.terminals())}`);
   const initialTerminals = await pollUntil(async () => {
     const list = await zs.terminals();
     return list.length > 0 && ready(list) ? list : null;
   }, "the initial terminals to be ready", { timeoutMs: 60_000 });
+  expect(initialTerminals.map(entry => entry.cwd)).toEqual([workspaceDir]);
   const terminal = await zs.spawnTerminal(terminalCwd);
   expect(terminal.id).toMatch(/^\d+$/);
   expect(terminal.cwd).toBe(terminalCwd);
@@ -286,7 +248,6 @@ test("a running row over a dead sandbox is reconciled by /connect and resumed", 
   const again = await api<{ wsUrl?: string }>("POST", `/api/workspaces/${workspace.id}/connect`, {
     tabId: `e2e-reconcile-open-${Date.now()}`,
     reason: "open",
-    takeover: true,
   });
   expect(again.status, JSON.stringify(again.body)).toBe(200);
   expect(again.body.wsUrl).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/rpc$/);

@@ -128,6 +128,7 @@ export interface ZsTestHooks {
   bufferText(path: string): Promise<string>;
   bufferSyntax(path: string): Promise<{ language: string | null; highlightedChunks: number }>;
   commandPaletteVisible(): Promise<boolean>;
+  collaborationStatus(): Promise<{ replica: number; peers: number[]; remoteSelections: number }>;
   activeBufferText(): Promise<string>;
   insertText(text: string): Promise<boolean>;
   moveCursorEnd(): Promise<boolean>;
@@ -185,6 +186,7 @@ const HOOK_NAMES: HookName[] = [
   "bufferText",
   "bufferSyntax",
   "commandPaletteVisible",
+  "collaborationStatus",
   "activeBufferText",
   "insertText",
   "moveCursorEnd",
@@ -267,7 +269,7 @@ export async function untilOrPanic<T>(promise: Promise<T>, log: PageLog | undefi
 }
 
 /** Phases the shell never leaves on its own: waiting for the hooks past one of them is a hang. */
-const TERMINAL_PHASES = ["error", "takeover-required", "taken-over", "unsupported-browser", "stopped"];
+const TERMINAL_PHASES = ["error", "unsupported-browser", "stopped"];
 
 /**
  * `performance.timeOrigin` of the document currently loaded in `page`: the stamp
@@ -283,7 +285,7 @@ export async function documentStamp(page: Page): Promise<number> {
  * called `start()`); with `log`, a panic while waiting fails at once.
  *
  * `after` is a {@link documentStamp} taken before something that reloads the page (the shell's
- * `reconnect()`: takeover, resume): the wait then ignores the outgoing document, whose hooks are
+ * `reconnect()` on resume): the wait then ignores the outgoing document, whose hooks are
  * still installed until the navigation commits, so the caller's next hook call cannot land on the
  * page it just replaced.
  *

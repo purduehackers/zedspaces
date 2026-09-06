@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { ApiError } from "./api";
 import { dbReady, isUniqueViolation } from "./db";
@@ -23,35 +24,16 @@ export interface OpenSessionInput {
   host: string;
   clientBuild: string | null;
   serverBuild: string | null;
-  /** Close another holder's session instead of answering `409 session_active`. */
-  takeover: boolean;
-}
-
-/** Result of {@link openOrReuseSession}. */
-export interface OpenSessionResult {
-  session: Session;
-  /** The session that was closed to make room, when `takeover` was honoured. */
-  takenOver: Session | null;
-  /** True when the caller's own tab already held the session. */
-  reused: boolean;
 }
 
 /**
- * Opens (or reuses) the single open `sessions` row of a workspace generation.
- *
- * Same user and same `tabId` reuses the row silently — a page reload is not a
- * takeover. Another holder with `takeover` closes the previous row with
- * `end_reason: "takeover"`; without it the call throws
- * `ApiError(409, "session_active")` carrying the holder's start time.
- *
- * Two first connects racing past the `FOR UPDATE` (there is no row to lock
- * yet) collide on `sessions_open_idx`; the loser re-runs the arbitration once
- * and then sees the winner's row (b9 §3.18).
+ * Reuses a tab's session across reloads. Every tab joins the shared project.
+ * The partial unique index arbitrates racing first connects; retry sees its winner.
  */
 export async function openOrReuseSession(
   workspace: Workspace,
   input: OpenSessionInput,
-): Promise<OpenSessionResult> {
+): Promise<Session> {
   try {
     return await arbitrateSession(workspace, input);
   } catch (err) {
@@ -60,17 +42,16 @@ export async function openOrReuseSession(
   }
 }
 
-async function arbitrateSession(workspace: Workspace, input: OpenSessionInput): Promise<OpenSessionResult> {
+async function arbitrateSession(workspace: Workspace, input: OpenSessionInput): Promise<Session> {
   const db = await dbReady();
   return db.transaction(async (tx) => {
     const [open] = await tx
       .select()
       .from(sessions)
-      .where(and(eq(sessions.workspaceId, workspace.id), isNull(sessions.endedAt)));
+      .where(and(eq(sessions.workspaceId, workspace.id), eq(sessions.holderTabId, input.tabId), isNull(sessions.endedAt)));
 
     if (open) {
-      const sameTab = open.userId === input.userId && open.holderTabId === input.tabId;
-      if (sameTab && open.sandboxGeneration === workspace.sandboxGeneration) {
+      if (open.sandboxGeneration === workspace.sandboxGeneration) {
         const [refreshed] = await tx
           .update(sessions)
           .set({
@@ -81,24 +62,15 @@ async function arbitrateSession(workspace: Workspace, input: OpenSessionInput): 
           })
           .where(eq(sessions.id, open.id))
           .returning();
-        return { session: refreshed, takenOver: null, reused: true };
+        return refreshed;
       }
-      if (!input.takeover && !sameTab) {
-        throw new ApiError(409, "session_active", "Another tab is holding this workspace", {
-          holder: { startedAt: open.startedAt.toISOString() },
-        });
-      }
-      const [closed] = await tx
+      await tx
         .update(sessions)
-        .set({ endedAt: new Date(), endReason: sameTab ? "generation_changed" : "takeover" })
-        .where(eq(sessions.id, open.id))
-        .returning();
-      const session = await insertSession(tx, workspace, input);
-      return { session, takenOver: sameTab ? null : closed, reused: false };
+        .set({ endedAt: new Date(), endReason: "generation_changed" })
+        .where(eq(sessions.id, open.id));
     }
 
-    const session = await insertSession(tx, workspace, input);
-    return { session, takenOver: null, reused: false };
+    return insertSession(tx, workspace, input);
   });
 }
 
@@ -137,6 +109,7 @@ export async function mintConnectInfo(workspace: Workspace, session: Session): P
     workspaceId: workspace.id,
     sessionId,
     audience: workspace.audience,
+    participantId: `p_${createHash("sha256").update(`${session.userId}/${session.holderTabId}`).digest("hex").slice(0, 32)}`,
   });
   const db = await dbReady();
   await db

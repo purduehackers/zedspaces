@@ -182,7 +182,7 @@ async function startServer(origin: string): Promise<LocalServer | null> {
     await new Promise((r) => setTimeout(r, 100));
   }
   const now = Math.floor(Date.now() / 1000);
-  const token = await new SignJWT({ ws: workspaceId, sid: sessionId })
+  const token = await new SignJWT({ ws: workspaceId, sid: sessionId, pid: `p_${"0".repeat(32)}` })
     .setProtectedHeader({ alg: "ES256", typ: "JWT" })
     .setIssuer("zs")
     .setSubject("user_smoke")

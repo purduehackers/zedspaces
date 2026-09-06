@@ -50,9 +50,20 @@ bundle, not general browser extension installation.
 
 New clones fetch the selected branch's full history. An older shallow checkout
 can fetch its missing history with `git fetch --unshallow origin`.
-Multiplayer is [being explored using Zed's existing collaboration code](docs/briefs/multiplayer.md),
-but currently only one editor can hold a workspace. New workspaces use these
-defaults; existing workspaces keep their pinned editor until explicitly rebuilt.
+
+## Multiplayer
+
+The current source supports anonymous multiplayer: share a workspace's `/w/<id>`
+URL to edit together with live cursors and a small Guest roster. Zed's existing
+CRDT and project protocol run through the sandbox's WebSockets; there is no
+WebRTC signaling service, hosted Zed account, or second collaboration database.
+Files and language servers are shared; terminals and saved layouts belong to
+each tab. Closing the first tab does not end the project.
+
+This is a breaking replacement for single-editor sessions, not an optional mode.
+There is no takeover UI or old-editor compatibility path. Recreate workspaces
+after deploying the matching new client/server release. Multiplayer is **not yet
+deployed**; see [implementation and limits](docs/briefs/multiplayer.md).
 
 ## Development
 
@@ -114,8 +125,10 @@ before sharing this intentionally open, shared app.
 
 The **Release Zedspaces** Actions workflow builds matching browser/server
 artifacts and can publish the image, assets, and Vercel app in one manual run.
-See [CI setup and release checks](docs/deploy-vercel.md#ci-releases); the workflow
-still needs to be pushed and its production secrets configured before its first run.
+Its [first build-only run passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327),
+including both builds and production browser smoke tests. Publishing still needs
+the `production` environment's `VERCEL_TOKEN`; its public Blob token is configured.
+See [CI setup and release checks](docs/deploy-vercel.md#ci-releases).
 
 ## Source map
 

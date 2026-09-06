@@ -17,19 +17,15 @@ const recordPath = path.resolve("release-record.json");
 const required = (key: string): string => { const value = process.env[key]; assert.ok(value, `${key} is required`); return value; };
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-export function releaseValues(build: string, image: { build: string; tag: string; digest: string }, previousBuilds: unknown, repository: string): Values {
+export function releaseValues(build: string, image: { build: string; tag: string; digest: string }, repository: string): Values {
   assertServableBuild(assertBuildId(build), undefined, false);
   assert.ok(!/^dev/.test(build) && !build.endsWith("-names"), "Production build required");
   assert.match(repository, /^vcr\.vercel\.com\/[a-z0-9._-]+\/[a-z0-9._-]+\/zs-workspace$/);
   assert.equal(image.build, build, "Image and browser build must match");
   assert.equal(image.tag, `${repository}:${build}`);
   assert.match(image.digest, /^sha256:[a-f0-9]{64}$/);
-  assert.ok(Array.isArray(previousBuilds), "Existing manifest must contain a builds array");
-  for (const id of previousBuilds) { assert.equal(typeof id, "string"); assertServableBuild(assertBuildId(id), undefined, false); }
-  const builds = [...new Set([build, ...previousBuilds as string[]])];
-  // Never prune a bundle implicitly: a stopped workspace may still need it on resume.
   return { ZS_IMAGE_REF: `${repository}@${image.digest}`, ZS_CLIENT_BUILD_ID: build, ZS_SERVER_BUILD_ID: build,
-    ZS_EDITOR_BUNDLES: builds.join(","), ZS_EDITOR_BUNDLES_KEEP: String(builds.length) };
+    ZS_EDITOR_BUNDLES: build, ZS_EDITOR_BUNDLES_KEEP: "1" };
 }
 
 function api(endpoint: string, method = "GET", body?: unknown) {
@@ -51,10 +47,9 @@ async function publish(build: string, delivery: string) {
   const manifestUrl = new URL("editor/manifest.json", source).href;
   const response = await fetch(manifestUrl);
   assert.ok(response.ok || response.status === 404, `Manifest HTTP ${response.status}`);
-  const previousBuilds = response.ok ? (await response.json()).builds : [];
   const manifestHead = response.ok ? await head(manifestUrl, { token }) : null;
   const image = JSON.parse(fs.readFileSync("../../sandbox/image/dist/image.json", "utf8"));
-  const values = releaseValues(build, image, previousBuilds, repository);
+  const values = releaseValues(build, image, repository);
 
   // A ready registry digest still needs a real VM check. This VM is not an app workspace.
   const sandbox = await Sandbox.create({ image: values.ZS_IMAGE_REF, resources: { vcpus: 2 }, persistent: false, timeout: 5 * 60_000,
@@ -89,7 +84,7 @@ async function publish(build: string, delivery: string) {
   assert.ok(visible, "New manifest must be visible before deployment");
   const previous = Object.fromEntries(keys.map(key => [key, process.env[key] ?? null]));
   fs.writeFileSync(recordPath, JSON.stringify({ build, values, previous, assetSha256 }, null, 2) + "\n");
-  console.log(JSON.stringify({ build, image: values.ZS_IMAGE_REF, assetSha256, retainedBuilds: builds }));
+  console.log(JSON.stringify({ build, image: values.ZS_IMAGE_REF, assetSha256 }));
 }
 
 export function configure(record: RecordFile, restore: boolean, request = api) {
@@ -114,8 +109,8 @@ async function verify(record: RecordFile) {
     assert.equal(meta.build_id, build);
     assert.equal(meta.test_hooks, false);
   }
-  console.log(`Verified ${origin} and every retained production bundle.`);
-  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Zedspaces release\n\n- Live: ${origin}\n- Build: \`${record.build}\`\n- Image: \`${record.values.ZS_IMAGE_REF}\`\n- Existing workspaces retain their pinned images; rebuild them explicitly when ready.\n`);
+  console.log(`Verified ${origin} and the current production bundle.`);
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Zedspaces release\n\n- Live: ${origin}\n- Build: \`${record.build}\`\n- Image: \`${record.values.ZS_IMAGE_REF}\`\n- Recreate old workspaces after a breaking release.\n`);
 }
 
 async function main() {
