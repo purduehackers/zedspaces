@@ -27,50 +27,6 @@
   pointer-events: auto;
 }
 
-/* Top strip -------------------------------------------------------------- */
-
-.zs-strip {
-  position: fixed;
-  top: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 100%;
-  padding: 4px 10px;
-  border-bottom-left-radius: 8px;
-  border-left: 1px solid var(--zs-border);
-  border-bottom: 1px solid var(--zs-border);
-  background: color-mix(in srgb, var(--zs-panel) 88%, transparent);
-}
-
-.zs-strip__meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.zs-strip__name {
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.zs-strip__detail {
-  color: var(--zs-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.zs-strip__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 /* Buttons ---------------------------------------------------------------- */
 
 .zs-button {
@@ -98,11 +54,6 @@
 .zs-button--primary {
   border-color: var(--zs-accent);
   background: color-mix(in srgb, var(--zs-accent) 20%, transparent);
-}
-
-.zs-button--danger:hover:not(:disabled) {
-  border-color: var(--zs-danger);
-  color: var(--zs-danger);
 }
 
 /* Overlay ---------------------------------------------------------------- */

@@ -1,0 +1,194 @@
+name: Release Zedspaces
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Publish the verified image/assets and deploy code.purduehackers.com
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One client/server/image release at a time, including reruns. Never cancel a deployment midway.
+concurrency:
+  group: release-zedspaces
+  cancel-in-progress: false
+
+env:
+  CARGO_BUILD_JOBS: "2"
+  VERCEL_ORG_ID: team_kOQWJUQYzGW4blWthdK71Y8A
+  VERCEL_PROJECT_ID: prj_jDWaIkR311zy9BgsGQQps51w8LCh
+  VERCEL_TEAM_SLUG: purdue-hackers
+  VERCEL_PROJECT_SLUG: zedspaces
+
+jobs:
+  web:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/web.yml
+  supervisor:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/sandbox-image.yml
+
+  identity:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.id.outputs.build }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - id: id
+        run: |
+          zed_sha=$(git ls-tree HEAD zed | awk '{print $3}')
+          test "${#zed_sha}" -eq 40
+          echo "build=${zed_sha:0:9}-${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [identity, web, supervisor]
+    runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [server, browser]
+    env:
+      ZS_BUILD_ID: ${{ needs.identity.outputs.build }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: ./.github/actions/setup-zed
+        with:
+          cache-key: release-${{ matrix.target }}
+          wasm: ${{ matrix.target == 'browser' }}
+      - name: Build the matching Linux server
+        if: matrix.target == 'server'
+        run: sandbox/image/build-server.sh
+      - name: Build the production browser bundle
+        if: matrix.target == 'browser'
+        run: zed/script/build-web --build-id "$ZS_BUILD_ID" --out-dir ../apps/web/public/editor
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.target }}-${{ env.ZS_BUILD_ID }}
+          path: ${{ matrix.target == 'server' && 'sandbox/image/dist/zed-remote-server' || 'apps/web/public/editor' }}
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke:
+    needs: [identity, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ZS_SMOKE_BUILD: ${{ needs.identity.outputs.build }}
+      ZS_SMOKE_SERVER_BIN: ${{ github.workspace }}/sandbox/image/dist/zed-remote-server
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: ./.github/actions/setup-web
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: server-${{ needs.identity.outputs.build }}
+          path: sandbox/image/dist
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: browser-${{ needs.identity.outputs.build }}
+          path: apps/web/public/editor
+      - run: chmod 0755 sandbox/image/dist/zed-remote-server
+      - name: Refuse missing or test-only artifacts before Playwright can skip them
+        working-directory: apps/web
+        run: |
+          test -x "$ZS_SMOKE_SERVER_BIN"
+          pnpm exec tsx -e 'import assert from "node:assert/strict"; import {bundleProblems} from "./scripts/deploy-preflight"; assert.deepEqual(bundleProblems("public/editor", [process.env.ZS_SMOKE_BUILD!]), []);'
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: pnpm test:browser
+        working-directory: apps/web
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: production-smoke-${{ needs.identity.outputs.build }}
+          path: apps/web/test-results
+          retention-days: 14
+
+  deploy:
+    if: inputs.deploy && github.ref == 'refs/heads/main'
+    needs: [identity, smoke]
+    runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 90
+    environment:
+      name: production
+      url: https://code.purduehackers.com
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      EDITOR_ASSETS_READ_WRITE_TOKEN: ${{ secrets.EDITOR_ASSETS_READ_WRITE_TOKEN }}
+      ZS_BUILD_ID: ${{ needs.identity.outputs.build }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-web
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: server-${{ env.ZS_BUILD_ID }}
+          path: sandbox/image/dist
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: browser-${{ env.ZS_BUILD_ID }}
+          path: apps/web/public/editor
+      - name: Link the existing project
+        run: |
+          test -n "$VERCEL_TOKEN"
+          test -n "$EDITOR_ASSETS_READ_WRITE_TOKEN"
+          npm install -g vercel@59.11.1
+          vercel link --yes --project "$VERCEL_PROJECT_SLUG" --scope "$VERCEL_TEAM_SLUG"
+      - name: Pull release configuration without exposing it as an artifact
+        run: |
+          vercel env pull .env.production.local --environment=production --scope "$VERCEL_TEAM_SLUG"
+          chmod 600 .env.production.local
+          # shellcheck disable=SC2016
+          node --env-file=.env.production.local -e 'const ref=process.env.ZS_IMAGE_REF; if (!/^vcr\.vercel\.com\/purdue-hackers\/zedspaces\/zs-workspace@sha256:[a-f0-9]{64}$/.test(ref ?? "")) process.exit(1); console.log(`PREVIOUS_IMAGE=${ref}`)' >> "$GITHUB_ENV"
+      - name: Build and publish the immutable image
+        run: |
+          chmod 0755 sandbox/image/dist/zed-remote-server
+          sandbox/image/build.sh --engine docker --push -- --cache-to type=inline --cache-from "type=registry,ref=$PREVIOUS_IMAGE"
+          ref=$(jq -r '.tag | split(":")[0]' sandbox/image/dist/image.json)@$(jq -r .digest sandbox/image/dist/image.json)
+          docker pull "$ref"
+          sandbox/image/test/run-local.sh --image "$ref" --only-image --container zs-release-image-check
+      - name: Check Turso, boot the image, publish verified editor assets
+        working-directory: apps/web
+        run: |
+          node --env-file=../../.env.production.local --import tsx scripts/check-remote-db.ts
+          pnpm editor:pack "$ZS_BUILD_ID" "$RUNNER_TEMP/editor-delivery"
+          node --env-file=../../.env.production.local --import tsx scripts/release.ts publish "$ZS_BUILD_ID" "$RUNNER_TEMP/editor-delivery"
+      - name: Pin the matching release
+        id: pin
+        working-directory: apps/web
+        run: node --import tsx scripts/release.ts configure
+      - name: Deploy production from the repository root
+        id: deploy
+        run: vercel deploy --prod --yes --scope "$VERCEL_TEAM_SLUG" > deployment-url.txt
+      - name: Restore old configuration if deployment failed
+        if: failure() && (steps.pin.outcome == 'success' || steps.pin.outcome == 'failure') && steps.deploy.outcome != 'success'
+        working-directory: apps/web
+        run: node --import tsx scripts/release.ts restore
+      - name: Check the public deployment
+        working-directory: apps/web
+        run: node --import tsx scripts/release.ts verify
+      - name: Release record
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ env.ZS_BUILD_ID }}
+          path: |
+            apps/web/release-record.json
+            sandbox/image/dist/image.json
+            deployment-url.txt
+          if-no-files-found: warn
+          retention-days: 90

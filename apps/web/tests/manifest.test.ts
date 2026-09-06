@@ -99,14 +99,14 @@ describe("sandbox manifest", () => {
     expect(manifest.restore?.tarballUrl.startsWith("https://")).toBe(true);
   });
 
-  it("checks out the branch (depth 1) for a branch workspace and pins the sha for a revision one", async () => {
+  it("preserves full history for branch workspaces and pins revision workspaces", async () => {
     const sha = "a".repeat(40);
     const branch = await insertWorkspaceWithToken({ branch: "feature/x", revision: sha });
     const branchManifest = await buildManifest(
       await requireSandbox(request("/", { bearer: branch.token }), branch.workspace.sandboxName),
     );
     expect(branchManifest.repo.revision).toBe("feature/x");
-    expect(branchManifest.repo.depth).toBe(1);
+    expect(branchManifest.repo.depth).toBe(0);
     expect(branchManifest.repo.commit).toBe(sha);
     expect(branchManifest.repo.ref).toBeUndefined();
 

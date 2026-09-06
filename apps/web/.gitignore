@@ -21,6 +21,7 @@
 
 # production
 /build
+/release-record.json
 
 # misc
 .DS_Store

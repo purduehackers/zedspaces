@@ -46,6 +46,7 @@ export CC_x86_64_unknown_linux_musl="${CC_x86_64_unknown_linux_musl:-musl-gcc}"
 (
   cd "$root/zed"
   cargo --config .cargo/bundle-config.toml build \
+    --locked \
     --release \
     --target x86_64-unknown-linux-musl \
     --package remote_server \

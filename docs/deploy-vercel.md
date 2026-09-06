@@ -4,6 +4,9 @@ The application is intentionally shared and login-free. Anyone with the URL can
 operate every workspace and consume the team's Sandbox budget. Public GitHub
 cloning needs no GitHub token. Do not store personal secrets here.
 
+Production: [code.purduehackers.com](https://code.purduehackers.com).
+See [the measured deployment results](status/deployment.md).
+
 ## Required external setup (owner confirmation before doing it)
 
 - Vercel **Pro** project, root `apps/web`, Node 24. The minute sweep cron and
@@ -22,22 +25,65 @@ cloning needs no GitHub token. Do not store personal secrets here.
 Vercel's Sandbox SDK uses deployment OIDC automatically. GitHub OAuth/App
 credentials, Clerk, Postgres and Redis are not used. Turso, Vercel and internal
 session-signing credentials are still required.
+For CLI deployment, link and deploy from the **repository root**, retaining
+the configured `apps/web` root directory. Keep the root `package.json`: Vercel's
+`vercel.ts` compiler needs its Node/pnpm pin before it reads the app manifest.
+Both upload-ignore files explicitly retain `.pnpmfile.cjs`, which Vercel's
+default `.pnp*` exclusion otherwise hides.
+
+## CI releases
+
+Run **Release Zedspaces** in GitHub Actions on `main`. By default it builds and
+tests only; enable **deploy** to publish to the existing project/domain. The
+pipeline follows [wack-hacker's release pattern](https://github.com/purduehackers/wack-hacker/blob/main/.github/workflows/image.yml):
+one release at a time, immutable images, checks before promotion, and a release record.
+
+Before the first run, push the Zed fork changes and update the app's submodule
+pin. Create the GitHub `production` environment and configure two secrets:
+
+- `VERCEL_TOKEN`: a token authorized for the existing Purdue Hackers project/VCR.
+- `EDITOR_ASSETS_READ_WRITE_TOKEN`: the **public editor-assets** Blob store's
+  token, not the private rebuild store token.
+
+Use environment reviewers if deployment approval is desired; naming an
+environment alone does not enforce review. Project/team IDs are pinned in the
+workflow. An optional `ZS_BUILD_RUNNER` repository variable selects a larger
+Linux x64 runner; the default is `ubuntu-24.04` with two Cargo jobs.
+
+CI runs web/supervisor checks, builds matching production WASM and Linux server
+artifacts with separate Rust caches, then runs the production browser smoke
+tests. Deployment builds the OCI/zstd image, checks it locally and in a real
+temporary Sandbox, checks Turso read-only, checksum-verifies public assets, and
+deploys from the repository root. It retains old bundles and does not rebuild
+existing workspaces. Failed deployment restores the previous project pins;
+the release record identifies the image/build and previous settings for recovery.
+The native/WASM artifacts are retained for 14 days, release records for 90 days.
+
+`vercel.ts` disables independent Git-triggered deployments so a push cannot
+bypass the matching-artifact pipeline. PR checks have no production secrets.
+No migrations are applied automatically. Full local browser E2E remains nightly
+or manually selectable in the `web` workflow; the release gate uses the smaller
+production smoke suite. First builds are cold; subsequent runs reuse caches.
+
+These workflows are authored and locally validated; they are not active until
+the source is pushed and the secrets are configured. A remote Actions run has
+not yet been performed.
 
 ## Matching artifacts
 
-The current production client is `c3cf80c0d-db30d12a`. Build the pinned Zed
+The current production client is `0641c4c48-dd4fda5d`. Build the pinned Zed
 submodule for Linux with that **same** ID; a stock Zed release has no `serve` endpoint.
 
 ```sh
 # Repository root; local Docker build only, no GitHub or registry push.
-ZS_BUILD_ID=c3cf80c0d-db30d12a sandbox/image/build-server.sh --docker
+ZS_BUILD_ID=0641c4c48-dd4fda5d sandbox/image/build-server.sh --docker
 
 # After explicit registry/login approval: resolve/pin the base, then build/publish.
 # sandbox/image/build.sh --update-base
-# ZS_BUILD_ID=c3cf80c0d-db30d12a sandbox/image/build.sh --engine docker --push
+# ZS_BUILD_ID=0641c4c48-dd4fda5d sandbox/image/build.sh --engine docker --push
 
 cd apps/web
-pnpm editor:pack c3cf80c0d-db30d12a <new-output-directory>
+pnpm editor:pack 0641c4c48-dd4fda5d <new-output-directory>
 ```
 
 The image build scripts need VCR access even to pull the base image. Confirm
@@ -47,7 +93,7 @@ contain this server and the updated `zs-agent` (empty GitHub credentials).
 
 Host the packaged `editor/` directory without authentication. Configure
 `ZS_EDITOR_BUNDLE_SOURCE` to its parent URL, **not** the `/editor` URL, and
-`ZS_EDITOR_BUNDLES=c3cf80c0d-db30d12a` (plus older builds still in use).
+`ZS_EDITOR_BUNDLES=0641c4c48-dd4fda5d,c3cf80c0d-db30d12a` (retain older builds still in use).
 Vercel's prebuild downloads the bundle; WASM is not compiled during deployment.
 Local test assets and `.zs-dev` state are excluded from CLI uploads.
 

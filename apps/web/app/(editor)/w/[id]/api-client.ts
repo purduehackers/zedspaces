@@ -63,12 +63,6 @@ export async function keepAlive(workspaceId: string, deps?: ApiDeps): Promise<Ke
   return { keptAliveUntil: typeof body.keptAliveUntil === "string" ? body.keptAliveUntil : null };
 }
 
-/** "Stop" in the top strip: asks the control plane to stop the workspace. */
-export async function stopWorkspace(workspaceId: string, deps?: ApiDeps): Promise<void> {
-  const res = await post(workspaceId, "stop", {}, deps);
-  if (!res.ok) throw new Error((await apiErrorBody(res)).message);
-}
-
 /**
  * Re-mints the `zs_editor` cookie (every 6 h and after any `401`,
  * b9 §3.26 bullet 8). Returns false when the caller must sign in again.

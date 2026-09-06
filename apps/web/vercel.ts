@@ -9,6 +9,8 @@ import type { VercelConfig } from "@vercel/config/v1";
  */
 export const config: VercelConfig = {
   framework: "nextjs",
+  // Releases require a matching WASM bundle and VM image; Git pushes must not bypass CI.
+  git: { deploymentEnabled: false },
   crons: [
     { path: "/api/cron/sweep", schedule: "* * * * *" },
     { path: "/api/cron/gc", schedule: "17 3 * * *" },

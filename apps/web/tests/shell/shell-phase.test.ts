@@ -3,7 +3,6 @@ import {
   BOOT_STAGE_LABELS,
   bootProgressRatio,
   coversCanvas,
-  offersReconnect,
   transitionForBootFailure,
   transitionForBootProgress,
 } from "@/app/(editor)/w/[id]/shell-phase";
@@ -29,7 +28,6 @@ describe("shell phase mapping", () => {
     const transition = transitionForBootProgress("ready", "");
     expect(transition.phase).toEqual({ kind: "ready" });
     expect(coversCanvas(transition.phase)).toBe(false);
-    expect(offersReconnect(transition.phase)).toBe(false);
   });
 
   it("reconnecting_carries_the_attempt", () => {
@@ -41,7 +39,6 @@ describe("shell phase mapping", () => {
   it("taken_over_offers_take_back", () => {
     const transition = transitionForBootProgress("stopped", "taken_over");
     expect(transition.phase).toEqual({ kind: "taken-over" });
-    expect(offersReconnect(transition.phase)).toBe(true);
   });
 
   it("session_busy_asks_for_a_takeover", () => {
@@ -87,7 +84,6 @@ describe("shell phase mapping", () => {
   it("reconnect_exhausted_is_a_retryable_error", () => {
     const transition = transitionForBootProgress("stopped", "reconnect_exhausted");
     expect(transition.phase).toMatchObject({ kind: "error", retryable: true, code: "reconnect_exhausted" });
-    expect(offersReconnect(transition.phase)).toBe(true);
   });
 
   it("structural_failures_are_not_retryable", () => {

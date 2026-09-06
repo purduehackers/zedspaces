@@ -30,8 +30,8 @@
 # test-hooks bundle id (skips the dirty-tree hash, so an existing bundle is reused across source
 # edits), ZS_BROWSER_BUILD_ARGS adds build-web flags to that bundle (`--names` for symbolised panic
 # stacks), ZS_KEEP_TEST_BUNDLES=1 keeps the earlier `-test` bundles under public/editor (they are
-# pruned before a run otherwise), ZS_SKIP_LSP_TOOLS=1 skips the `pnpm install` of the TypeScript
-# language servers the completions test needs, ZS_SKIP_PLAYWRIGHT_INSTALL=1 (or Playwright's own
+# pruned before a run otherwise), ZS_SKIP_LSP_TOOLS=1 skips fixture language-server installation
+# (LSP cases then require tools already on PATH), ZS_SKIP_PLAYWRIGHT_INSTALL=1 (or Playwright's own
 # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD) never runs `playwright install`, ZS_E2E_BOOT_BUDGET_MS bounds
 # the Chromium navigation-to-editable boot (default 15000 here, see run_browser_suite),
 # ZS_E2E_CI=1 selects the CI reporters/retries of the Playwright config.
@@ -97,6 +97,8 @@ regex_escape() { printf '%s' "$1" | sed 's/[][\\.*^$+?(){}|]/\\&/g'; }
 # finds its assets (settings/default.json, …) by walking up from the executable to the nearest
 # `.git` (util::dev_repo_root), so a copy outside zed/ would look for them in the wrong checkout.
 SERVE_STASH="$ZED_DIR/target/zs-local/zed-remote-server"
+# A browser run must not replace the binary a developer's local workspaces resume with.
+[ "$MODE" != browser ] || SERVE_STASH="$ZED_DIR/target/zs-browser/zed-remote-server"
 serve_bin() {
   if [ -x "$SERVE_STASH" ]; then
     echo "$SERVE_STASH"
@@ -640,19 +642,18 @@ ensure_browser_bundle() {
   [ -f "$dir/build.json" ] || die "build-web did not write $dir/build.json"
 }
 
-# The TypeScript language servers the completions test needs, installed once into the fixture
-# (typescript-language-server, vtsls, typescript) and put on PATH for the dev server, the
-# supervisor and `zed-remote-server` beneath it. Best effort: without network the install fails,
-# nothing is on PATH and the completions test skips with that reason.
+# The fixture's TypeScript, Dockerfile, HTML and Tailwind servers, installed once and put on PATH
+# for the dev server, supervisor and `zed-remote-server` beneath it.
 ensure_lsp_tools() {
-  [ "${ZS_SKIP_LSP_TOOLS:-0}" = "1" ] && { log "ZS_SKIP_LSP_TOOLS=1: the completions test will skip"; return 0; }
+  [ "${ZS_SKIP_LSP_TOOLS:-0}" = "1" ] && { log "ZS_SKIP_LSP_TOOLS=1: not installing language servers; LSP checks require tools on PATH"; return 0; }
   local bin="$LSP_TOOLS_DIR/node_modules/.bin"
-  if [ ! -x "$bin/typescript-language-server" ] || [ ! -x "$bin/vtsls" ]; then
+  if [ ! -x "$bin/typescript-language-server" ] || [ ! -x "$bin/vtsls" ] || [ ! -x "$bin/docker-langserver" ] || [ ! -x "$bin/vscode-html-language-server" ] || [ ! -x "$bin/tailwindcss-language-server" ]; then
     mkdir -p "$DEV_DIR"
-    log "installing the TypeScript language servers into $LSP_TOOLS_DIR (pnpm install; log: $DEV_DIR/lsp-tools-install.log)"
-    if ! (cd "$LSP_TOOLS_DIR" && pnpm install --ignore-workspace --config.confirmModulesPurge=false > "$DEV_DIR/lsp-tools-install.log" 2>&1); then
-      log "warning: the language servers could not be installed (offline?); the completions test will skip"
-      return 0
+    log "installing fixture language servers into $LSP_TOOLS_DIR (pnpm install; log: $DEV_DIR/lsp-tools-install.log)"
+    # These are JS tools; dependency postinstalls (e.g. core-js's funding notice)
+    # are unnecessary. Explicitly skip them under pnpm's strict build policy.
+    if ! (cd "$LSP_TOOLS_DIR" && pnpm install --ignore-workspace --ignore-scripts --config.confirmModulesPurge=false > "$DEV_DIR/lsp-tools-install.log" 2>&1); then
+      die "fixture language-server installation failed (log: $DEV_DIR/lsp-tools-install.log)"
     fi
   fi
   export PATH="$bin:$PATH"

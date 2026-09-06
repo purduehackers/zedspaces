@@ -11,7 +11,6 @@ import {
   refreshEditorSession,
   reportClientError,
   sessionReloadUrl,
-  stopWorkspace,
   type ApiDeps,
 } from "./api-client";
 import { ConnectError, connectWorkspace, type ConnectReason } from "./connect-client";
@@ -24,7 +23,7 @@ import {
   type ShellTransition,
   type StopReason,
 } from "./shell-phase";
-import { LifecycleToasts, ShellOverlay, TopStrip, type ShellActions, type ShellToast } from "./shell-ui";
+import { LifecycleToasts, ShellOverlay, type ShellActions, type ShellToast } from "./shell-ui";
 import { createHost, type ShellController } from "./zs-host";
 
 /**
@@ -205,7 +204,6 @@ export function EditorShell({
 }: EditorShellProps) {
   const [phase, setPhase] = useState<ShellPhase>({ kind: "booting", stage: "booting" });
   const [toasts, setToasts] = useState<ShellToast[]>([]);
-  const [busy, setBusy] = useState(false);
 
   const deps = useMemo<ApiDeps>(() => ({ fetch: overrides?.fetch }), [overrides?.fetch]);
   const runtimeRef = useRef<EditorRuntime | null>(null);
@@ -463,27 +461,17 @@ export function EditorShell({
 
   const actions = useMemo<ShellActions>(
     () => ({
-      stop: () => {
-        setBusy(true);
-        void stopWorkspace(workspaceId, deps)
-          .then(() => setPhase({ kind: "stopped", reason: "user" }))
-          .catch((err: unknown) =>
-            setPhase({ kind: "error", message: err instanceof Error ? err.message : String(err), retryable: true }),
-          )
-          .finally(() => setBusy(false));
-      },
       reconnect: () => reconnect(),
       resume: () => reconnect({ resume: true }),
       takeover: () => reconnect({ takeover: true }),
       openExternal,
     }),
-    [deps, reconnect, workspaceId],
+    [reconnect],
   );
 
   return (
     <div className="zs-shell" data-zs="shell">
-      <TopStrip workspace={initial} phase={phase} actions={actions} busy={busy} />
-      <ShellOverlay phase={phase} workspace={initial} actions={actions} busy={busy} />
+      <ShellOverlay phase={phase} workspace={initial} actions={actions} />
       <LifecycleToasts toasts={toasts} />
     </div>
   );

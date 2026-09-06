@@ -2,6 +2,8 @@
 
 GitHub Codespaces, with Zed in your browser.
 
+Live at **[code.purduehackers.com](https://code.purduehackers.com)**.
+
 Zed's Rust UI is compiled to WebAssembly and runs in the tab. A Vercel Sandbox
 runs the repository, terminal, language servers, and patched Zed remote server.
 The browser connects directly to that VM over an authenticated WebSocket.
@@ -10,6 +12,7 @@ Paste a **public GitHub repository** into the dashboard, or open
 `/new/owner/repo?branch=main`. No login, GitHub App, or GitHub token is needed.
 Public cloning works; authenticated GitHub pushes and private repositories are
 not part of this version.
+Vim mode is enabled by default: press `i` to enter insert mode.
 
 ## What's included
 
@@ -28,6 +31,28 @@ edit, stop, or delete any workspace and change shared settings. Proxy forwards
 are shared too. Do not put secrets or sensitive work here. Internal VM tokens,
 signed session tokens, origin checks, and cron authentication still apply.
 Creation is rate-limited and defaults to five active/admitted workspaces.
+
+## Browser defaults
+
+The editor fills the tab, without a second workspace status bar. The terminal
+bundles **Lilex Nerd Font Mono**, including icon glyphs; no local font install is
+needed. User font settings still override the default.
+
+Use **F1** or **Alt/Option+Shift+P** for the command palette,
+**Alt/Option+P** for files, and **Ctrl+`** for the terminal. These supplement
+the native shortcuts when the browser reserves them; F1 follows the
+[Codespaces convention](https://docs.github.com/en/codespaces/reference/using-the-vs-code-command-palette-in-codespaces).
+
+Dockerfile, HTML and TOML highlighting are bundled alongside the existing
+languages. Dockerfile and HTML use language servers already pinned in the
+workspace image; TOML currently has syntax support only. This is a curated
+bundle, not general browser extension installation.
+
+New clones fetch the selected branch's full history. An older shallow checkout
+can fetch its missing history with `git fetch --unshallow origin`.
+Multiplayer is [being explored using Zed's existing collaboration code](docs/briefs/multiplayer.md),
+but currently only one editor can hold a workspace. New workspaces use these
+defaults; existing workspaces keep their pinned editor until explicitly rebuilt.
 
 ## Development
 
@@ -82,14 +107,20 @@ Follow the [deployment checklist](docs/deploy-vercel.md) and
 `pnpm deploy:check:db` before deploying. They validate configuration/assets and
 the live Turso database without provisioning or publishing anything.
 
-Local execution is working. A live Vercel deployment and Sandbox create →
-edit → stop → resume still require validation; local tests are not cloud
-certification. Set provider spending controls before exposing this shared app.
+The production deployment uses real Vercel Sandboxes and Turso. Public cloning,
+browser editing/saving, and stop/resume persistence were checked live; see the
+[deployment results](docs/status/deployment.md). Set provider spending controls
+before sharing this intentionally open, shared app.
+
+The **Release Zedspaces** Actions workflow builds matching browser/server
+artifacts and can publish the image, assets, and Vercel app in one manual run.
+See [CI setup and release checks](docs/deploy-vercel.md#ci-releases); the workflow
+still needs to be pushed and its production secrets configured before its first run.
 
 ## Source map
 
-The cleanup reduced maintained web implementation from 30,289 to 14,661 lines
-(51.6%; nonblank lines fell 52.1%). Tests, migrations, generated code and assets
+The cleanup reduced maintained web implementation from 30,289 to 14,640 lines
+(51.7%; nonblank lines fell 52.2%). Tests, migrations, generated code and assets
 are excluded from both counts. Run `node infra/source-metrics.mjs` to recount;
 see [validation and remaining gaps](docs/status/deslop.md).
 

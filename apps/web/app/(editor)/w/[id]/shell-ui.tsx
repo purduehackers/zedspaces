@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { ShellWorkspace } from "@/lib/types";
 import type { ZsBootStage } from "@/lib/zed-web";
-import { BOOT_STAGE_LABELS, bootProgressRatio, offersReconnect, type ShellPhase } from "./shell-phase";
+import { BOOT_STAGE_LABELS, bootProgressRatio, type ShellPhase } from "./shell-phase";
 
 /**
  * Presentational chrome of the editor shell (b9 §3.26 bullets 4, 5 and 9).
@@ -23,8 +23,6 @@ export interface ShellToast {
 
 /** Actions the chrome can ask the shell to run. */
 export interface ShellActions {
-  /** `POST /stop`. */
-  stop: () => void;
   /** `reconnect()` — a connection from scratch (D2, D30). */
   reconnect: () => void;
   /** `reconnect({ resume: true })` for a stopped workspace. */
@@ -48,81 +46,6 @@ function stopReasonText(reason: string): string {
     default:
       return "This workspace is stopped.";
   }
-}
-
-/** Short status the top strip shows next to the workspace name. */
-export function phaseSummary(phase: ShellPhase): string {
-  switch (phase.kind) {
-    case "booting":
-      return BOOT_STAGE_LABELS[phase.stage];
-    case "ready":
-      return "Connected";
-    case "reconnecting":
-      return `Reconnecting (attempt ${phase.attempt})`;
-    case "stopped":
-      return "Stopped";
-    case "takeover-required":
-      return "Open in another tab";
-    case "taken-over":
-      return "Taken over";
-    case "restarting":
-      return `Restarting in ${phase.secondsLeft}s`;
-    case "unsupported-browser":
-      return "Unsupported browser";
-    case "error":
-      return "Disconnected";
-  }
-}
-
-/** The floating strip above the canvas: identity plus the out-of-canvas actions. */
-export function TopStrip({
-  workspace,
-  phase,
-  actions,
-  busy,
-}: {
-  workspace: ShellWorkspace;
-  phase: ShellPhase;
-  actions: ShellActions;
-  busy: boolean;
-}): ReactNode {
-  const branch = workspace.branch ? `${workspace.repo}@${workspace.branch}` : workspace.repo;
-  return (
-    <header className="zs-strip" data-zs="strip">
-      <div className="zs-strip__meta">
-        <span className="zs-strip__name">{workspace.name}</span>
-        <span className="zs-strip__detail">
-          {branch} · {workspace.machine} · {workspace.region} · {phaseSummary(phase)}
-        </span>
-      </div>
-      <div className="zs-strip__actions">
-        {offersReconnect(phase) ? (
-          <button
-            type="button"
-            className="zs-button zs-button--primary"
-            onClick={phase.kind === "stopped" ? actions.resume : actions.reconnect}
-            disabled={busy}
-          >
-            {phase.kind === "stopped" ? "Resume" : "Reconnect"}
-          </button>
-        ) : null}
-        <button type="button" className="zs-button zs-button--danger" onClick={actions.stop} disabled={busy}>
-          Stop
-        </button>
-        <a
-          className="zs-button"
-          href={`/workspaces/${workspace.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Settings
-        </a>
-        <a className="zs-button" href={`zed://zs/w/${workspace.id}`}>
-          Open in desktop
-        </a>
-      </div>
-    </header>
-  );
 }
 
 /** The boot progress bar; the ratio reaches the DOM through the CSSOM, never a `style` attribute. */
@@ -157,21 +80,19 @@ export function ShellOverlay({
   phase,
   workspace,
   actions,
-  busy,
 }: {
   phase: ShellPhase;
   workspace: ShellWorkspace;
   actions: ShellActions;
-  busy: boolean;
 }): ReactNode {
   return (
     <div className="zs-overlay" data-zs="overlay" data-phase={phase.kind} aria-live="polite">
-      {overlayCard(phase, workspace, actions, busy)}
+      {overlayCard(phase, workspace, actions)}
     </div>
   );
 }
 
-function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: ShellActions, busy: boolean): ReactNode {
+function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: ShellActions): ReactNode {
   switch (phase.kind) {
     case "ready":
       return null;
@@ -209,7 +130,7 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
           title="Workspace stopped"
           actions={
             <>
-              <button type="button" className="zs-button zs-button--primary" onClick={actions.resume} disabled={busy}>
+              <button type="button" className="zs-button zs-button--primary" onClick={actions.resume}>
                 Resume
               </button>
               <button
@@ -233,7 +154,7 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
         <Card
           title="Already open somewhere else"
           actions={
-            <button type="button" className="zs-button zs-button--primary" onClick={actions.takeover} disabled={busy}>
+            <button type="button" className="zs-button zs-button--primary" onClick={actions.takeover}>
               Take over
             </button>
           }
@@ -249,7 +170,7 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
         <Card
           title="Taken over"
           actions={
-            <button type="button" className="zs-button zs-button--primary" onClick={actions.takeover} disabled={busy}>
+            <button type="button" className="zs-button zs-button--primary" onClick={actions.takeover}>
               Take back
             </button>
           }
@@ -274,7 +195,7 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
           title="Something went wrong"
           actions={
             phase.retryable ? (
-              <button type="button" className="zs-button zs-button--primary" onClick={actions.reconnect} disabled={busy}>
+              <button type="button" className="zs-button zs-button--primary" onClick={actions.reconnect}>
                 Reconnect
               </button>
             ) : undefined

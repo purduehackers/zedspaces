@@ -93,15 +93,16 @@ if have_vercel && { [ -n "$push" ] || [ -n "$base_on_vcr" ]; }; then
 fi
 
 if [ -n "$update_base" ]; then
-  digest="$(docker buildx imagetools inspect vcr.vercel.com/vercel/sandbox/universal:latest \
+  base_tag="${ZS_BASE_IMAGE:-${base_ref%@*}}"
+  digest="$(docker buildx imagetools inspect "$base_tag" \
     --format '{{json .Manifest.Digest}}' | tr -d '"')"
   test -n "$digest" || { echo "could not resolve the universal base digest" >&2; exit 1; }
   {
     grep '^[[:space:]]*#' "$here/base.lock" || true
-    echo "vcr.vercel.com/vercel/sandbox/universal@${digest}"
+    echo "${base_tag}@${digest}"
   } > "$here/base.lock.new"
   mv "$here/base.lock.new" "$here/base.lock"
-  base_ref="vcr.vercel.com/vercel/sandbox/universal@${digest}"
+  base_ref="${base_tag}@${digest}"
   echo "base.lock updated: $base_ref"
 fi
 
@@ -151,7 +152,8 @@ case "$engine" in
     ;;
   docker)
     output=(--load)
-    if [ -n "$push" ]; then output=(--push); fi
+    # The managed base has zstd layers; those require OCI media types in VCR.
+    if [ -n "$push" ]; then output=(--output "type=registry,oci-mediatypes=true,compression=zstd"); fi
     docker buildx build --platform linux/amd64 \
       -f "$here/Dockerfile" \
       "${attest_args[@]}" \

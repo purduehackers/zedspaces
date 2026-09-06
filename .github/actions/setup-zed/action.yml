@@ -1,0 +1,44 @@
+name: Set up Zed build tools
+description: Native Linux toolchain and optional pinned WASM tools
+inputs:
+  wasm:
+    description: Install browser bundle tools
+    default: "false"
+  cache-key:
+    description: Separate native and WASM build caches
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable action, pinned compiler
+      with:
+        toolchain: 1.97.1
+        targets: x86_64-unknown-linux-musl,wasm32-unknown-unknown
+        components: rust-src,clippy,rustfmt
+    - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+      with:
+        key: ${{ inputs.cache-key }}
+        cache-workspace-crates: true
+        workspaces: |
+          zed -> target
+          sandbox/supervisor -> target
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Linux dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends musl-tools clang lld llvm cmake pkg-config perl libssl-dev libxkbcommon-dev libwayland-dev libfontconfig1-dev libasound2-dev libudev-dev
+    - name: Browser tools
+      if: inputs.wasm == 'true'
+      shell: bash
+      run: |
+        sudo apt-get install -y --no-install-recommends brotli
+        if ! wasm-bindgen --version 2>/dev/null | grep -qx 'wasm-bindgen 0.2.127'; then
+          cargo install wasm-bindgen-cli --version 0.2.127 --locked
+        fi
+        archive="$RUNNER_TEMP/binaryen.tar.gz"
+        curl -fLSs --proto '=https' --tlsv1.2 -o "$archive" https://github.com/WebAssembly/binaryen/releases/download/version_132/binaryen-version_132-x86_64-linux.tar.gz
+        echo "195ddc94f9bc89f45abdabb0b9eea86023d727ba90eac8b35b80f2544fc30572  $archive" | sha256sum -c -
+        tar -xzf "$archive" -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/binaryen-version_132/bin" >> "$GITHUB_PATH"
+        (cd zed && ./script/ensure-wasi-sdk)

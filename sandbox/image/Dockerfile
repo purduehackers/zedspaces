@@ -67,7 +67,6 @@ RUN set -eu; \
 
 # ---- workspace image ---------------------------------------------------------
 FROM ${BASE_IMAGE}
-ARG ZS_BUILD_ID
 ARG RUST_TOOLCHAIN
 # Every download below is pinned by version *and* verified against a committed sha256
 # (BUILD-SPEC §10 item 6). Refresh a pin by downloading the new asset once and recording
@@ -83,8 +82,8 @@ ARG TAPLO_SHA256=8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb615
 ARG LUA_LS_VERSION=3.15.0
 ARG LUA_LS_SHA256=4877b874c52fb7587707898da9026cc3a6c854d9bbab115ef49ac4e6a1b88007
 ARG RUFF_VERSION=0.13.1
-# Exact versions (no floating majors), resolved 2026-09-03 with `npm view <pkg>@<range> version`.
-ARG NPM_LS_PACKAGES="typescript@5.9.3 typescript-language-server@4.4.1 @vtsls/language-server@0.2.9 pyright@1.1.413 vscode-langservers-extracted@4.10.0 bash-language-server@5.6.0 yaml-language-server@1.24.0 dockerfile-language-server-nodejs@0.14.1 prettier@3.9.6 eslint@9.39.5 @google/gemini-cli@0.58.0"
+# Exact versions (no floating majors), resolved 2026-09-03; Tailwind added 2026-09-06.
+ARG NPM_LS_PACKAGES="typescript@5.9.3 typescript-language-server@4.4.1 @vtsls/language-server@0.2.9 pyright@1.1.413 vscode-langservers-extracted@4.10.0 bash-language-server@5.6.0 yaml-language-server@1.24.0 dockerfile-language-server-nodejs@0.14.1 @tailwindcss/language-server@0.16.0 prettier@3.9.6 eslint@9.39.5 @google/gemini-cli@0.58.0"
 USER root
 # The base persists ENV HOME=/vercel and /vercel/.npmrc (prefix ~/.global/npm); Docker's USER does
 # not touch HOME, so pin it for the root steps and restore it at the end.
@@ -168,6 +167,8 @@ RUN mkdir -p /workspaces && chown ubuntu:ubuntu /workspaces \
  && git config --system init.defaultBranch main
 
 # The runtime environment (D21 port map; b3 §7.10 asks for SHELL; D28 for SHELL/HOME/USER).
+# Keep release identity below the expensive install layers so each release can reuse them.
+ARG ZS_BUILD_ID
 ENV HOME=/vercel \
     SHELL=/bin/bash \
     ZS_BUILD_ID=${ZS_BUILD_ID} \

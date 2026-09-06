@@ -166,15 +166,6 @@ export function transitionForBootProgress(
   }
 }
 
-/** Phases in which the top strip offers "Reconnect"/"Resume" (b9 §3.26 bullet 5). */
-export function offersReconnect(phase: ShellPhase): boolean {
-  return (
-    phase.kind === "stopped" ||
-    phase.kind === "taken-over" ||
-    (phase.kind === "error" && phase.retryable)
-  );
-}
-
 /** True while the boot overlay covers the canvas. */
 export function coversCanvas(phase: ShellPhase): boolean {
   return phase.kind !== "ready";

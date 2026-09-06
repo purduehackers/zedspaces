@@ -1,0 +1,3 @@
+[workspace]
+name = "Zedspaces syntax fixture"
+enabled = true

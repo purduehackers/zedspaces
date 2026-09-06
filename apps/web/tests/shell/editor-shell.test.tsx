@@ -225,9 +225,8 @@ describe("EditorShell", () => {
     await waitFor(() => expect(overlay(shell.container).dataset.phase).toBe("stopped"));
     expect(screen.getByText(/stopped because it was idle/)).toBeTruthy();
 
-    // The terminal state offers a resume, in the overlay and in the top strip, and it is a
-    // boot from scratch (D30).
-    expect(screen.getAllByRole("button", { name: "Resume" })).toHaveLength(2);
+    // The stopped overlay offers a fresh boot (D30), without duplicate shell chrome.
+    expect(screen.getAllByRole("button", { name: "Resume" })).toHaveLength(1);
     fireEvent.click(within(overlay(shell.container)).getByRole("button", { name: "Resume" }));
     expect(sessionStorage.getItem(NEXT_BOOT_KEY)).toBe(JSON.stringify({ resume: true }));
     expect(shell.navigation.reload).toHaveBeenCalledTimes(1);
@@ -258,13 +257,14 @@ describe("EditorShell", () => {
     expect(screen.queryByRole("button", { name: "Reconnect" })).toBeNull();
   });
 
-  it("stop_posts_and_lands_in_the_stopped_state", async () => {
+  it("leaves_the_ready_editor_unobstructed_by_shell_chrome", async () => {
     const shell = renderShell();
-    await shell.host();
-
-    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
-    await waitFor(() => expect(shell.calls.some((call) => call.url.endsWith("/stop"))).toBe(true));
-    await waitFor(() => expect(overlay(shell.container).dataset.phase).toBe("stopped"));
+    const host = await shell.host();
+    act(() => host.bootProgress("ready", ""));
+    expect(shell.container.querySelector('[data-zs="strip"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    expect(screen.queryByText("Open in desktop")).toBeNull();
+    expect(overlay(shell.container).dataset.phase).toBe("ready");
   });
 
   it("hiding_the_tab_flushes_the_client_state", async () => {

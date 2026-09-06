@@ -1,5 +1,11 @@
 # Round 5 — public Vercel/Turso preparation
 
+**Update, 2026-09-06 UTC:** production is live at
+[code.purduehackers.com](https://code.purduehackers.com). The Linux build,
+registry/assets publication, Turso setup and live clone/edit/stop/resume checks
+below have since completed. See [deployment results](deployment.md); the
+remaining-deployment section on this page is historical.
+
 The subsequent cleanup removed optional AI, billing, admin, secrets and custom
 image/prebuild features. The results below describe the pre-cleanup tree; see
 [cleanup validation](deslop.md) and the [README](../../README.md) for current scope.

@@ -39,7 +39,7 @@ sources, cross-compiled to `x86_64-unknown-linux-musl` in the `agent-builder` st
 1. toolchains — build-essential, clang/clangd, cmake, JDK 21, Ruby, PHP, Docker CLI + daemon,
    Rust (with rust-analyzer) and Go, split across `RUN`s so no layer approaches VCR's 500 MB limit;
 2. language servers — gopls, the npm set (vtsls, typescript, pyright, vscode-langservers-extracted,
-   bash, yaml, dockerfile, prettier, eslint), ruff, taplo, lua-language-server;
+   bash, yaml, dockerfile, tailwindcss, prettier, eslint), ruff, taplo, lua-language-server;
 3. agents — claude-code, codex, opencode and pi come from the base, gemini-cli is added here;
 4. `zed-remote-server` and `zs-agent`;
 5. users, `/workspaces`, the system git config that registers `zs-agent credential`.

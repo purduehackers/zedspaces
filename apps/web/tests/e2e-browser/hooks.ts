@@ -126,6 +126,8 @@ export interface ZsTestHooks {
   openFile(path: string): Promise<{ path: string; kind: "editor" | "other"; dirty: boolean }>;
   openItems(): Promise<OpenItem[]>;
   bufferText(path: string): Promise<string>;
+  bufferSyntax(path: string): Promise<{ language: string | null; highlightedChunks: number }>;
+  commandPaletteVisible(): Promise<boolean>;
   activeBufferText(): Promise<string>;
   insertText(text: string): Promise<boolean>;
   moveCursorEnd(): Promise<boolean>;
@@ -181,6 +183,8 @@ const HOOK_NAMES: HookName[] = [
   "openFile",
   "openItems",
   "bufferText",
+  "bufferSyntax",
+  "commandPaletteVisible",
   "activeBufferText",
   "insertText",
   "moveCursorEnd",

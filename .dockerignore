@@ -2,6 +2,8 @@
 # Only sandbox/supervisor/ and sandbox/image/dist/ are needed; everything else is noise.
 .git
 .gitignore
+.env*
+**/.env*
 .github
 .zs-logs
 .vercel

@@ -1,5 +1,26 @@
 # Handoff: Zed Codespaces
 
+**UX follow-up (2026-09-06):** the deployed cleanup removes the extra HTML status strip,
+fixes WASM title-bar padding and macOS Option shortcuts, bundles a Nerd Font plus
+Dockerfile/HTML/TOML syntax, and makes new clones fetch full history. See
+[current validation and publication state](docs/status/ux-cleanup.md); these
+changes are live for new workspaces. Existing workspaces keep their old editor
+until explicitly rebuilt; the owner's was not changed. The new manual release
+CI is written and locally validated, but still needs source publication and
+GitHub environment secrets before its first remote run. Multiplayer/P2P was investigated in
+[the new brief](docs/briefs/multiplayer.md), not implemented. Preserve the
+running owner's workspace and do not remove single-client guards as a shortcut.
+
+**Production deployment (2026-09-06 UTC):** the owner authorized deployment and
+completed DNS. [code.purduehackers.com](https://code.purduehackers.com) is live
+on Vercel, backed by real Vercel Sandboxes, Drizzle/Turso and private Blob storage.
+Public GitHub clone, browser save and stop/resume persistence passed live.
+See [deployment results](docs/status/deployment.md) for exact artifacts, evidence
+and remaining unverified cases. This supersedes the historical cloud blockers
+below. Deployment build/configuration fixes are local and **not yet pushed**;
+the deployed CLI upload includes the required root package-manager metadata and
+pnpm-hook upload exception. The owner's original local workspace was untouched.
+
 **Source publication (2026-09-05):** the owner authorized committing and pushing
 to `purduehackers/zedspaces` and forking Zed to `purduehackers/zed`. The private
 app repository's `main` branch pins `zed/` to the public fork's default

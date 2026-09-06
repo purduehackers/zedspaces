@@ -125,6 +125,9 @@ export async function createFixtureRepo(prefix = "e2e-browser", settingsOverride
     settings.lsp = {
       ...(typeof settings.lsp === "object" && settings.lsp !== null ? settings.lsp : {}),
       vtsls: { binary: { path: path.join(LSP_TOOLS_BIN, "vtsls"), arguments: ["--stdio"] } },
+      "dockerfile-language-server": { binary: { path: path.join(LSP_TOOLS_BIN, "docker-langserver"), arguments: ["--stdio"] } },
+      "vscode-html-language-server": { binary: { path: path.join(LSP_TOOLS_BIN, "vscode-html-language-server"), arguments: ["--stdio"] } },
+      "tailwindcss-language-server": { binary: { path: path.join(LSP_TOOLS_BIN, "tailwindcss-language-server"), arguments: ["--stdio"] } },
       "typescript-language-server": {
         binary: { path: path.join(LSP_TOOLS_BIN, "typescript-language-server"), arguments: ["--stdio"] },
       },

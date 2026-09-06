@@ -1,15 +1,18 @@
 name: web
 
 on:
+  workflow_call:
   push:
     branches: [main]
     paths:
       - "apps/web/**"
       - ".github/workflows/web.yml"
+      - ".github/actions/**"
   pull_request:
     paths:
       - "apps/web/**"
       - ".github/workflows/web.yml"
+      - ".github/actions/**"
   workflow_dispatch:
     inputs:
       browser_e2e:
@@ -20,6 +23,9 @@ on:
   schedule:
     - cron: "41 5 * * *"
 
+permissions:
+  contents: read
+
 jobs:
   web:
     name: lint, typecheck, test
@@ -29,16 +35,10 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          version: 11.20.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          persist-credentials: false
+      - uses: ./.github/actions/setup-web
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -64,41 +64,21 @@ jobs:
       ZS_E2E_BOOT_BUDGET_MS: "60000"
       ZS_SKIP_PLAYWRIGHT_INSTALL: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
-      - uses: pnpm/action-setup@v4
+          persist-credentials: false
+      - uses: ./.github/actions/setup-web
+      - uses: ./.github/actions/setup-zed
         with:
-          version: 11.20.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.97.1
-          targets: wasm32-unknown-unknown
-          components: rust-src
-      - name: "wasm toolchain for script/build-web (wasm-bindgen-cli, binaryen, brotli, wasi-sdk)"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y binaryen brotli clang lld
-          cargo install wasm-bindgen-cli --version 0.2.127 --locked
-          (cd zed && ./script/ensure-wasi-sdk)
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            zed -> target
-            sandbox/supervisor -> target
-      - run: pnpm install --frozen-lockfile
-        working-directory: apps/web
+          wasm: "true"
+          cache-key: browser-e2e
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: apps/web
       - name: browser end-to-end suite
         run: ./scripts/dev-local.sh browser --project=chromium
         working-directory: apps/web
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: e2e-browser

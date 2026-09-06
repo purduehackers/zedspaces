@@ -15,3 +15,5 @@ public/editor/*
 !public/editor/.gitkeep
 tests
 *.tsbuildinfo
+!.pnpmfile.cjs
+release-record.json

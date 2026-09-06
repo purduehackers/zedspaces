@@ -208,6 +208,51 @@ test("boots to an editable buffer within the local budget", async ({}, info) => 
   expect(pageLog.errors.filter((e) => /\[zed-web\] panic|pageerror: unreachable/.test(e))).toEqual([]);
 });
 
+test("bundled web languages highlight and connect to installed servers", async () => {
+  for (const [file, language, server] of [
+    ["Dockerfile", "Dockerfile", "dockerfile-language-server"],
+    ["index.html", "HTML", "vscode-html-language-server"],
+    ["example.toml", "TOML", null],
+  ] as const) {
+    const path = `${workspaceDir}/${file}`;
+    await zs.openFile(path);
+    await pollUntil(async () => {
+      const syntax = await zs.bufferSyntax(path);
+      return syntax.language === language && syntax.highlightedChunks > 0;
+    }, `${language} syntax captures`, { timeoutMs: 15_000 });
+    if (server) {
+      for (const expected of language === "HTML" ? [server, "tailwindcss-language-server"] : [server]) {
+        await pollUntil(async () => (await zs.languageServers()).some(({ name }) => name === expected),
+          expected, { timeoutMs: 30_000 });
+      }
+    }
+  }
+  await zs.openFile(readme);
+});
+
+test("browser command shortcuts include F1 and native macOS Option characters", async () => {
+  await page.locator("canvas").click();
+  await zs.openFile(readme);
+  await page.keyboard.press("F1");
+  await pollUntil(() => zs.commandPaletteVisible(), "F1 command palette");
+  await page.keyboard.press("Escape");
+  await pollUntil(async () => !(await zs.commandPaletteVisible()), "palette closes");
+  if (await zs.hostOs() === "mac") {
+    // Playwright's keyboard helper sends ASCII P even on macOS. Real Option+Shift+P
+    // sends ∏: preserve this case so browser-only alternatives work on real keyboards.
+    await page.locator("textarea").evaluate(element => {
+      for (const type of ["keydown", "keyup"]) element.dispatchEvent(new KeyboardEvent(type, {
+        key: "∏", code: "KeyP", altKey: true, shiftKey: true, bubbles: true, cancelable: true,
+      }));
+    });
+  } else {
+    await page.keyboard.press("Alt+Shift+p");
+  }
+  await pollUntil(() => zs.commandPaletteVisible(), "browser-safe command palette");
+  await page.keyboard.press("Escape");
+  expect(pageLog.firstPanic).toBeNull();
+});
+
 test.describe("Shared notifier", () => {
   test("D42: a worker-held Shared notifier uses the main-thread parker and preserves completion", async ({}, info) => {
     // Reuse this suite's workspace: a dedicated fixture per engine pushes the full matrix
@@ -286,7 +331,7 @@ test("shows completions from typescript-language-server in a TypeScript file", a
   const binary = typescriptLanguageServerOnPath();
   test.skip(
     binary === null,
-    "typescript-language-server is not on PATH (scripts/dev-local.sh browser installs it into tests/e2e-browser/fixtures/lsp-tools unless ZS_SKIP_LSP_TOOLS=1 or the install failed)",
+    "typescript-language-server is not on PATH (scripts/dev-local.sh browser installs it into tests/e2e-browser/fixtures/lsp-tools unless ZS_SKIP_LSP_TOOLS=1)",
   );
   log(`typescript-language-server: ${binary}`);
 

@@ -299,6 +299,9 @@ test(`bundle ${build ?? "(none on disk)"}: boots to ready against a local zed-re
     test.info().annotations.push({ type: "boot-to-ready-ms", description: `${readyMs} ms (b7 §6 asks for 10 s; SwiftShader here)` });
     expect(log.buildId).toBe(build);
     expect(stageSequence(log)).toEqual(STAGES);
+    if (!buildJson.test_hooks) {
+      expect(await page.evaluate(() => "__zs_test" in globalThis)).toBe(false);
+    }
     await expect(page.locator("canvas")).toHaveCount(1);
     await expect(page.locator("#boot")).toBeHidden();
     const size = await page.locator("canvas").evaluate((c: HTMLCanvasElement) => [c.width, c.height]);

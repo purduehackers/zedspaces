@@ -109,7 +109,7 @@ docker image inspect "$image" >/dev/null 2>&1 || {
 say "image assertions"
 binaries="rust-analyzer gopls clangd vtsls pyright-langserver ruff bash-language-server \
 yaml-language-server vscode-json-language-server vscode-css-language-server \
-vscode-html-language-server taplo lua-language-server docker-langserver \
+vscode-html-language-server tailwindcss-language-server taplo lua-language-server docker-langserver \
 typescript-language-server prettier eslint gemini claude codex pnpm node python3 git \
 zs-agent zed-remote-server"
 missing="$(docker run --rm --entrypoint sh "$image" -lc "

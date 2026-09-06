@@ -490,10 +490,18 @@ mod tests {
         let fake = FakeSupervisor::start(
             StatusCode::OK,
             r#"{"username":"","token":"","expiresAt":null}"#,
-        ).await;
+        )
+        .await;
         let mut out = Vec::new();
-        let code = run("get", &fake.url, secret(),
-            "protocol=https\nhost=github.com\npath=octocat/Hello-World.git\n".as_bytes(), &mut out).await.unwrap();
+        let code = run(
+            "get",
+            &fake.url,
+            secret(),
+            "protocol=https\nhost=github.com\npath=octocat/Hello-World.git\n".as_bytes(),
+            &mut out,
+        )
+        .await
+        .unwrap();
         assert_eq!(code, 0);
         assert!(out.is_empty());
     }

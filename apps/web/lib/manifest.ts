@@ -97,9 +97,8 @@ async function workspaceManifest(workspace: Workspace): Promise<SandboxManifest>
     restoreBlock(workspace),
   ]);
   const startedAt = (workspace.sessionStartedAt ?? workspace.createdAt).getTime();
-  // A branch workspace checks out the *branch* (so the user can commit and
-  // push on it) at depth 1; a pull-request or explicit-revision workspace is
-  // pinned to the resolved sha at full depth (b9 §4.7, CONTRACTS.md §7.3).
+  // Keep branch workspaces attached and revision/PR workspaces pinned. Both need
+  // full history for blame, logs and diffs; depth 1 made every file look newly added.
   const pinned = workspace.gitRef !== null || workspace.branch === null;
   const revision = pinned ? (workspace.revision ?? repo.defaultBranch) : (workspace.branch ?? repo.defaultBranch);
   return {
@@ -119,7 +118,7 @@ async function workspaceManifest(workspace: Workspace): Promise<SandboxManifest>
       cloneUrl: cloneUrl(repo.owner, repo.name),
       defaultBranch: repo.defaultBranch,
       revision,
-      depth: pinned ? 0 : 1,
+      depth: 0,
       ...(workspace.revision ? { commit: workspace.revision } : {}),
       ...(workspace.gitRef ? { ref: workspace.gitRef } : {}),
     },
