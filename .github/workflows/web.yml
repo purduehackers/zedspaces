@@ -55,7 +55,7 @@ jobs:
     # bundle (script/build-web --test-hooks) from the fork, then runs the Chromium project with
     # SQLite/libSQL. Nightly, or on demand with `browser_e2e`; never part of a push/PR run.
     name: browser e2e (chromium, local backend)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
     if: github.event_name == 'schedule' || inputs.browser_e2e == true
     timeout-minutes: 120
     concurrency:
@@ -81,8 +81,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: apps/web
       - name: browser end-to-end suite
-        run: ./scripts/dev-local.sh browser --project=chromium
-        working-directory: apps/web
+        run: bash .github/scripts/build-metrics.sh bash -c 'cd apps/web && ./scripts/dev-local.sh browser --project=chromium'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -93,4 +92,5 @@ jobs:
             apps/web/test-results/e2e-browser-timings.json
             apps/web/.zs-dev/next-browser.log
             apps/web/.zs-dev/build-web.log
+            build-resources.log
           if-no-files-found: warn

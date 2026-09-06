@@ -10,6 +10,24 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Make room on the disposable GitHub runner
+      if: runner.environment == 'github-hosted' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        df -h .
+        # These preinstalled SDKs are unused by Zed. Never clean a self-hosted runner.
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+        df -h .
+    - name: Use compact CI build artifacts
+      shell: bash
+      run: |
+        # CI does not need debugger data or incremental rebuild state. Keep local profiles intact.
+        printf '%s\n' \
+          'CARGO_INCREMENTAL=0' \
+          'CARGO_PROFILE_DEV_DEBUG=0' \
+          'CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG=0' \
+          'CARGO_PROFILE_RELEASE_DEBUG=0' \
+          'CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=0' >> "$GITHUB_ENV"
     - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable action, pinned compiler
       with:
         toolchain: 1.97.1
@@ -17,8 +35,7 @@ runs:
         components: rust-src,clippy,rustfmt
     - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
       with:
-        key: ${{ inputs.cache-key }}
-        cache-workspace-crates: true
+        key: compact-v1-${{ inputs.cache-key }}
         workspaces: |
           zed -> target
           sandbox/supervisor -> target

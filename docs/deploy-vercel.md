@@ -52,6 +52,12 @@ Use environment reviewers if deployment approval is desired; naming an
 environment alone does not enforce review. Project/team IDs are pinned in the
 workflow. An optional `ZS_BUILD_RUNNER` repository variable selects a larger
 Linux x64 runner; the default is `ubuntu-24.04` with two Cargo jobs.
+CI disables debug/incremental artifacts, uses separate compact dependency caches,
+and removes unused Android/.NET/Haskell/CodeQL SDKs only on disposable GitHub-hosted
+runners. Browser/dev mode does not compile the unused native E2E test binary.
+Build failures stop immediately; `ZS_SKIP_BUILD=1` is the explicit reuse path.
+Long builds emit disk/memory readings every minute and retain `build-resources.log`.
+The runner override also applies to browser E2E.
 
 CI runs web/supervisor checks and the full Chromium suite (including multiplayer),
 builds matching production WASM and Linux server artifacts with separate Rust

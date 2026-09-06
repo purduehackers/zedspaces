@@ -143,7 +143,7 @@ build_all() {
     return
   fi
   log "building zs-agent (sandbox/supervisor)"
-  (cd "$SUPERVISOR_DIR" && cargo build 2>&1 | grep -v '^\s*Compiling' >&2 || true)
+  (cd "$SUPERVISOR_DIR" && cargo build --locked) || die "zs-agent build failed"
   [ -x "$AGENT_BIN" ] || die "zs-agent did not build at $AGENT_BIN"
   # The zed workspace is shared with other running rounds and serializes on cargo's lock; wait.
   log "building zed-remote-server (cargo build -p remote_server; waits for the shared lock)"
@@ -151,25 +151,27 @@ build_all() {
   # an exact build match otherwise, and the local bundle id changes with every dirty-tree
   # rebuild. Without the variable the binary reports the raw commit hash and every browser
   # session stalls after HelloAck with an incompatible-build exit.
-  if (cd "$ZED_DIR" && ZS_BUILD_ID="${ZS_SERVER_BUILD_ID:-dev-0}" cargo build -p remote_server 2>&1 | grep -v '^\s*Compiling\|Blocking waiting' >&2; exit "${PIPESTATUS[0]}"); then
-    if ! serve_bin_is_test_build "$ZED_DIR/target/debug/remote_server"; then
-      mkdir -p "$(dirname "$SERVE_STASH")"
-      # Never overwrite the stash in place: macOS keeps the code signature of a cached
-      # executable's vnode, and a binary written over it is SIGKILLed at launch ("Killed: 9").
-      # A fresh file (and an ad-hoc re-sign on Darwin) is what makes the copy runnable.
-      rm -f "$SERVE_STASH"
-      cp "$ZED_DIR/target/debug/remote_server" "$SERVE_STASH"
-      if [ "$(uname -s)" = Darwin ] && command -v codesign >/dev/null 2>&1; then
-        codesign --force --sign - "$SERVE_STASH" >/dev/null 2>&1 || log "warning: codesign of $SERVE_STASH failed"
-      fi
-      log "copied the fresh remote_server binary to $SERVE_STASH"
-    fi
-  else
-    log "warning: cargo build -p remote_server failed; using the existing binary $(serve_bin)"
+  (cd "$ZED_DIR" && ZS_BUILD_ID="${ZS_SERVER_BUILD_ID:-dev-0}" cargo build --locked -p remote_server --features serve) ||
+    die "zed-remote-server build failed"
+  if serve_bin_is_test_build "$ZED_DIR/target/debug/remote_server"; then
+    die "cargo produced a test-only remote_server binary"
   fi
+  mkdir -p "$(dirname "$SERVE_STASH")"
+  # Never overwrite the stash in place: macOS keeps the code signature of a cached
+  # executable's vnode, and a binary written over it is SIGKILLed at launch ("Killed: 9").
+  # A fresh file (and an ad-hoc re-sign on Darwin) is what makes the copy runnable.
+  rm -f "$SERVE_STASH"
+  cp "$ZED_DIR/target/debug/remote_server" "$SERVE_STASH"
+  if [ "$(uname -s)" = Darwin ] && command -v codesign >/dev/null 2>&1; then
+    codesign --force --sign - "$SERVE_STASH" >/dev/null 2>&1 || die "codesign of $SERVE_STASH failed"
+  fi
+  log "copied the fresh remote_server binary to $SERVE_STASH"
   check_serve_bin
-  log "building the native end-to-end test (cargo test -p remote --test native_e2e --no-run)"
-  (cd "$ZED_DIR" && cargo test -p remote --test native_e2e --no-run 2>&1 | grep -v '^\s*Compiling\|Blocking waiting' >&2 || true)
+  # Browser/dev mode never runs this binary. Its test-only dependency closure is large.
+  if [ "$MODE" = e2e ] || [ "$MODE" = build ]; then
+    log "building the native end-to-end test"
+    (cd "$ZED_DIR" && cargo test --locked -p remote --test native_e2e --no-run) || die "native end-to-end build failed"
+  fi
 }
 
 # ---------------------------------------------------------------------------

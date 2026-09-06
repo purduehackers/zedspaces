@@ -69,10 +69,17 @@ jobs:
           wasm: ${{ matrix.target == 'browser' }}
       - name: Build the matching Linux server
         if: matrix.target == 'server'
-        run: sandbox/image/build-server.sh
+        run: bash .github/scripts/build-metrics.sh sandbox/image/build-server.sh
       - name: Build the production browser bundle
         if: matrix.target == 'browser'
-        run: zed/script/build-web --build-id "$ZS_BUILD_ID" --out-dir ../apps/web/public/editor
+        run: bash .github/scripts/build-metrics.sh zed/script/build-web --build-id "$ZS_BUILD_ID" --out-dir ../apps/web/public/editor
+      - name: Build resource diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: resources-${{ matrix.target }}-${{ env.ZS_BUILD_ID }}
+          path: build-resources.log
+          if-no-files-found: warn
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.target }}-${{ env.ZS_BUILD_ID }}

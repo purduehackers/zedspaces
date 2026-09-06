@@ -11,6 +11,14 @@ Multiplayer is not yet deployed. Its fork implementation is published as
 `648cf2f801`; the app and release-gate changes accompany this revision.
 The production CI environment still lacks `VERCEL_TOKEN`.
 
+**CI repair (2026-09-06):** multiplayer is pushed in app `dc6b60a` / fork
+`648cf2f801`, not deployed. [Its build-only run](https://github.com/purduehackers/zedspaces/actions/runs/34044679645)
+passed production WASM and app/supervisor checks, but browser E2E exhausted disk
+and the Linux server runner received a shutdown signal (cause unconfirmed).
+CI now disables debug/incremental build data, reclaims unused hosted-runner SDKs,
+skips the unused native E2E binary in browser/dev mode, fails builds without stale
+binary fallback, and records disk/memory usage during builds. See deploy-vercel.md.
+
 **UX follow-up (2026-09-06):** the deployed cleanup removes the extra HTML status strip,
 fixes WASM title-bar padding and macOS Option shortcuts, bundles a Nerd Font plus
 Dockerfile/HTML/TOML syntax, and makes new clones fetch full history. See
