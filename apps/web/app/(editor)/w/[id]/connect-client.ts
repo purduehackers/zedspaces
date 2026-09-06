@@ -51,7 +51,7 @@ export interface ConnectRequest {
   /** Stable `sessionStorage` participant identity. */
   tabId: string;
   reason: ConnectReason;
-  /** How long `202`/`423` may be polled inside one call (default 5 min). */
+  /** How long `202`/`423` may be polled inside one call (default 60 min, including an upgrade). */
   deadlineMs?: number;
   /** Boot detail for the overlay, e.g. `boot:clone`. */
   onProgress?: (detail: string) => void;
@@ -66,8 +66,8 @@ export interface ConnectDeps extends ApiDeps {
 
 /** Interval between `GET /api/workspaces/{id}` polls while a resume runs. */
 export const CONNECT_POLL_MS = 1_500;
-/** One connect call spans a session-cap restart (b1 §7.5, D2). */
-export const CONNECT_DEADLINE_MS = 300_000;
+/** Covers the bounded rebuild: up to 20 minutes archiving and 35 minutes creating. */
+export const CONNECT_DEADLINE_MS = 60 * 60_000;
 
 function parseConnectInfo(body: unknown): ConnectInfo {
   const raw = (body ?? {}) as Partial<ConnectInfo>;
@@ -84,7 +84,6 @@ function parseConnectInfo(body: unknown): ConnectInfo {
  */
 export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = {}): Promise<ConnectInfo> {
   const doFetch = deps.fetch ?? globalThis.fetch;
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const now = deps.now ?? (() => Date.now());
   const deadline = now() + (req.deadlineMs ?? CONNECT_DEADLINE_MS);
   let remintedCookie = false;
@@ -101,10 +100,11 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
     if (res.status === 200) return parseConnectInfo(await res.json());
 
     if (res.status === 202) {
-      // `{ status: "resuming", runId }` – the run id is only useful in logs.
-      await res.json().catch(() => ({}));
-      req.onProgress?.("boot:resuming");
+      const body = await res.json() as { status: string };
+      req.onProgress?.(body.status === "upgrading" ? "Upgrading the editor; keeping your files and editor state…" : "boot:resuming");
       await waitForRunning(req, deps, deadline);
+      // Refresh page props too: the local backend's workspace path changes with its generation.
+      if (body.status === "upgrading") throw new ConnectError("build_mismatch", "The workspace was upgraded. Reloading…");
       continue;
     }
 
@@ -132,8 +132,9 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
         throw new ConnectError("unavailable", body.message, 409, body.details);
       case 423:
         req.onProgress?.("boot:starting");
-        await waitOrGiveUp(sleep, now, deadline, body.message);
-        continue;
+        await waitForRunning(req, deps, deadline);
+        // Another tab may have upgraded while this request waited for the lifecycle lock.
+        throw new ConnectError("build_mismatch", "The workspace restarted. Reloading…");
       default:
         throw new ConnectError("unavailable", body.message, res.status, body.details);
     }
@@ -152,30 +153,41 @@ async function waitOrGiveUp(
 }
 
 /**
- * Polls `GET /api/workspaces/{id}` until the resume workflow has finished, so
- * the caller can re-`POST /connect`. `stateReason` (`boot:<phase>`) drives the
- * overlay's detail line.
+ * Polls until the lifecycle run finishes. A STOPPING listener must observe a
+ * lifecycle transition before reloading: a platform SIGTERM can leave the DB
+ * looking running while the Rust client is still flushing its unsaved buffers.
  */
-async function waitForRunning(req: ConnectRequest, deps: ConnectDeps, deadline: number): Promise<void> {
+export async function waitForRunning(
+  req: Pick<ConnectRequest, "workspaceId" | "signal" | "onProgress"> & { afterStopping?: boolean },
+  deps: ConnectDeps = {},
+  deadline = Date.now() + CONNECT_DEADLINE_MS,
+): Promise<void> {
   const doFetch = deps.fetch ?? globalThis.fetch;
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const now = deps.now ?? (() => Date.now());
+  let observedLifecycle = !req.afterStopping;
 
   for (;;) {
     const res = await doFetch(`/api/workspaces/${req.workspaceId}`, { cache: "no-store", signal: req.signal });
-    if (res.status === 410) throw new ConnectError("deleted", "This workspace was deleted", 410);
+    if (res.status === 404 || res.status === 410) throw new ConnectError("deleted", "This workspace was deleted", res.status);
     if (res.status === 401 || res.status === 403) {
       throw new ConnectError(res.status === 401 ? "unauthorized" : "forbidden", "Not allowed", res.status);
     }
     if (res.ok) {
       const body = (await res.json().catch(() => ({}))) as { workspace?: Partial<WorkspaceView> };
       const workspace = body.workspace ?? {};
-      if (workspace.stateReason) req.onProgress?.(workspace.stateReason);
-      if (workspace.state === "running" && !workspace.workflowRunId) return;
+      if (workspace.workflowRunId || (workspace.state && workspace.state !== "running")) observedLifecycle = true;
+      if (workspace.state === "rebuilding" || workspace.stateReason === "rebuild") {
+        req.onProgress?.("Upgrading the editor; keeping your files and editor state…");
+      } else if (workspace.stateReason) req.onProgress?.(workspace.stateReason);
+      if (workspace.state === "running" && !workspace.workflowRunId) {
+        if (observedLifecycle) return;
+        throw new ConnectError("stopped", "The workspace server stopped", 409);
+      }
       if (workspace.state === "stopped" && !workspace.workflowRunId) {
         throw new ConnectError("stopped", "The workspace is stopped", 409);
       }
-      if (workspace.state === "error") {
+      if (workspace.state === "error" && !workspace.workflowRunId) {
         throw new ConnectError("unavailable", workspace.stateReason ?? "The workspace failed to start");
       }
     }

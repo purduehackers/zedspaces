@@ -1,5 +1,19 @@
 # Handoff: Zed Codespaces
 
+**Automatic upgrades (2026-09-06): local source, not pushed/deployed.**
+Opening/resuming an outdated workspace now starts the existing file-preserving
+rebuild before loading WASM. Image, server and client pins move together; retry
+uses the preserved archive, and duplicate upgrade runs are no-ops. Connected tabs
+wait through STOPPING/backup/create before reloading; ordinary idle stops do not
+auto-resume. Rebuild recovery pointers now survive child-create success until
+parent cleanup, and clear atomically before deleting the archive.
+Validation: web lint/typecheck/production build and focused SQLite release/retry
+checks passed; no test suite was added or run. Build retained the existing 19
+tracing warnings; packaging guard passed (43 traces, largest 15.5 MiB).
+Log: `apps/web/.zs-dev/automatic-upgrades-build.log`. Full browser/VM upgrade
+was not run: local memory Blob URLs are not downloadable, and production was
+not touched. Live upgrade validation remains a release step.
+
 **Appearance follow-up (2026-09-06): source only, not built/deployed.**
 Fork `4e766bcb8e` bundles the owner's Kintsugi theme and Ioskeley fonts (UI 15px,
 Nerd Font buffers 14px with `aalt`, same Nerd Font in terminals). Browser presence
@@ -8,8 +22,7 @@ round avatars occupy the title bar's far-right controls, with names on hover.
 `check-wasm -p zed_web`, the fork's six existing settings checks, and asset
 inventory validation passed. Production bundle/browser validation was not run.
 Logs: `apps/web/.zs-dev/animals-theme-{wasm-check-2,settings-check}.log`.
-Workspace reopen still resumes its pinned image and browser build; only explicit
-Rebuild adopts the current release. Automatic upgrades are not implemented.
+Production still resumes pinned builds until the automatic-upgrade changes above deploy.
 
 **Workspace wipe (2026-09-06, owner-authorized):** all seven production workspaces
 and three old build/check sandboxes were deleted. Final inventory: no sandboxes,

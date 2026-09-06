@@ -99,7 +99,7 @@ async function verify(record: RecordFile) {
     assert.equal(meta.test_hooks, false);
   }
   console.log(`Verified ${origin} and the current production bundle.`);
-  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Zedspaces release\n\n- Live: ${origin}\n- Build: \`${record.build}\`\n- Image: \`${record.values.ZS_IMAGE_REF}\`\n- Recreate old workspaces after a breaking release.\n`);
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Zedspaces release\n\n- Live: ${origin}\n- Build: \`${record.build}\`\n- Image: \`${record.values.ZS_IMAGE_REF}\`\n- Outdated workspaces upgrade automatically when opened.\n`);
 }
 
 async function main() {

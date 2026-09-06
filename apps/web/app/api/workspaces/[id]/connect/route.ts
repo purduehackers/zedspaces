@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { accepted, ApiError, handler, json, parseBody } from "@/lib/api";
+import { sameRelease } from "@/lib/builds";
 import {
   buildsCompatible,
   detectDeadSandbox,
@@ -11,6 +12,7 @@ import {
 import { dbReady } from "@/lib/db";
 import { isRunActive, startLifecycle } from "@/lib/lifecycle";
 import { limit } from "@/lib/ratelimit";
+import { currentRelease } from "@/lib/release";
 import { requireWorkspaceParam, type WorkspaceParams } from "@/lib/route-context";
 import { users, type Workspace } from "@/lib/schema";
 import { connectInput, type HealthProbe } from "@/lib/types";
@@ -52,13 +54,6 @@ export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
   await limit("user.connect", viewer.userId);
   const input = await parseBody(req, connectInput);
 
-  if (input.clientBuild && !buildsCompatible(input.clientBuild, workspace.clientBuild)) {
-    throw new ApiError(409, "client_build_mismatch", "Reload to pick up the matching editor bundle", {
-      serverBuild: workspace.serverBuild,
-      clientBuild: workspace.clientBuild,
-    });
-  }
-
   // A lifecycle run in flight always wins: a session-cap restart must answer
   // 423 (retry) to a reconnecting tab, never 409 workspace_stopped.
   if (await isRunActive(workspace.workflowRunId)) {
@@ -66,6 +61,29 @@ export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
   }
   if (BUSY_STATES.includes(workspace.state)) {
     throw new ApiError(423, "workspace_busy", `Workspace is ${workspace.state}`, { state: workspace.state });
+  }
+
+  // An explicit open/resume adopts the deployed release before minting a token.
+  // A transport redial alone must never wake or rebuild an idle workspace.
+  if (input.reason !== "reconnect") {
+    const release = currentRelease();
+    if (input.clientBuild && !buildsCompatible(input.clientBuild, release.clientBuild)) {
+      throw new ApiError(409, "client_build_mismatch", "Reload to pick up the current editor bundle", release);
+    }
+    if (!sameRelease(workspace, release) || workspace.previousSandboxName) {
+      await assertOwnerNotFlagged(workspace);
+      const { runId } = await startLifecycle(workspace.id, "rebuildWorkspace", {
+        workspaceId: workspace.id, userId: viewer.userId, upgrade: release,
+      });
+      return accepted({ status: "upgrading", runId });
+    }
+  }
+
+  if (input.clientBuild && !buildsCompatible(input.clientBuild, workspace.clientBuild)) {
+    throw new ApiError(409, "client_build_mismatch", "Reload to pick up the matching editor bundle", {
+      serverBuild: workspace.serverBuild,
+      clientBuild: workspace.clientBuild,
+    });
   }
 
   let live = workspace;

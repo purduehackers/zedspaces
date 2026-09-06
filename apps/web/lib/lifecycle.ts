@@ -54,7 +54,7 @@ export async function startRun(name: LifecycleWorkflowName, args: unknown): Prom
 
 /**
  * Starts a lifecycle run for one workspace and records it in
- * `workspaces.workflow_run_id`, under a Redis lock so two requests cannot start
+ * `workspaces.workflow_run_id`, under a database lock so two requests cannot start
  * two runs for the same workspace. Throws `ApiError(423, "workspace_busy")`
  * when a run is already in flight or the lock is held.
  */

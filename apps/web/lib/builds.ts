@@ -13,3 +13,14 @@ export function buildsCompatible(a: string | null | undefined, b: string | null 
   if (a === b) return true;
   return a.startsWith("dev") || b.startsWith("dev");
 }
+
+/** Browser, server and sandbox image move together as one release. */
+export interface EditorRelease {
+  imageRef: string;
+  serverBuild: string;
+  clientBuild: string;
+}
+
+export function sameRelease(a: EditorRelease, b: EditorRelease): boolean {
+  return a.imageRef === b.imageRef && a.serverBuild === b.serverBuild && a.clientBuild === b.clientBuild;
+}

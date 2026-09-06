@@ -13,8 +13,8 @@ import {
   sessionReloadUrl,
   type ApiDeps,
 } from "./api-client";
-import { ConnectError, connectWorkspace, type ConnectReason } from "./connect-client";
-import { bootEditor, BundleError, loadZedWeb, type BootRunner, type EditorRuntime } from "./loader";
+import { ConnectError, connectWorkspace, waitForRunning, type ConnectReason } from "./connect-client";
+import { bootEditor, BundleError, type BootRunner, type EditorRuntime } from "./loader";
 import "./editor-shell.css";
 import {
   transitionForBootFailure,
@@ -65,7 +65,7 @@ export interface ShellOverrides {
 /** Props of {@link EditorShell}; assembled by the server component. */
 export interface EditorShellProps {
   workspaceId: string;
-  /** Bundle under `public/editor/` this workspace loads (`workspaces.client_build`). */
+  /** Deployed browser bundle; `/connect` upgrades the workspace to match before boot. */
   build: string;
   initial: ShellWorkspace;
   /** `ZsBootConfig.workspace.paths` — the clone inside the sandbox. */
@@ -264,6 +264,22 @@ export function EditorShell({
       if (kind === "stopping") {
         setToasts([]);
         setPhase({ kind: "stopped", reason: stopReasonRef.current === "unknown" ? "user" : stopReasonRef.current });
+        // STOPPING starts the Rust client's flush. Do not unload it until the server has
+        // stopped, archived its data and finished rebuilding. Normal idle/user stops stay stopped.
+        void waitForRunning({
+          workspaceId,
+          afterStopping: true,
+          onProgress: (detail) => setPhase({ kind: "booting", stage: "connecting", detail }),
+        }, deps).then(() => {
+          flushAllowedRef.current = false;
+          navigation.reload();
+        }).catch((err: unknown) => {
+          if (err instanceof ConnectError && err.code === "stopped") {
+            setPhase({ kind: "stopped", reason: stopReasonRef.current });
+          } else {
+            applyTransition(transitionForConnectError(err));
+          }
+        });
         return;
       }
       if (kind === "resumed") {
@@ -284,7 +300,7 @@ export function EditorShell({
         setPhase({ kind: "restarting", secondsLeft: seconds });
       }
     },
-    [onKeepAlive],
+    [applyTransition, deps, navigation, onKeepAlive, workspaceId],
   );
 
   /** One `connect()` call, with the overlay wired to its progress. */
@@ -344,26 +360,8 @@ export function EditorShell({
       return;
     }
 
-    // The service worker precaches the bundle and answers cache-first, which Cache Storage
-    // does regardless of Cache-Control. In development the same build id can be republished
-    // with new bytes, so a stale precache would keep serving old code: register it only in
-    // production builds (`overrides.registerServiceWorker` forces it either way) and
-    // unregister any leftover otherwise.
-    const registerServiceWorker = overrides?.registerServiceWorker ?? process.env.NODE_ENV === "production";
-    const serviceWorker = navigator.serviceWorker;
-    if (registerServiceWorker) {
-      void serviceWorker?.register(`/sw.js?build=${encodeURIComponent(build)}`, { scope: "/w/" }).catch(() => undefined);
-    } else if (typeof serviceWorker?.getRegistrations === "function") {
-      void serviceWorker
-        .getRegistrations()
-        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-        .catch(() => undefined);
-    }
-
     const next = takeNextBoot();
     const runner: BootRunner = overrides?.boot ?? bootEditor;
-    // Warm the module cache while /connect runs; the boot runner re-imports it for free.
-    if (!overrides?.boot) void loadZedWeb(build).catch(() => undefined);
 
     try {
       setPhase({ kind: "booting", stage: "connecting" });
@@ -373,6 +371,19 @@ export function EditorShell({
         fetchSettingsDocument(keymapUrl, deps),
       ]);
       versionsRef.current = { settings: settingsDoc.version, keymap: keymapDoc.version };
+
+      // Only fetch/cache a bundle after /connect has brought the workspace onto this release.
+      // Development can republish bytes under the same build id, so never precache it.
+      const registerServiceWorker = overrides?.registerServiceWorker ?? process.env.NODE_ENV === "production";
+      const serviceWorker = navigator.serviceWorker;
+      if (registerServiceWorker) {
+        void serviceWorker?.register(`/sw.js?build=${encodeURIComponent(build)}`, { scope: "/w/" }).catch(() => undefined);
+      } else if (typeof serviceWorker?.getRegistrations === "function") {
+        void serviceWorker
+          .getRegistrations()
+          .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+          .catch(() => undefined);
+      }
 
       const config: ZsBootConfig = {
         buildId: build,
@@ -398,6 +409,7 @@ export function EditorShell({
       });
     } catch (err) {
       applyTransition(transitionForConnectError(err));
+      if (err instanceof ConnectError && err.code === "build_mismatch") return;
       void reportClientError(
         workspaceId,
         build,
@@ -427,7 +439,7 @@ export function EditorShell({
     };
     const onPageHide = () => flush();
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (runtimeRef.current?.hasUnsavedChanges()) event.preventDefault();
+      if (flushAllowedRef.current && runtimeRef.current?.hasUnsavedChanges()) event.preventDefault();
     };
     const onFullscreenChange = () => {
       const keyboard = keyboardApi();

@@ -66,7 +66,8 @@ export async function createWorkspace(input: CreateWorkspaceRun): Promise<{ ok: 
       await sleep("5s");
     }
 
-    await stepSetState(ws.id, "running", null, { restoreBlobPathname: null });
+    // The rebuild parent owns the archive until its old-generation cleanup completes.
+    await stepSetState(ws.id, "running", null, ws.previousSandboxName ? undefined : { restoreBlobPathname: null });
     if (!input.child) await stepFinishRun(ws.id, { ok: true });
     return { ok: true };
   } catch (err) {

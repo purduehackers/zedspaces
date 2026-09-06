@@ -1,6 +1,7 @@
 import { desc, eq, inArray, isNull } from "drizzle-orm";
 import { dbReady } from "./db";
-import { env } from "./env";
+import { sameRelease } from "./builds";
+import { currentRelease } from "./release";
 import { forwards, repos, workspaces, type Repo, type Workspace } from "./schema";
 import type { ForwardView, RepoView, WorkspaceView } from "./types";
 
@@ -30,6 +31,7 @@ export async function workspaceViews(rows: Workspace[]): Promise<WorkspaceView[]
     db.select().from(forwards).where(inArray(forwards.workspaceId, rows.map((row) => row.id))),
   ]);
   const repoById = new Map(repoRows.map((repo) => [repo.id, repo]));
+  const release = currentRelease();
   return rows.map((row) => {
     const repo = repoById.get(row.repoId);
     return {
@@ -45,7 +47,7 @@ export async function workspaceViews(rows: Workspace[]): Promise<WorkspaceView[]
       forwards: forwardRows.filter((forward) => forward.workspaceId === row.id)
         .sort((a, b) => a.port - b.port).map(toForwardView),
       image: { kind: "base", ref: row.imageRef, serverBuild: row.serverBuild,
-        stale: Boolean(env().ZS_SERVER_BUILD_ID && env().ZS_SERVER_BUILD_ID !== row.serverBuild) },
+        stale: !sameRelease(row, release) },
     };
   });
 }

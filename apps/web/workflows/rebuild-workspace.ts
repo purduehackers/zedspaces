@@ -7,13 +7,16 @@
  * empty new generation over them.
  */
 import { FatalError, sleep } from "workflow";
+import { sameRelease, type EditorRelease } from "@/lib/builds";
 import { runChild } from "./child";
 import {
   stepBumpGeneration,
+  stepCurrentRelease,
   stepFinishRun,
   stepLoadWorkspace,
   stepRecordSessionEnd,
   stepSetState,
+  stepSetRelease,
 } from "./steps/db-steps";
 import {
   stepDeleteBlob,
@@ -29,6 +32,8 @@ import {
 export interface RebuildWorkspaceRun {
   workspaceId: string;
   userId: string;
+  /** Upgrade-on-open pins its target at admission; a concurrent completed upgrade is a no-op. */
+  upgrade?: EditorRelease;
 }
 
 /** Ceiling for the tar of the workspace directory and the server data dir (D9). */
@@ -59,6 +64,11 @@ export async function rebuildWorkspace(input: RebuildWorkspaceRun): Promise<{ ok
   "use workflow";
   try {
     const ws = await stepLoadWorkspace(input.workspaceId);
+    const release = input.upgrade ?? await stepCurrentRelease();
+    if (input.upgrade && sameRelease(ws, release) && !ws.previousSandboxName) {
+      await stepFinishRun(ws.id, { ok: true });
+      return { ok: true };
+    }
 
     let previousSandboxName: string;
     let blobPathname: string;
@@ -74,8 +84,9 @@ export async function rebuildWorkspace(input: RebuildWorkspaceRun): Promise<{ ok
       await stepSetState(ws.id, "rebuilding", "retry");
       // Whatever the failed create left behind under the current name.
       await stepDeleteSandbox(ws.sandboxName, { deleteSnapshots: true });
+      await stepSetRelease(ws.id, release);
     } else {
-      if (ws.state === "running") {
+      if (ws.state !== "stopped") {
         await runChild("stopWorkspace", { workspaceId: ws.id, reason: "rebuild", child: true });
       }
       await stepSetState(ws.id, "rebuilding", "archive");
@@ -85,7 +96,7 @@ export async function rebuildWorkspace(input: RebuildWorkspaceRun): Promise<{ ok
       const archive = await archiveGeneration(ws.sandboxName, ws.id);
       const usage = await stepStopSandboxDiscard(ws.sandboxName);
       await stepRecordSessionEnd(ws.id, usage ?? { activeCpuDurationMs: 0, ingressBytes: 0, egressBytes: 0 }, "rebuild");
-      const generation = await stepBumpGeneration(ws.id, { blobPathname: archive.blobPathname });
+      const generation = await stepBumpGeneration(ws.id, { blobPathname: archive.blobPathname }, release);
       previousSandboxName = generation.oldSandboxName;
       blobPathname = archive.blobPathname;
     }
@@ -94,9 +105,10 @@ export async function rebuildWorkspace(input: RebuildWorkspaceRun): Promise<{ ok
 
     // Only now: the new generation is healthy.
     await stepDeleteSandbox(previousSandboxName, { deleteSnapshots: true });
-    await stepSetState(ws.id, "running", null, { previousSandboxName: null });
+    // Clear both recovery pointers together, before deleting the archive. A retry must
+    // never delete the healthy generation while pointing at an already-deleted backup.
+    await stepSetState(ws.id, "running", null, { previousSandboxName: null, restoreBlobPathname: null });
     await stepDeleteBlob(blobPathname);
-    await stepSetState(ws.id, "running", null, { restoreBlobPathname: null });
     await stepFinishRun(ws.id, { ok: true });
     return { ok: true };
   } catch (err) {

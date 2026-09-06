@@ -63,8 +63,9 @@ with separate Rust caches. All test suites, browser jobs, and temporary test
 Sandboxes have been removed at the owner's request. Deployment builds the OCI/zstd
 image, applies pending Drizzle migrations and checks Turso, checksum-verifies public assets, and
 deploys from the repository root. Releases publish only the current bundle;
-there is no old-editor compatibility mode. Recreate workspaces after a breaking
-release. Failed deployment restores the previous project pins;
+there is no old-editor compatibility mode. Opening an outdated workspace upgrades
+its image and browser/server builds together through a file-preserving rebuild.
+Failed deployment restores the previous project pins;
 the release record identifies the image/build and previous settings for recovery.
 The native/WASM artifacts are retained for 14 days, release records for 90 days.
 

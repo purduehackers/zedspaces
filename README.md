@@ -32,6 +32,12 @@ are shared too. Do not put secrets or sensitive work here. Internal VM tokens,
 signed session tokens, origin checks, and cron authentication still apply.
 Creation is rate-limited and defaults to five active/admitted workspaces.
 
+The next app release automatically upgrades old workspaces when opened or resumed.
+It preserves repository files and Zed's saved editor state, then replaces the VM
+and browser build together. Connected tabs reload after the upgrade completes;
+running terminal commands and dev servers need restarting. Failed upgrades keep
+the old generation and backup for retry. Idle workspaces stay stopped until opened.
+
 ## Browser defaults
 
 The editor fills the tab, without a second workspace status bar. The next editor
@@ -66,8 +72,7 @@ far right. Names such as “Anonymous Owl” appear on hover and beside cursors;
 the artwork is bundled locally, without external avatar requests.
 
 This is a breaking replacement for single-editor sessions, not an optional mode.
-There is no takeover UI or old-editor compatibility path. Recreate workspaces
-created before this release. The matching client/server release is deployed at
+There is no takeover UI or old-editor compatibility path. The matching client/server release is deployed at
 [code.purduehackers.com](https://code.purduehackers.com); see
 [implementation and limits](docs/briefs/multiplayer.md).
 

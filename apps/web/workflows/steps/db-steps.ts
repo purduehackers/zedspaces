@@ -6,10 +6,12 @@
 import { and, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { FatalError } from "workflow";
 import { closeOpenSession } from "@/lib/connect";
+import type { EditorRelease } from "@/lib/builds";
 import { dbReady } from "@/lib/db";
 import { env, envTag, portPool, proxySlots } from "@/lib/env";
 import { newSandboxName } from "@/lib/ids";
 import { MACHINES } from "@/lib/plans";
+import { currentRelease } from "@/lib/release";
 import {
   forwards,
   sessions,
@@ -240,6 +242,18 @@ export interface GenerationBump {
   generation: number;
 }
 
+export async function stepCurrentRelease(): Promise<EditorRelease> {
+  "use step";
+  return currentRelease();
+}
+
+/** Retarget a failed generation before retrying its create from the preserved archive. */
+export async function stepSetRelease(workspaceId: string, release: EditorRelease): Promise<void> {
+  "use step";
+  const db = await dbReady();
+  await db.update(workspaces).set({ ...release, updatedAt: new Date() }).where(eq(workspaces.id, workspaceId));
+}
+
 /**
  * Moves the workspace onto a new sandbox generation: new sandbox name and JWT
  * audience, `restore_kind = "tarball"` pointing at the archive, the old name
@@ -250,6 +264,7 @@ export interface GenerationBump {
 export async function stepBumpGeneration(
   workspaceId: string,
   archive: { blobPathname: string },
+  release: EditorRelease,
 ): Promise<GenerationBump> {
   "use step";
   const db = await dbReady();
@@ -260,8 +275,6 @@ export async function stepBumpGeneration(
   }
   const generation = workspace.sandboxGeneration + 1;
   const name = newSandboxName(workspace.id, generation);
-  const nextImageRef = env().ZS_IMAGE_REF ?? workspace.imageRef;
-  const nextServerBuild = env().ZS_SERVER_BUILD_ID ?? workspace.serverBuild;
   await db
     .update(workspaces)
     .set({
@@ -271,9 +284,7 @@ export async function stepBumpGeneration(
       previousSandboxName: workspace.sandboxName,
       restoreKind: "tarball",
       restoreBlobPathname: archive.blobPathname,
-      imageRef: nextImageRef,
-      serverBuild: nextServerBuild,
-      clientBuild: env().ZS_CLIENT_BUILD_ID ?? nextServerBuild,
+      ...release,
       supervisorCmdId: null,
       currentWsHost: null,
       currentSlotHosts: null,

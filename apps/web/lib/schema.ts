@@ -184,7 +184,7 @@ export const workspaces = sqliteTable(
     /** Bundle under public/editor/ the page loads (§3.26). */
     clientBuild: text("client_build").notNull(),
     restoreKind: restoreKindEnum("restore_kind").notNull().default("fresh"),
-    /** Rebuild tarball; cleared after the supervisor reports phase >= dotfiles. */
+    /** Rebuild archive; retained until the healthy new generation replaces the old one. */
     restoreBlobPathname: text("restore_blob_pathname"),
     state: workspaceStateEnum("state").notNull().default("creating"),
     /** "boot:<phase>" during boot, workflow error text on error. */
