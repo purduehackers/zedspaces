@@ -1,5 +1,21 @@
 # Handoff: Zed Codespaces
 
+**Appearance follow-up (2026-09-06): source only, not built/deployed.**
+Fork `4e766bcb8e` bundles the owner's Kintsugi theme and Ioskeley fonts (UI 15px,
+Nerd Font buffers 14px with `aalt`, same Nerd Font in terminals). Browser presence
+uses 32 bundled animal avatars and matching Anonymous Animal cursor labels;
+round avatars occupy the title bar's far-right controls, with names on hover.
+`check-wasm -p zed_web`, the fork's six existing settings checks, and asset
+inventory validation passed. Production bundle/browser validation was not run.
+Logs: `apps/web/.zs-dev/animals-theme-{wasm-check-2,settings-check}.log`.
+Workspace reopen still resumes its pinned image and browser build; only explicit
+Rebuild adopts the current release. Automatic upgrades are not implemented.
+
+**Workspace wipe (2026-09-06, owner-authorized):** all seven production workspaces
+and three old build/check sandboxes were deleted. Final inventory: no sandboxes,
+recoverable snapshots, private workspace blobs, open sessions or visible workspaces.
+Only audit/deletion metadata remains; repositories and release artifacts were kept.
+
 **Multiplayer deployed (2026-09-06, 20:19 UTC):**
 [code.purduehackers.com](https://code.purduehackers.com) serves app `8e2e3df`
 and matching production WASM/server `648cf2f80-34054725092.1` (fork `648cf2f801`).

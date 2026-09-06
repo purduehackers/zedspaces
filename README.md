@@ -34,9 +34,10 @@ Creation is rate-limited and defaults to five active/admitted workspaces.
 
 ## Browser defaults
 
-The editor fills the tab, without a second workspace status bar. The terminal
-bundles **Lilex Nerd Font Mono**, including icon glyphs; no local font install is
-needed. User font settings still override the default.
+The editor fills the tab, without a second workspace status bar. The next editor
+release bundles **Kintsugi Dark Flared**, **Ioskeley Mono** for UI and
+**IoskeleyMono Nerd Font** for buffers and terminals, including icon glyphs.
+No local font install is needed; user settings still override these defaults.
 
 Use **F1** or **Alt/Option+Shift+P** for the command palette,
 **Alt/Option+P** for files, and **Ctrl+`** for the terminal. These supplement
@@ -59,6 +60,10 @@ CRDT and project protocol run through the sandbox's WebSockets; there is no
 WebRTC signaling service, hosted Zed account, or second collaboration database.
 Files and language servers are shared; terminals and saved layouts belong to
 each tab. Closing the first tab does not end the project.
+
+The next editor release replaces Guest labels with round animal avatars at the
+far right. Names such as “Anonymous Owl” appear on hover and beside cursors;
+the artwork is bundled locally, without external avatar requests.
 
 This is a breaking replacement for single-editor sessions, not an optional mode.
 There is no takeover UI or old-editor compatibility path. Recreate workspaces
