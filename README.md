@@ -32,7 +32,7 @@ are shared too. Do not put secrets or sensitive work here. Internal VM tokens,
 signed session tokens, origin checks, and cron authentication still apply.
 Creation is rate-limited and defaults to five active/admitted workspaces.
 
-The next app release automatically upgrades old workspaces when opened or resumed.
+Old workspaces automatically upgrade when opened or resumed.
 It preserves repository files and Zed's saved editor state, then replaces the VM
 and browser build together. Connected tabs reload after the upgrade completes;
 running terminal commands and dev servers need restarting. Failed upgrades keep
@@ -40,8 +40,8 @@ the old generation and backup for retry. Idle workspaces stay stopped until open
 
 ## Browser defaults
 
-The editor fills the tab, without a second workspace status bar. The next editor
-release bundles **Kintsugi Dark Flared**, **Ioskeley Mono** for UI and
+The editor fills the tab, without a second workspace status bar. It bundles
+**Kintsugi Dark Flared**, **Ioskeley Mono** for UI and
 **IoskeleyMono Nerd Font** for buffers and terminals, including icon glyphs.
 No local font install is needed; user settings still override these defaults.
 
@@ -60,15 +60,14 @@ can fetch its missing history with `git fetch --unshallow origin`.
 
 ## Multiplayer
 
-Anonymous multiplayer is live: share a new workspace's `/w/<id>`
-URL to edit together with live cursors and a small Guest roster. Zed's existing
+Anonymous multiplayer is live: share a workspace's `/w/<id>`
+URL to edit together with live cursors and round animal avatars. Zed's existing
 CRDT and project protocol run through the sandbox's WebSockets; there is no
 WebRTC signaling service, hosted Zed account, or second collaboration database.
 Files and language servers are shared; terminals and saved layouts belong to
 each tab. Closing the first tab does not end the project.
 
-The next editor release replaces Guest labels with round animal avatars at the
-far right. Names such as “Anonymous Owl” appear on hover and beside cursors;
+Avatars sit at the far right. Names such as “Anonymous Owl” appear on hover and beside cursors;
 the artwork is bundled locally, without external avatar requests.
 
 This is a breaking replacement for single-editor sessions, not an optional mode.
