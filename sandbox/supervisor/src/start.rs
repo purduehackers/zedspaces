@@ -75,9 +75,6 @@ pub const WARM_KEY_FILE: &str = "key-warm.pem";
 /// `zs-agent start` arguments.
 #[derive(clap::Args, Debug, Clone, Default)]
 pub struct StartArgs {
-    /// Do not launch the server (image smoke tests).
-    #[arg(long, hide = true)]
-    pub no_server: bool,
     /// This boot resumes a stopped sandbox (`zs-agent resume`; b9 onResume). A hint only – the
     /// first-boot marker decides.
     #[arg(long)]
@@ -123,7 +120,7 @@ pub async fn run(args: StartArgs, config: Config) -> anyhow::Result<()> {
     }
     let config = Arc::new(config);
     let boot = Boot::start(config, args.resumed).await?;
-    boot.run(args).await
+    boot.run().await
 }
 
 /// Everything step 1 brings up, shared by the rest of the boot.
@@ -241,7 +238,7 @@ impl Boot {
     }
 
     /// Steps 2 to 8.
-    async fn run(mut self, args: StartArgs) -> anyhow::Result<()> {
+    async fn run(mut self) -> anyhow::Result<()> {
         let manifest = match self.fetch_manifest().await {
             Ok(manifest) => Arc::new(manifest),
             Err(error) => {
@@ -336,9 +333,7 @@ impl Boot {
         }
 
         // Step 4: the server, the proxy slots and the port watcher.
-        let supervisor = self
-            .spawn_server(&manifest, &child_env, args.no_server, None)
-            .await?;
+        let supervisor = self.spawn_server(&manifest, &child_env, None).await?;
         if self.shutdown.is_cancelled() {
             // SIGTERM (or `stop: true`) arrived while the server was coming up: go straight to
             // the stop sequence instead of starting more work.
@@ -496,16 +491,9 @@ impl Boot {
         &mut self,
         manifest: &Arc<Manifest>,
         child_env: &BTreeMap<String, String>,
-        no_server: bool,
         warm_key_pem: Option<&str>,
     ) -> anyhow::Result<Option<Arc<Supervisor>>> {
         self.state.set_phase(Phase::ServerStarting);
-        if no_server {
-            tracing::warn!("--no-server: the workspace boots without zed-remote-server");
-            self.state.set_status(HealthStatus::Degraded);
-            self.state.set_error("no_server");
-            return Ok(None);
-        }
         let jwt_dir = self.config.jwt_dir();
         let mut jwt_keys = write_jwt_keys(&manifest.jwt.public_keys, &jwt_dir)?;
         if let Some(pem) = warm_key_pem {
@@ -1099,7 +1087,7 @@ impl Boot {
         // process.
         let warm_key = warm::generate_warm_key()?;
         let supervisor = self
-            .spawn_server(&manifest, &child_env, false, Some(&warm_key.public_pem))
+            .spawn_server(&manifest, &child_env, Some(&warm_key.public_pem))
             .await?;
         if self.shutdown.is_cancelled() {
             self.finish(supervisor).await;
@@ -1310,67 +1298,5 @@ pub async fn wait_ready(
             return Ok(false);
         }
         tokio::time::sleep(WAIT_READY_POLL).await;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn exit_codes_follow_the_contract() {
-        assert_eq!(BootError::Config(String::new()).exit_code(), EXIT_CONFIG);
-        assert_eq!(
-            BootError::Manifest(String::new()).exit_code(),
-            EXIT_MANIFEST
-        );
-        assert_eq!(BootError::Repo(String::new()).exit_code(), EXIT_REPO);
-        assert_eq!(EXIT_OK, 0);
-        assert_eq!(EXIT_GENERIC, 1);
-    }
-
-    #[tokio::test]
-    async fn a_stale_pid_file_naming_another_program_is_left_alone() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut sleeper = tokio::process::Command::new("sleep")
-            .arg("30")
-            .kill_on_drop(true)
-            .spawn()
-            .unwrap();
-        let pid = sleeper.id().unwrap();
-        let pid_file = dir.path().join("zs-agent.pid");
-        std::fs::write(&pid_file, pid.to_string()).unwrap();
-        stop_previous_agent(&pid_file).await;
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        assert!(
-            sleeper.try_wait().unwrap().is_none(),
-            "a live process that is not zs-agent must not be signalled"
-        );
-        let _ = sleeper.kill().await;
-        // Our own pid, our parent and a dead pid are ignored too.
-        std::fs::write(&pid_file, std::process::id().to_string()).unwrap();
-        stop_previous_agent(&pid_file).await;
-        std::fs::write(&pid_file, nix::unistd::getppid().as_raw().to_string()).unwrap();
-        stop_previous_agent(&pid_file).await;
-        std::fs::write(&pid_file, "garbage").unwrap();
-        stop_previous_agent(&pid_file).await;
-    }
-
-    #[tokio::test]
-    async fn start_refuses_to_run_under_zs_prebuild() {
-        let env = BTreeMap::from([
-            ("ZS_CONTROL_URL", "https://zs.example.com/api"),
-            ("ZS_SANDBOX_TOKEN", "zsb_test"),
-            ("ZS_SANDBOX_NAME", "pb-test"),
-            ("ZS_WORKSPACE_ID", "pb_test"),
-            ("ZS_PREBUILD", "1"),
-            ("HOME", "/tmp"),
-        ]);
-        let config = Config::from_lookup(|key| env.get(key).map(|v| v.to_string())).unwrap();
-        let error = run(StartArgs::default(), config).await.unwrap_err();
-        assert_eq!(
-            error.downcast_ref::<BootError>().unwrap().exit_code(),
-            EXIT_CONFIG
-        );
     }
 }

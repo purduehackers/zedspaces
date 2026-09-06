@@ -8,7 +8,7 @@ import { githubInstallations, repos, users, workspaces, type User, type Workspac
 export interface Viewer {
   userId: string;
   orgIds: string[];
-  via: "open" | "test" | "editor-cookie";
+  via: "open" | "editor-cookie";
   flaggedAt: Date | null;
 }
 

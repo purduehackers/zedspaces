@@ -34,17 +34,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts",
-    ".next-browser/types/**/*.ts",
-    ".next-browser/dev/types/**/*.ts",
-    ".next-native/types/**/*.ts",
-    ".next-native/dev/types/**/*.ts",
-    ".next-public/types/**/*.ts",
-    ".next-public/dev/types/**/*.ts",
-    ".next-production-check/types/**/*.ts",
-    ".next-production-check/dev/types/**/*.ts",
-    ".next-production/types/**/*.ts",
-    ".next-production/dev/types/**/*.ts"
+    "**/*.mts"
   ],
   "exclude": [
     "node_modules",

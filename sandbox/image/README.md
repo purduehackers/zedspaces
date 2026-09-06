@@ -9,10 +9,7 @@ sandbox/image/
   base.lock                     the digest-pinned vercel/sandbox/universal ref
   build.sh                      builds (and optionally pushes) the image
   build-server.sh               builds zed-remote-server from the fork with Zed's musl recipe
-  dist/                         build outputs: zed-remote-server, image.json, test fixtures
-  test/mock-control-plane.mjs   the sandbox-facing control-plane routes, in Node
-  test/fake-zed-remote-server.py a stand-in for `zed-remote-server serve`
-  test/run-local.sh             boots the image against the mock with `docker run` and asserts
+  dist/                         build outputs: zed-remote-server, image.json
 ```
 
 ## Build
@@ -26,9 +23,8 @@ ZS_BUILD_ID="$(git -C zed rev-parse --short HEAD)-1" sandbox/image/build.sh --ta
 ```
 
 `build.sh` prefers `vercel vcr build docker` and falls back to `docker buildx build`
-(`--engine docker` forces the fallback, `--engine vcr` the other way). Without a server binary in
-`dist/`, pass `--source release` to pull the published `zed-remote-server` from
-`cloud.zed.dev` — that binary has no `serve` subcommand, so it is only good for image smoke tests.
+(`--engine docker` forces the fallback, `--engine vcr` the other way). A patched server binary
+in `dist/` is required; stock Zed releases do not have the `serve` subcommand.
 
 The build context is the repository root: the Dockerfile needs `sandbox/supervisor/` (the zs-agent
 sources, cross-compiled to `x86_64-unknown-linux-musl` in the `agent-builder` stage) and
@@ -51,25 +47,7 @@ jdtls/omnisharp/solargraph/intelephense (their Zed adapters are extensions that 
 data dir on demand).
 
 Vercel Sandbox does not run `ENTRYPOINT`/`CMD`; the control plane invokes `zs-agent start`
-explicitly. The `CMD` in the Dockerfile exists only for `docker run` in the local test.
-
-## Local test
-
-```sh
-sandbox/image/test/run-local.sh --image zs-workspace:dev --fake-server
-sandbox/image/test/run-local.sh --image zs-workspace:dev --only-image   # static checks only
-```
-
-`run-local.sh` builds a fixture repository with a `devcontainer.json`, generates an ES256 key pair
-and a port-session secret, starts `mock-control-plane.mjs`, runs `zs-agent start` in a container
-and asserts the boot: health on `:8448` (the D21 minimal body) and the full report on the loopback
-API, the clone and `postCreateCommand`, the server's environment, the port watcher and the
-control-plane forward, the cookie-gated proxy on slot `8444`, the git credential helper, the
-lifecycle notices and a clean `SIGTERM` shutdown inside b9's 25 s budget.
-
-The mock speaks the sandbox-facing routes of `docs/briefs/CONTRACTS.md` §7.4 and mints
-`zs_port_token` values with b9's `signPortSession` algorithm (cross-checked against
-`zs-agent port-token`).
+explicitly. CI checks the Dockerfile and builds the supervisor; image test fixtures have been removed.
 
 ## Ports (D21)
 

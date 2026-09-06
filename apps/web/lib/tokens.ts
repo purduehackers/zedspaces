@@ -130,10 +130,6 @@ export function loadSigningKeys(e: Env = env()): Promise<SigningKeys> {
   return keys;
 }
 
-/** Drops the memoized keys. Tests only. */
-export function _resetSigningKeysForTests(): void {
-  cache = null;
-}
 
 /** SPKI PEMs, active first then previous – the manifest's `jwt.publicKeys`. */
 export function publicKeyPems(keys: SigningKeys): string[] {

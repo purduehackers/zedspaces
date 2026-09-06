@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     ".next-*/**",
     ".zs-dev/**",
     "out/**",
-    // Playwright's output (traces, the HTML report's bundled viewer):
-    "test-results/**",
     "build/**",
     "next-env.d.ts",
     // Generated and vendored content (b9 §2):
@@ -21,7 +19,6 @@ const eslintConfig = defineConfig([
     "public/editor/**",
     "public/sw.js",
     ".workflow-data/**",
-    ".workflow-vitest/**",
     // Emitted by the Workflow DevKit next plugin on every build:
     "app/.well-known/workflow/**",
   ]),

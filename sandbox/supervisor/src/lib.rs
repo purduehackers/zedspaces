@@ -3,7 +3,7 @@
 //! Plan of record: `docs/briefs/b8-supervisor-image.md` (module layout §3.3-§3.17) as amended by
 //! `docs/briefs/DECISIONS.md` (D21 port map, D22/D23 wire changes seen by the warm-up client,
 //! D28 child environment, D29 names and shapes). The binary in `src/main.rs` is a thin clap front
-//! end over these modules; integration tests reach them through this library target.
+//! end over these modules.
 //!
 //! Module map (bottom-up dependency order):
 //!

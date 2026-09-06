@@ -139,18 +139,16 @@ missing (D28). `manifest.env`/`remoteEnv` keys starting with `ZS_` (other than `
 | `jwt/key-<i>.pem` (+ `key-warm.pem` during prebuild, removed before the process exits) | `--jwt-public-key` files (0600) |
 | `restore.partial/` | rebuild tarball staging |
 
-## Build and test
+## Build
 
 ```sh
 cd sandbox/supervisor
-cargo check
-cargo test
-# The real binary against sandbox/image/test/fake-zed-remote-server.py (needs python3, git, tar):
-ZS_RUN_START_INTEGRATION=1 cargo test --test start_against_fake_server
-# The warm-up client against a locally built `remote_server serve` (../../zed/target/debug):
-ZS_RUN_WARM_INTEGRATION=1 cargo test --test warm_against_serve
+cargo fmt --check
+cargo clippy --locked --lib --bins -- -D warnings
 cargo build --release --target x86_64-unknown-linux-musl   # via sandbox/image/build.sh in CI
 ```
+
+Test suites and fixtures have been removed; CI formats, lints, and builds the supervisor.
 
 The crate pins the same toolchain as the Zed fork (`1.97.1`) and shares every major it has in
 common with `zed/Cargo.toml` (`clap 4`, `nix 0.29`, `rand 0.9`, `sha2 0.10`, `prost 0.14`,

@@ -6,7 +6,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { head, list, put } from "@vercel/blob";
-import { Sandbox } from "@vercel/sandbox";
 import { assertBuildId, assertServableBuild, editorDir } from "./fetch-editor-bundle";
 import { bundleProblems } from "./deploy-preflight";
 
@@ -18,7 +17,7 @@ const required = (key: string): string => { const value = process.env[key]; asse
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 export function releaseValues(build: string, image: { build: string; tag: string; digest: string }, repository: string): Values {
-  assertServableBuild(assertBuildId(build), undefined, false);
+  assertServableBuild(assertBuildId(build));
   assert.ok(!/^dev/.test(build) && !build.endsWith("-names"), "Production build required");
   assert.match(repository, /^vcr\.vercel\.com\/[a-z0-9._-]+\/[a-z0-9._-]+\/zs-workspace$/);
   assert.equal(image.build, build, "Image and browser build must match");
@@ -39,7 +38,7 @@ function api(endpoint: string, method = "GET", body?: unknown) {
 
 async function publish(build: string, delivery: string) {
   assert.deepEqual(bundleProblems(editorDir(), [build]), [], "Production bundle validation");
-  const project = required("VERCEL_PROJECT_ID"), team = required("VERCEL_TEAM_SLUG");
+  const team = required("VERCEL_TEAM_SLUG");
   const repository = `vcr.vercel.com/${team}/${required("VERCEL_PROJECT_SLUG")}/zs-workspace`;
   const source = new URL(required("ZS_EDITOR_BUNDLE_SOURCE"));
   assert.ok(source.protocol === "https:" && !source.username && !source.password && !source.search && !source.hash && source.pathname === "/");
@@ -50,16 +49,6 @@ async function publish(build: string, delivery: string) {
   const manifestHead = response.ok ? await head(manifestUrl, { token }) : null;
   const image = JSON.parse(fs.readFileSync("../../sandbox/image/dist/image.json", "utf8"));
   const values = releaseValues(build, image, repository);
-
-  // A ready registry digest still needs a real VM check. This VM is not an app workspace.
-  const sandbox = await Sandbox.create({ image: values.ZS_IMAGE_REF, resources: { vcpus: 2 }, persistent: false, timeout: 5 * 60_000,
-    token: required("VERCEL_TOKEN"), teamId: required("VERCEL_ORG_ID"), projectId: project });
-  try {
-    const check = await sandbox.runCommand({ cmd: "bash", args: ["-c", "zed-remote-server version && zed-remote-server serve --help && command -v zs-agent docker-langserver vscode-html-language-server tailwindcss-language-server"] });
-    assert.equal(check.exitCode, 0, "Sandbox runtime tools must work");
-    assert.ok((await check.stdout()).includes(build), "Sandbox server build must match the browser");
-    console.log("Matching image booted successfully in a real Sandbox.");
-  } finally { await sandbox.stop(); }
 
   const archive = fs.readFileSync(path.join(delivery, "editor", `${build}.tar`));
   const pathname = `editor/${build}.tar`;

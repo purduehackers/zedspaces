@@ -34,7 +34,7 @@ default `.pnp*` exclusion otherwise hides.
 ## CI releases
 
 Run **Release Zedspaces** in GitHub Actions on `main`. By default it builds and
-tests only; enable **deploy** to publish to the existing project/domain. The
+checks source and builds only; enable **deploy** to publish to the existing project/domain. The
 pipeline follows [wack-hacker's release pattern](https://github.com/purduehackers/wack-hacker/blob/main/.github/workflows/image.yml):
 one release at a time, immutable images, checks before promotion, and a release record.
 
@@ -54,15 +54,14 @@ workflow. An optional `ZS_BUILD_RUNNER` repository variable selects a larger
 Linux x64 runner; the default is `ubuntu-24.04` with two Cargo jobs.
 CI disables debug/incremental artifacts, uses separate compact dependency caches,
 and removes unused Android/.NET/Haskell/CodeQL SDKs only on disposable GitHub-hosted
-runners. Browser/dev mode does not compile the unused native E2E test binary.
+runners.
 Build failures stop immediately; `ZS_SKIP_BUILD=1` is the explicit reuse path.
 Long builds emit disk/memory readings every minute and retain `build-resources.log`.
-The runner override also applies to browser E2E.
-
-CI runs web/supervisor checks and the full Chromium suite (including multiplayer),
-builds matching production WASM and Linux server artifacts with separate Rust
-caches, then runs production browser smoke tests. Deployment builds the OCI/zstd image, checks it locally and in a real
-temporary Sandbox, applies pending Drizzle migrations and checks Turso, checksum-verifies public assets, and
+CI runs web lint/typecheck/build and supervisor formatting/Clippy/build checks.
+The release workflow builds matching production WASM and Linux server artifacts
+with separate Rust caches. All test suites, browser jobs, and temporary test
+Sandboxes have been removed at the owner's request. Deployment builds the OCI/zstd
+image, applies pending Drizzle migrations and checks Turso, checksum-verifies public assets, and
 deploys from the repository root. Releases publish only the current bundle;
 there is no old-editor compatibility mode. Recreate workspaces after a breaking
 release. Failed deployment restores the previous project pins;
@@ -73,9 +72,8 @@ The native/WASM artifacts are retained for 14 days, release records for 90 days.
 bypass the matching-artifact pipeline. PR checks have no production secrets.
 Build-only runs never migrate or deploy. A deployment explicitly applies pending
 migrations. Restoring project pins does not undo a database migration.
-Full local browser E2E remains nightly
-or manually selectable in the `web` workflow; the release gate uses the smaller
-production smoke suite. First builds are cold; subsequent runs reuse caches.
+There are no nightly or manually selectable test jobs. First builds are cold;
+subsequent runs reuse caches.
 
 The [first build-only run passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327):
 web/supervisor checks, production WASM, Linux server, and production browser smoke.
@@ -120,8 +118,6 @@ cd apps/web
 pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm lint
-pnpm test
-pnpm test:integration
 pnpm deploy:check   # reads .env.local; configuration + actual bundle validation
 pnpm deploy:check:db # read-only live Turso schema/migration/FK check
 pnpm build         # Vercel runs the same preflight automatically

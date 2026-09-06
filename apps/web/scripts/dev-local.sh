@@ -1,40 +1,8 @@
 #!/usr/bin/env bash
-# Local control plane on this machine, no Vercel account (round 2, lane local-backend).
-#
-#   scripts/dev-local.sh            build everything, start `next dev` in local mode, keep running
-#   scripts/dev-local.sh e2e        same, then run the native end-to-end test and shut everything down
-#   scripts/dev-local.sh browser [playwright args…]
-#                                   same, with the test-hooks wasm bundle (built when missing), the
-#                                   test-only routes and the rpc proxy, then run the Playwright suite
-#                                   (tests/e2e-browser) and shut everything down; e.g. --project=chromium
-#   scripts/dev-local.sh build      only build zs-agent, zed-remote-server and the native test binary
-#   scripts/dev-local.sh stop       stop every workspace through the API when the dev server answers,
-#                                   then every local sandbox process and the dev server, then mark any
-#                                   row still live `stopped` in the database (scripts/dev-local-db.ts)
-#   scripts/dev-local.sh clean      stop, then remove every stopped sandbox directory and the e2e fixture repos
-#
-# Local mode uses a shared login-free viewer, a libSQL file, and the real local
-# supervisor/server on 127.0.0.1. No Docker, database service, or external auth.
-# Dev ES256 keys live in apps/web/.zs-dev/ (mode 0600), generated once.
-#
-# The local-mode environment is only ever *exported* by this script (and mirrored to
-# .zs-dev/env.local for inspection); it is never written to apps/web/.env.local, so a plain
-# `pnpm dev` (which binds every interface) never serves the unauthenticated dev mode. `next dev`
-# is started with -H 127.0.0.1 here. `pnpm dev:local [mode]` is the same as running this script.
-#
-# Environment knobs: ZS_DEV_PORT (3100; 3110 in browser mode so it never collides with a running
-# `dev`), ZS_DEV_DB (sqlite), ZS_LOCAL_ROOT ($TMPDIR/zs-local;
-# $TMPDIR/zs-local-browser in browser mode; must be a dedicated directory), ZS_SKIP_BUILD=1,
-# ZS_KEEP_E2E=1 (keep the e2e run's database/libSQL directory and, with the test's own
-# ZS_E2E_KEEP=1, its workspace and sandbox directory). Browser mode: ZS_BROWSER_BUILD_ID pins the
-# test-hooks bundle id (skips the dirty-tree hash, so an existing bundle is reused across source
-# edits), ZS_BROWSER_BUILD_ARGS adds build-web flags to that bundle (`--names` for symbolised panic
-# stacks), ZS_KEEP_TEST_BUNDLES=1 keeps the earlier `-test` bundles under public/editor (they are
-# pruned before a run otherwise), ZS_SKIP_LSP_TOOLS=1 skips fixture language-server installation
-# (LSP cases then require tools already on PATH), ZS_SKIP_PLAYWRIGHT_INSTALL=1 (or Playwright's own
-# PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD) never runs `playwright install`, ZS_E2E_BOOT_BUDGET_MS bounds
-# the Chromium navigation-to-editable boot (default 15000 here, see run_browser_suite),
-# ZS_E2E_CI=1 selects the CI reporters/retries of the Playwright config.
+# Local SQLite control plane and sandbox processes; no cloud credentials.
+# Usage: scripts/dev-local.sh [dev|build|stop|clean]
+# ZS_DEV_PORT (3100), ZS_LOCAL_ROOT, ZS_LOCAL_REPOS_DIR and ZS_SERVE_BIN override local paths.
+# ZS_SKIP_BUILD=1 explicitly reuses existing binaries. Never shares state with Vercel.
 set -euo pipefail
 # Also explicitly reap this run's flusher on shutdown: the disabled flag alone does not
 # prevent every detached telemetry helper (and its esbuild child) from surviving next dev.
@@ -51,15 +19,8 @@ MODE="${1:-dev}"
 
 TMP_BASE="${TMPDIR:-/tmp}"
 TMP_BASE="${TMP_BASE%/}"
-if [ "$MODE" = browser ]; then
-  # Its own port and sandbox root, so a `dev` session on 3100 keeps running (and keeps its
-  # sandboxes) while the browser suite starts and stops its own.
-  PORT="${ZS_DEV_PORT:-3110}"
-  LOCAL_ROOT="${ZS_LOCAL_ROOT:-$TMP_BASE/zs-local-browser}"
-else
-  PORT="${ZS_DEV_PORT:-3100}"
-  LOCAL_ROOT="${ZS_LOCAL_ROOT:-$TMP_BASE/zs-local}"
-fi
+PORT="${ZS_DEV_PORT:-3100}"
+LOCAL_ROOT="${ZS_LOCAL_ROOT:-$TMP_BASE/zs-local}"
 LOCAL_ROOT="${LOCAL_ROOT%/}"
 REPOS_DIR="${ZS_LOCAL_REPOS_DIR:-$LOCAL_ROOT/repos}"
 AGENT_BIN="$SUPERVISOR_DIR/target/debug/zs-agent"
@@ -97,9 +58,7 @@ regex_escape() { printf '%s' "$1" | sed 's/[][\\.*^$+?(){}|]/\\&/g'; }
 # finds its assets (settings/default.json, …) by walking up from the executable to the nearest
 # `.git` (util::dev_repo_root), so a copy outside zed/ would look for them in the wrong checkout.
 SERVE_STASH="$ZED_DIR/target/zs-local/zed-remote-server"
-# A browser run must not replace the binary a developer's local workspaces resume with.
-[ "$MODE" != browser ] || SERVE_STASH="$ZED_DIR/target/zs-browser/zed-remote-server"
-# A feature test can use its own build without replacing either shared stash.
+# An explicitly selected prebuilt server can be used with ZS_SKIP_BUILD=1.
 SERVE_STASH="${ZS_SERVE_BIN:-$SERVE_STASH}"
 serve_bin() {
   if [ -x "$SERVE_STASH" ]; then
@@ -167,11 +126,6 @@ build_all() {
   fi
   log "copied the fresh remote_server binary to $SERVE_STASH"
   check_serve_bin
-  # Browser/dev mode never runs this binary. Its test-only dependency closure is large.
-  if [ "$MODE" = e2e ] || [ "$MODE" = build ]; then
-    log "building the native end-to-end test"
-    (cd "$ZED_DIR" && cargo test --locked -p remote --test native_e2e --no-run) || die "native end-to-end build failed"
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -181,22 +135,6 @@ build_all() {
 resolve_dev_db() {
   case "${ZS_DEV_DB:-sqlite}" in sqlite|auto) ;; *) die "ZS_DEV_DB now uses sqlite; Postgres is no longer used" ;; esac
   log "database: local libSQL file"
-}
-
-E2E_DIR_PREFIX="round5-e2e-"
-[ "$MODE" != browser ] || E2E_DIR_PREFIX="round5-browser-"
-
-# The libSQL directories of earlier e2e runs (and the stray empty ones of docker runs).
-# Earlier runs belong to the developer; never silently prune their databases.
-drop_stale_e2e_dirs() { return 0; }
-
-drop_e2e_dir() {
-  [ -n "${E2E_DIR:-}" ] || return 0
-  if [ "${ZS_KEEP_E2E:-0}" = "1" ]; then
-    log "ZS_KEEP_E2E=1: keeping $E2E_DIR"
-    return 0
-  fi
-  rm -rf "$E2E_DIR"
 }
 
 # ---------------------------------------------------------------------------
@@ -243,38 +181,18 @@ export_env() {
   source "$DEV_DIR/keys.env"
   unset TURSO_DATABASE_URL TURSO_AUTH_TOKEN VERCEL_ENV VERCEL_URL
   export ZS_DB_URL="file:$db_target"
-  if [ "$MODE" = browser ] || [ "$MODE" = e2e ]; then
-    # Workflow's Next plugin otherwise hard-codes .next/workflow-data even
-    # with a separate distDir. Keep each test run's durable state beside its DB.
-    export WORKFLOW_TARGET_WORLD=local
-    export WORKFLOW_LOCAL_DATA_DIR="${db_target%/*}/workflow-data"
-  fi
   mkdir -p "$(dirname "$db_target")"
-  export ZS_SANDBOX_DRIVER=real
   export ZS_SANDBOX_BACKEND=local
   export ZS_LOCAL_ROOT="$LOCAL_ROOT"
   export ZS_LOCAL_REPOS_DIR="$REPOS_DIR"
   export ZS_AGENT_BIN="$AGENT_BIN"
   ZS_SERVE_BIN="$(serve_bin)"
   export ZS_SERVE_BIN
-  export ZS_KV=sql
   export ZS_CONTROL_URL="$BASE_URL/api"
   export ZS_CLIENT_BUILD_ID="${ZS_CLIENT_BUILD_ID:-dev-0}"
   export ZS_SERVER_BUILD_ID="${ZS_SERVER_BUILD_ID:-dev-0}"
   export ZS_IMAGE_REF="${ZS_IMAGE_REF:-zs-workspace:dev-0}"
   export ZS_CSP_UNSAFE_EVAL="${ZS_CSP_UNSAFE_EVAL:-1}"
-  # Browser mode only: the test-only routes (`POST /api/workspaces/{id}/test-local` kills the
-  # sandbox, severs sockets and reads files out of the checkout) and the rpc proxy the Playwright
-  # suite drives. Set from the mode, never from the caller's environment: `${VAR:-0}` would keep a
-  # `1` a developer exported once - or that `.zs-dev/env.local` carries - and mount those routes
-  # on the plain `dev` stack, where nothing expects or cleans up after them.
-  if [ "$MODE" = browser ]; then
-    export ZS_TEST_ROUTES=1
-    export ZS_LOCAL_RPC_PROXY=1
-  else
-    export ZS_TEST_ROUTES=0
-    export ZS_LOCAL_RPC_PROXY=0
-  fi
   mkdir -p "$LOCAL_ROOT" "$REPOS_DIR"
   ENV_EXPORTED=1
 }
@@ -293,10 +211,9 @@ write_env_files() {
     umask 077
     {
       echo "$ENV_MARKER"
-      for name in ZS_SANDBOX_DRIVER ZS_SANDBOX_BACKEND \
-        ZS_LOCAL_ROOT ZS_LOCAL_REPOS_DIR ZS_AGENT_BIN ZS_SERVE_BIN ZS_DB_URL ZS_KV \
+      for name in ZS_SANDBOX_BACKEND \
+        ZS_LOCAL_ROOT ZS_LOCAL_REPOS_DIR ZS_AGENT_BIN ZS_SERVE_BIN ZS_DB_URL \
         ZS_CONTROL_URL ZS_CLIENT_BUILD_ID ZS_SERVER_BUILD_ID ZS_IMAGE_REF ZS_CSP_UNSAFE_EVAL \
-        ZS_TEST_ROUTES ZS_LOCAL_RPC_PROXY \
         ZS_JWT_PRIVATE_KEY ZS_JWT_KID ZS_JWT_ISSUER ZS_EDITOR_COOKIE_SECRET CRON_SECRET; do
         printf '%s="%s"\n' "$name" "${!name:-}"
       done
@@ -382,8 +299,7 @@ NODE
 }
 
 # After `stop`: removes every sandbox directory whose record says stopped and no process is
-# left (workspaces, snapshots, logs), and the e2e fixture repositories (`repos/e2e-*`, which a
-# failed run leaves behind). The dev keys in .zs-dev stay.
+# left (workspaces, snapshots, logs). The dev keys in .zs-dev stay.
 clean_local_root() {
   local record dir status removed=0
   for record in "$LOCAL_ROOT"/*/sandbox.json; do
@@ -397,12 +313,6 @@ clean_local_root() {
     else
       log "keeping $(basename "$dir") (status $status)"
     fi
-  done
-  for dir in "$REPOS_DIR"/e2e-*; do
-    [ -d "$dir" ] || continue
-    rm -rf "$dir"
-    log "removed fixture repository $(basename "$dir")"
-    removed=$((removed + 1))
   done
   log "clean: $removed directories removed under $LOCAL_ROOT"
 }
@@ -543,24 +453,8 @@ stop_everything() {
   mark_workspaces_stopped_in_db
 }
 
-e2e_shutdown() {
-  shutdown_all
-  drop_e2e_dir
-}
-
 start_next() {
   local log_file="$DEV_DIR/next.log"
-  if [ "$MODE" = browser ]; then
-    # Beside a running `dev`: its own log and, through ZS_NEXT_DIST_DIR (next.config.ts), its own
-    # distDir, since Next allows one dev server per distDir (`.next/dev/lock`).
-    log_file="$DEV_DIR/next-browser.log"
-    export ZS_NEXT_DIST_DIR="${ZS_NEXT_DIST_DIR:-.next-browser}"
-  elif [ "$MODE" = e2e ]; then
-    # Native validation can also run beside the developer's stack without truncating its log
-    # or contending for its Next dev-server lock (use ZS_DEV_PORT for a distinct listener).
-    log_file="$DEV_DIR/next-native.log"
-    export ZS_NEXT_DIST_DIR="${ZS_NEXT_DIST_DIR:-.next-native}"
-  fi
   if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
     die "port $PORT is in use (set ZS_DEV_PORT, or run: scripts/dev-local.sh stop)"
   fi
@@ -583,202 +477,6 @@ start_next() {
   done
   tail -40 "$log_file" >&2
   die "next dev did not answer GET /api/workspaces within 5 minutes"
-}
-
-run_e2e() {
-  log "running the native end-to-end test"
-  (
-    cd "$WEB_DIR" &&
-      ZS_E2E_BASE_URL="$BASE_URL" \
-      ZS_E2E_ZED_DIR="$ZED_DIR" \
-      ZS_E2E_LOCAL_ROOT="$LOCAL_ROOT" \
-      ZS_E2E_REPOS_DIR="$REPOS_DIR" \
-      pnpm exec vitest run -c tests/e2e-native/vitest.config.mts
-  )
-}
-
-# ---------------------------------------------------------------------------
-# Browser mode (the Playwright suite)
-# ---------------------------------------------------------------------------
-
-BUNDLE_DIR="$WEB_DIR/public/editor"
-LSP_TOOLS_DIR="$WEB_DIR/tests/e2e-browser/fixtures/lsp-tools"
-BROWSER_BUILD_ID=""
-
-# The test-hooks bundle (`script/build-web --test-hooks`: window.__zs_test, a `-test` build id)
-# under public/editor/<id>/. ZS_BROWSER_BUILD_ID pins the id; otherwise it is the one build-web
-# derives from the tree (its dirty hash included), so an edited tree gets a fresh build. A bundle
-# without `"test_hooks": true` in its build.json is refused: a production bundle must never be
-# served under a test id.
-ensure_browser_bundle() {
-  # ZS_BROWSER_BUILD_ARGS adds build-web flags, e.g. `--names` to keep the wasm name section so a
-  # panic in the suite names Rust functions (docs/status/round3c.md); the id then ends in
-  # `-test-names`.
-  # shellcheck disable=SC2206
-  local build_args=(--test-hooks ${ZS_BROWSER_BUILD_ARGS:-})
-  if [ -n "${ZS_BROWSER_BUILD_ID:-}" ]; then
-    BROWSER_BUILD_ID="$ZS_BROWSER_BUILD_ID"
-  else
-    BROWSER_BUILD_ID="$(cd "$ZED_DIR" && ./script/build-web "${build_args[@]}" --print-build-id)" ||
-      die "script/build-web ${build_args[*]} --print-build-id failed"
-  fi
-  case "$BROWSER_BUILD_ID" in
-    *-test|*-test-names) ;;
-    *) die "the browser suite needs a test-hooks bundle id ending in -test or -test-names (got $BROWSER_BUILD_ID)" ;;
-  esac
-  local dir="$BUNDLE_DIR/$BROWSER_BUILD_ID"
-  if [ -f "$dir/build.json" ] && [ -f "$dir/zed_web_bg.wasm" ] && [ -f "$dir/zed_web.js" ] && [ -f "$dir/zed-assets.tar" ]; then
-    if ! grep -q '"test_hooks": true' "$dir/build.json"; then
-      die "$dir/build.json does not say test_hooks: true; remove the directory (it is not a test bundle)"
-    fi
-    log "test-hooks bundle: $dir (present)"
-    return
-  fi
-  [ "${ZS_SKIP_BUILD:-0}" = "1" ] && die "ZS_SKIP_BUILD=1 but the test-hooks bundle $dir is missing"
-  mkdir -p "$DEV_DIR"
-  log "building the test-hooks bundle $BROWSER_BUILD_ID (script/build-web ${build_args[*]}; slow, log: $DEV_DIR/build-web.log)"
-  if (cd "$ZED_DIR" && ./script/build-web "${build_args[@]}" --out-dir "$BUNDLE_DIR" --build-id "$BROWSER_BUILD_ID" 2>&1 |
-    tee "$DEV_DIR/build-web.log" | grep -v '^\s*Compiling\|Blocking waiting\|^warning\|^ *|\|^ *=\|^ *-->\|^$' >&2; exit "${PIPESTATUS[0]}"); then
-    log "test-hooks bundle: $dir"
-  else
-    die "script/build-web --test-hooks failed (log: $DEV_DIR/build-web.log)"
-  fi
-  [ -f "$dir/build.json" ] || die "build-web did not write $dir/build.json"
-}
-
-# The fixture's TypeScript, Dockerfile, HTML and Tailwind servers, installed once and put on PATH
-# for the dev server, supervisor and `zed-remote-server` beneath it.
-ensure_lsp_tools() {
-  [ "${ZS_SKIP_LSP_TOOLS:-0}" = "1" ] && { log "ZS_SKIP_LSP_TOOLS=1: not installing language servers; LSP checks require tools on PATH"; return 0; }
-  local bin="$LSP_TOOLS_DIR/node_modules/.bin"
-  if [ ! -x "$bin/typescript-language-server" ] || [ ! -x "$bin/vtsls" ] || [ ! -x "$bin/docker-langserver" ] || [ ! -x "$bin/vscode-html-language-server" ] || [ ! -x "$bin/tailwindcss-language-server" ]; then
-    mkdir -p "$DEV_DIR"
-    log "installing fixture language servers into $LSP_TOOLS_DIR (pnpm install; log: $DEV_DIR/lsp-tools-install.log)"
-    # These are JS tools; dependency postinstalls (e.g. core-js's funding notice)
-    # are unnecessary. Explicitly skip them under pnpm's strict build policy.
-    if ! (cd "$LSP_TOOLS_DIR" && pnpm install --ignore-workspace --ignore-scripts --config.confirmModulesPurge=false > "$DEV_DIR/lsp-tools-install.log" 2>&1); then
-      die "fixture language-server installation failed (log: $DEV_DIR/lsp-tools-install.log)"
-    fi
-  fi
-  export PATH="$bin:$PATH"
-  export ZS_E2E_LSP_TOOLS_BIN="$bin"
-  log "typescript-language-server: $(command -v typescript-language-server) ($(typescript-language-server --version 2>/dev/null | head -1))"
-}
-
-# The projects a run asked for, in either spelling (`--project=X`, `--project X`), repeated or
-# not; empty when it named none.
-requested_projects() {
-  local arg take_next=0 out=""
-  for arg in "$@"; do
-    if [ "$take_next" = 1 ]; then
-      out="$out $arg"
-      take_next=0
-      continue
-    fi
-    case "$arg" in
-      --project=*) out="$out ${arg#--project=}" ;;
-      --project) take_next=1 ;;
-    esac
-  done
-  printf '%s' "${out# }"
-}
-
-# What a run without `--project` executes. Round 4 validated all four projects together
-# (docs/status/round4.md); the smaller local/nightly default remains Chromium plus smoke.
-# Firefox and WebKit are opt-in and repeat the cases against their own fresh workspaces.
-DEFAULT_PROJECTS="chromium smoke"
-
-# `pnpm exec playwright install` when a browser the requested projects need is missing from
-# Playwright's cache (~/Library/Caches/ms-playwright on macOS, ~/.cache/ms-playwright on Linux).
-ensure_playwright_browsers() {
-  local cache="${PLAYWRIGHT_BROWSERS_PATH:-}"
-  if [ -z "$cache" ]; then
-    case "$(uname -s)" in
-      Darwin) cache="$HOME/Library/Caches/ms-playwright" ;;
-      *) cache="${XDG_CACHE_HOME:-$HOME/.cache}/ms-playwright" ;;
-    esac
-  fi
-  if [ "${ZS_SKIP_PLAYWRIGHT_INSTALL:-0}" = "1" ] || [ -n "${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:-}" ]; then
-    log "not checking the Playwright browsers (ZS_SKIP_PLAYWRIGHT_INSTALL / PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD)"
-    return 0
-  fi
-  # The browsers the projects of this run need; `smoke` is Chromium too.
-  local wanted name missing=""
-  wanted="$(requested_projects "$@")"
-  [ -n "$wanted" ] || wanted="$DEFAULT_PROJECTS"
-  wanted="${wanted//smoke/chromium}"
-  # shellcheck disable=SC2086
-  wanted="$(printf '%s\n' $wanted | sort -u | tr '\n' ' ')"
-  log "Playwright browsers wanted: $wanted (cache: $cache)"
-  for name in $wanted; do
-    case "$name" in
-      chromium|firefox|webkit) ;;
-      *) die "unknown Playwright project '$name' (chromium, firefox, webkit, smoke)" ;;
-    esac
-    if ! ls -d "$cache/$name"-* >/dev/null 2>&1; then missing="$missing $name"; fi
-  done
-  if [ -n "$missing" ]; then
-    log "installing the Playwright browsers:$missing (pnpm exec playwright install)"
-    # shellcheck disable=SC2086
-    (cd "$WEB_DIR" && pnpm exec playwright install $missing) || die "playwright install failed"
-  fi
-}
-
-# Earlier `-test`/`-test-names` bundles under public/editor (a dirty-tree rebuild leaves one per
-# source state, 75 MB each) are removed before a run; the one this run serves, and a pinned
-# ZS_BROWSER_BUILD_ID, stay. Production bundles (no suffix, `-names`) are never touched: the
-# `dev` stack on 3100 may be serving them.
-prune_stale_test_bundles() {
-  [ "${ZS_KEEP_TEST_BUNDLES:-0}" = "1" ] && { log "ZS_KEEP_TEST_BUNDLES=1: keeping the earlier test bundles"; return 0; }
-  local dir name
-  for dir in "$BUNDLE_DIR"/*-test "$BUNDLE_DIR"/*-test-names; do
-    [ -d "$dir" ] || continue
-    name="$(basename "$dir")"
-    [ "$name" = "$BROWSER_BUILD_ID" ] && continue
-    [ "$name" = "${ZS_BROWSER_BUILD_ID:-}" ] && continue
-    if [ -f "$dir/build.json" ] && ! grep -q '"test_hooks": true' "$dir/build.json"; then
-      log "keeping $name: its build.json does not say test_hooks: true"
-      continue
-    fi
-    rm -rf "$dir"
-    log "removed the earlier test bundle $name"
-  done
-  return 0
-}
-
-# shellcheck disable=SC2086   # $projects is a deliberate list of --project=<name> words
-run_browser_suite() {
-  # Without an explicit `--project` the run is pinned to DEFAULT_PROJECTS rather than every
-  # project of the config (see there); `--project=firefox` still selects firefox.
-  # A plain string, not an array: this script runs under bash 3.2 (macOS) with `set -u`, where
-  # expanding an empty array is an error. The values are project names, so splitting is safe.
-  local projects="" name
-  if [ -z "$(requested_projects "$@")" ]; then
-    for name in $DEFAULT_PROJECTS; do projects="$projects --project=$name"; done
-  fi
-  log "running the browser end-to-end suite (playwright test tests/e2e-browser; args:$projects $*)"
-  # ZS_E2E_BOOT_BUDGET_MS bounds the Chromium navigation-to-editable boot the suite records. It is
-  # an environment figure, not an editor one: the local `next dev` serves the 75 MB wasm
-  # `no-store` on every navigation (next.config.ts) and delivers plus compiles it in most of the
-  # 6-8 s measured on an M-series Mac with WebGPU on Metal, 12-13 s on SwiftShader
-  # (test-results/e2e-browser-timings.json records every run's legs). 15 s is the lane's "boots
-  # in under 15 s locally" bar, roughly twice what a warm local run measures; CI serves the same
-  # bundle from a slower disk and sets its own (60 s, .github/workflows/web.yml). The editor's own
-  # leg (hooks installed → editable) has its fixed budget inside editor.spec.ts. Firefox/WebKit
-  # run on software WebGL2 and are recorded only (ZS_E2E_BOOT_BUDGET_MS_FIREFOX / _WEBKIT to
-  # bound them).
-  (
-    cd "$WEB_DIR" &&
-      ZS_E2E_BASE_URL="$BASE_URL" \
-      ZS_E2E_ZED_DIR="$ZED_DIR" \
-      ZS_E2E_LOCAL_ROOT="$LOCAL_ROOT" \
-      ZS_E2E_REPOS_DIR="$REPOS_DIR" \
-      ZS_E2E_BUILD_ID="$BROWSER_BUILD_ID" \
-      ZS_E2E_RUN_ID="${E2E_STAMP:-$$}" \
-      ZS_E2E_BOOT_BUDGET_MS="${ZS_E2E_BOOT_BUDGET_MS:-15000}" \
-      ZS_SMOKE_SERVER_BIN="${ZS_SMOKE_SERVER_BIN:-$(serve_bin)}" \
-      pnpm exec playwright test -c tests/e2e-browser/playwright.config.ts $projects "$@"
-  )
 }
 
 # ---------------------------------------------------------------------------
@@ -809,49 +507,7 @@ case "$MODE" in
     log "press Ctrl-C to stop"
     wait "$NEXT_PID"
     ;;
-  e2e)
-    build_all
-    gen_keys
-    resolve_dev_db
-    E2E_STAMP="$(date +%Y%m%d%H%M%S)"
-    E2E_DIR=""
-    # A fresh database per run: nothing from an earlier run can satisfy an assertion. Earlier
-    # runs' databases and libSQL directories are dropped now, this run's on exit (ZS_KEEP_E2E=1
-    # keeps them).
-    E2E_DIR="$DEV_DIR/${E2E_DIR_PREFIX}$E2E_STAMP"
-    mkdir -p "$E2E_DIR"
-    export_env "$E2E_DIR/control.db"
-    write_env_files
-    trap e2e_shutdown EXIT INT TERM
-    start_next
-    status=0
-    run_e2e || status=$?
-    log "native end-to-end test exit status: $status (next log: $DEV_DIR/next-native.log)"
-    exit "$status"
-    ;;
-  browser)
-    build_all
-    ensure_browser_bundle
-    prune_stale_test_bundles
-    ensure_lsp_tools
-    ensure_playwright_browsers "$@"
-    gen_keys
-    resolve_dev_db
-    E2E_STAMP="$(date +%Y%m%d%H%M%S)"
-    E2E_DIR=""
-    export ZS_CLIENT_BUILD_ID="$BROWSER_BUILD_ID"
-    E2E_DIR="$DEV_DIR/${E2E_DIR_PREFIX}$E2E_STAMP"
-    mkdir -p "$E2E_DIR"
-    export_env "$E2E_DIR/control.db"
-    write_env_files
-    trap e2e_shutdown EXIT INT TERM
-    start_next
-    status=0
-    run_browser_suite "$@" || status=$?
-    log "browser end-to-end suite exit status: $status (next log: $DEV_DIR/next-browser.log; report: $WEB_DIR/test-results/e2e-browser-report/index.html)"
-    exit "$status"
-    ;;
   *)
-    die "usage: $0 [dev|e2e|browser [playwright args…]|build|stop|clean]"
+    die "usage: $0 [dev|build|stop|clean]"
     ;;
 esac

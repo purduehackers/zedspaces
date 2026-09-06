@@ -11,8 +11,6 @@ publish = false
 description = "In-sandbox supervisor for Zed Codespaces workspaces"
 build = "build.rs"
 
-# The library target exists so the integration tests under `tests/` (brief §6.2: `api::run`,
-# `ports::scan`, `ProxyConfig`, …) can reach the modules; the binary is a thin clap front end.
 [lib]
 name = "zs_agent"
 path = "src/lib.rs"
@@ -58,9 +56,6 @@ tracing-subscriber = { version = "0.3.22", features = ["json", "env-filter"] }
 [build-dependencies]
 prost-build = "0.14"
 protox = "0.9"
-
-[dev-dependencies]
-tempfile = "3.19"
 
 [profile.release]
 opt-level = "z"

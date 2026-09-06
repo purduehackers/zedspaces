@@ -44,7 +44,6 @@ import { ApiError } from "./api";
 import { dbReady } from "./db";
 import { env, EnvError, INFRA_PORT_MAX, INFRA_PORT_MIN, proxySlots } from "./env";
 import type { InstallationRepo, RefRequest, ResolvedRef } from "./github";
-import { closeRpcProxy, ensureRpcProxy } from "./local-rpc-proxy";
 import type {
   CreateSandboxInput,
   KillSignal,
@@ -141,12 +140,6 @@ export interface LocalSandboxRecord {
   portMap: Record<string, number>;
   /** Allocated loopback ports for the two listeners that are never declared (D21 8450/8451). */
   internal: { localApi: number; control: number };
-  /**
-   * `ZS_LOCAL_RPC_PROXY=1`: the loopback port `domain(ZS_RPC_PORT)` answers, a TCP proxy in
-   * front of the rpc listener (`lib/local-rpc-proxy.ts`) so the browser end-to-end suite can
-   * sever live connections. Absent on records created without the proxy.
-   */
-  rpcProxyPort?: number;
   status: SandboxStatus;
   createdAt: number;
   /** Start of the current "VM session" (unix ms), `null` while stopped. */
@@ -179,11 +172,6 @@ function sandboxDir(name: string): string {
 /** `<ZS_LOCAL_ROOT>/<name>`: the directory that plays the VM of sandbox `name`. */
 export function localSandboxDir(name: string): string {
   return sandboxDir(name);
-}
-
-/** True when `ZS_LOCAL_RPC_PROXY=1` (and the local backend is on). */
-export function localRpcProxyEnabled(): boolean {
-  return localBackendEnabled() && env().ZS_LOCAL_RPC_PROXY === "1";
 }
 
 function recordPath(name: string): string {
@@ -250,7 +238,6 @@ function portsInUseByRecords(): Set<number> {
     for (const port of Object.values(record.portMap)) used.add(port);
     used.add(record.internal.localApi);
     used.add(record.internal.control);
-    if (record.rpcProxyPort !== undefined) used.add(record.rpcProxyPort);
   }
   return used;
 }
@@ -534,13 +521,6 @@ class LocalHandle implements SandboxHandle {
     const record = this.record();
     const mapped = record.portMap[String(port)];
     if (mapped === undefined) throw new Error(`local sandbox ${this.name}: port ${port} was not declared`);
-    if (port === env().ZS_RPC_PORT && localRpcProxyEnabled() && record.rpcProxyPort !== undefined) {
-      // `domain()` is synchronous; the bind completes on the next ticks, well before a client
-      // dials (the caller records the host, then polls health for seconds). A bind failure is
-      // logged by the proxy module and surfaces as a refused client connection.
-      ensureRpcProxy(this.name, record.rpcProxyPort, mapped).catch(() => undefined);
-      return `http://127.0.0.1:${record.rpcProxyPort}`;
-    }
     return `http://127.0.0.1:${mapped}`;
   }
 
@@ -773,7 +753,6 @@ class LocalHandle implements SandboxHandle {
     stopped.startedAt = null;
     stopped.expiresAt = null;
     writeRecord(stopped);
-    closeRpcProxy(this.name);
     return {
       snapshotId: snapshot.snapshotId,
       snapshotSizeBytes: snapshot.sizeBytes,
@@ -795,7 +774,6 @@ class LocalHandle implements SandboxHandle {
 
   async delete(): Promise<void> {
     if (!readRecord(this.name)) return;
-    closeRpcProxy(this.name);
     await this.terminateAll();
     for (const key of [...liveCommands().keys()]) {
       if (key.startsWith(`${this.name}/`)) liveCommands().delete(key);
@@ -833,56 +811,6 @@ function ensureLayout(dir: string): void {
   }
 }
 
-/**
- * Binds the record's rpc proxy (`ZS_LOCAL_RPC_PROXY=1`) in front of its rpc listener. A record
- * created before the proxy was switched on gets a port allocated and persisted first, so
- * `domain(ZS_RPC_PORT)` of an old sandbox goes through the proxy as well.
- */
-async function bindRpcProxy(record: LocalSandboxRecord): Promise<void> {
-  if (!localRpcProxyEnabled()) return;
-  if (record.rpcProxyPort === undefined) {
-    const current = readRecord(record.name) ?? record;
-    current.rpcProxyPort = await allocatePort(portsInUseByRecords());
-    writeRecord(current);
-    record.rpcProxyPort = current.rpcProxyPort;
-  }
-  const upstream = record.portMap[String(env().ZS_RPC_PORT)];
-  if (upstream === undefined) return;
-  await ensureRpcProxy(record.name, record.rpcProxyPort, upstream).catch(() => undefined);
-}
-
-/**
- * SIGKILLs every process of a local sandbox (the supervisor by its pid file and recorded
- * command, the server and helpers by their command lines) **without** touching the record or
- * the control plane's row: the sandbox looks exactly like one whose processes died under a
- * `running` workspace (a crash, a reboot, an older `dev-local.sh stop`). The test-only route
- * of the browser end-to-end suite uses it to exercise `/connect`'s reconciliation. Returns the
- * pids that were signalled.
- */
-export async function localKillSandboxProcesses(name: string): Promise<number[]> {
-  const record = readRecord(name);
-  if (!record) throw new SandboxError("not_found", false, `local sandbox ${name} does not exist`);
-  const dir = sandboxDir(name);
-  const pids = new Set<number>(await sandboxPids(dir));
-  for (const command of Object.values(record.commands)) {
-    if (command.exitCode === null && pidAlive(command.pid)) pids.add(command.pid);
-  }
-  for (const pid of pids) signalGroup(pid, "SIGKILL");
-  const deadline = Date.now() + 5_000;
-  while (Date.now() < deadline && [...pids].some(pidAlive)) await sleep(100);
-  return [...pids];
-}
-
-/** Whether any process of the sandbox (supervisor, server, helpers) is alive on this machine. */
-export async function localSandboxAlive(name: string): Promise<boolean> {
-  const record = readRecord(name);
-  if (!record) return false;
-  if (Object.values(record.commands).some((command) => command.exitCode === null && pidAlive(command.pid))) {
-    return true;
-  }
-  return (await sandboxPids(sandboxDir(name))).length > 0;
-}
-
 /** Restores the newest snapshot when the live trees are gone (a deleted `workspaces/`). */
 async function restoreIfNeeded(record: LocalSandboxRecord): Promise<void> {
   const dir = sandboxDir(record.name);
@@ -911,7 +839,6 @@ class LocalSandboxApi implements SandboxApi {
     const taken = portsInUseByRecords();
     const portMap = await allocatePortMap(input.ports, {}, taken);
     const internal = { localApi: await allocatePort(taken), control: await allocatePort(taken) };
-    const rpcProxyPort = localRpcProxyEnabled() ? await allocatePort(taken) : undefined;
     const record: LocalSandboxRecord = {
       version: 1,
       name: input.name,
@@ -920,7 +847,6 @@ class LocalSandboxApi implements SandboxApi {
       ports: [...new Set(input.ports)],
       portMap,
       internal,
-      ...(rpcProxyPort === undefined ? {} : { rpcProxyPort }),
       status: "running",
       createdAt: Date.now(),
       startedAt: null,
@@ -942,7 +868,6 @@ class LocalSandboxApi implements SandboxApi {
     };
     startSession(record);
     writeRecord(record);
-    await bindRpcProxy(record);
     return new LocalHandle(input.name);
   }
 
@@ -957,12 +882,7 @@ class LocalSandboxApi implements SandboxApi {
       await restoreIfNeeded(record);
       startSession(record);
       writeRecord(record);
-      await bindRpcProxy(record);
       if (opts.onResume) await opts.onResume(handle);
-    } else if (record.status === "running") {
-      // A restarted control plane (`next dev` reloaded) lost its in-process listeners; every
-      // touch of a running sandbox through the API puts the proxy back on its recorded port.
-      await bindRpcProxy(record);
     }
     return handle;
   }
@@ -991,11 +911,6 @@ let instance: SandboxApi | null = null;
 export function localSandboxApi(): SandboxApi {
   if (!instance) instance = new LocalSandboxApi();
   return instance;
-}
-
-/** The record of a local sandbox (tests and the dev script read the allocated ports from it). */
-export function localSandboxRecord(name: string): LocalSandboxRecord | null {
-  return readRecord(name);
 }
 
 // ---------------------------------------------------------------------------

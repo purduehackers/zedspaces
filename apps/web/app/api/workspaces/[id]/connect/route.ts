@@ -21,13 +21,9 @@ export const maxDuration = 60;
 /** States from which `/connect` can never mint a token right away. */
 const BUSY_STATES: ReadonlyArray<Workspace["state"]> = ["creating", "stopping", "rebuilding", "deleting"];
 
-/**
- * How long the route waits for a resume before answering `202`. Shortened by
- * `ZS_CONNECT_RESUME_WAIT_MS` in tests; the deployed value stays inside
- * `maxDuration`.
- */
-const RESUME_WAIT_MS = Number(process.env.ZS_CONNECT_RESUME_WAIT_MS ?? 45_000);
-const RESUME_POLL_MS = Number(process.env.ZS_CONNECT_POLL_MS ?? 1_500);
+/** How long the route waits for a resume before answering `202`, within `maxDuration`. */
+const RESUME_WAIT_MS = 45_000;
+const RESUME_POLL_MS = 1_500;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

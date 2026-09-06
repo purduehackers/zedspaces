@@ -21,15 +21,14 @@ pnpm dev:local
 
 This builds native binaries, creates local keys and SQLite state, and listens
 on `127.0.0.1:3100`. `ZS_SKIP_BUILD=1 pnpm dev:local` reuses existing binaries.
-The browser suite uses its own root, database, and port 3110.
 
 ```sh
 pnpm typecheck
 pnpm lint
-pnpm test
-pnpm test:integration
-pnpm dev:local browser --project=chromium --project=firefox --project=webkit --project=smoke
+pnpm build
 ```
+
+There are no test suites or test-running CI jobs in this repository.
 
 ## Deployment
 
@@ -41,7 +40,7 @@ production Linux/WASM artifacts, then run `pnpm deploy:check` and
 `ZS_EDITOR_BUNDLE_SOURCE` is the parent URL **before /editor**. The build fetches
 `<source>/editor/manifest.json` and `<source>/editor/<build>.tar`.
 `pnpm editor:pack <build-id> <new-directory>` packages assets locally; it does
-not publish. Production builds refuse local/test backends and test-hook bundles.
+not publish. Production builds refuse local backends and test-hook bundles.
 
 SQL migration history remains intact for existing databases. Removing optional
 application features does not drop their historical tables or delete saved

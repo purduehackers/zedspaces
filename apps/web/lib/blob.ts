@@ -1,8 +1,7 @@
 /**
  * The rebuild tarball store (b9 §3.19 `stepArchiveWorkspaceDir`, §4.7
  * `manifest.restore`). Vercel Blob in production; an in-process map when no
- * store is attached (`ZS_BLOB_DRIVER=memory`, the default in tests) so the
- * rebuild workflow can be exercised without network.
+ * store is attached (`ZS_BLOB_DRIVER=memory`) for local development.
  */
 import { BlobNotFoundError, del, head, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import { env } from "./env";
@@ -28,32 +27,6 @@ export interface BlobStore {
    * at most `maxBytes` (the builder's log upload, b10 §3.8).
    */
   presignPut(pathname: string, ttlMs: number, maxBytes: number): Promise<string>;
-}
-
-/**
- * The pathname a memory-store presigned PUT URL is scoped to, or `null` when
- * `url` is not one. Tests use it to assert a token cannot address another
- * prefix (b10 §6.2 `presign_scope`).
- */
-export function memoryPresignedPutTarget(url: string): { pathname: string; maxBytes: number } | null {
-  try {
-    const parsed = new URL(url);
-    if (parsed.host !== "blob.test" || !parsed.pathname.startsWith("/put/")) return null;
-    return { pathname: parsed.pathname.slice("/put/".length), maxBytes: Number(parsed.searchParams.get("max") ?? "0") };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Simulates a PUT to a memory-store presigned URL: refuses a pathname other
- * than the one the URL is scoped to, and a body above the size cap.
- */
-export async function memoryPresignedPut(url: string, pathname: string, body: Uint8Array): Promise<void> {
-  const target = memoryPresignedPutTarget(url);
-  if (!target || target.pathname !== pathname) throw new Error(`presigned URL is not valid for ${pathname}`);
-  if (body.byteLength > target.maxBytes) throw new Error("body exceeds the presigned size cap");
-  memoryStore().set(pathname, body);
 }
 
 async function collect(body: ReadableStream<Uint8Array> | Uint8Array): Promise<Uint8Array> {
@@ -190,10 +163,4 @@ export function blobStore(): BlobStore {
   const driver = e.ZS_BLOB_DRIVER ?? (e.BLOB_READ_WRITE_TOKEN ? "vercel" : "memory");
   cached = driver === "vercel" ? new VercelBlobStore() : new MemoryBlobStore();
   return cached;
-}
-
-/** Drops the memoized store and empties the memory map. Tests only. */
-export function _resetBlobForTests(): void {
-  cached = null;
-  memoryStore().clear();
 }

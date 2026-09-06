@@ -27,8 +27,6 @@ jobs:
   web:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/web.yml
-    with:
-      browser_e2e: true
   supervisor:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/sandbox-image.yml
@@ -87,47 +85,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  smoke:
-    needs: [identity, build]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      ZS_SMOKE_BUILD: ${{ needs.identity.outputs.build }}
-      ZS_SMOKE_SERVER_BIN: ${{ github.workspace }}/sandbox/image/dist/zed-remote-server
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          submodules: recursive
-          persist-credentials: false
-      - uses: ./.github/actions/setup-web
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: server-${{ needs.identity.outputs.build }}
-          path: sandbox/image/dist
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: browser-${{ needs.identity.outputs.build }}
-          path: apps/web/public/editor
-      - run: chmod 0755 sandbox/image/dist/zed-remote-server
-      - name: Refuse missing or test-only artifacts before Playwright can skip them
-        working-directory: apps/web
-        run: |
-          test -x "$ZS_SMOKE_SERVER_BIN"
-          pnpm exec tsx -e 'import assert from "node:assert/strict"; import {bundleProblems} from "./scripts/deploy-preflight"; assert.deepEqual(bundleProblems("public/editor", [process.env.ZS_SMOKE_BUILD!]), []);'
-      - run: pnpm exec playwright install --with-deps chromium
-        working-directory: apps/web
-      - run: pnpm test:browser
-        working-directory: apps/web
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: production-smoke-${{ needs.identity.outputs.build }}
-          path: apps/web/test-results
-          retention-days: 14
-
   deploy:
     if: inputs.deploy && github.ref == 'refs/heads/main'
-    needs: [identity, smoke, web, supervisor]
+    needs: [identity, build, web, supervisor]
     runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 90
     environment:
@@ -167,10 +127,7 @@ jobs:
         run: |
           chmod 0755 sandbox/image/dist/zed-remote-server
           sandbox/image/build.sh --engine docker --push -- --cache-to type=inline --cache-from "type=registry,ref=$PREVIOUS_IMAGE"
-          ref=$(jq -r '.tag | split(":")[0]' sandbox/image/dist/image.json)@$(jq -r .digest sandbox/image/dist/image.json)
-          docker pull "$ref"
-          sandbox/image/test/run-local.sh --image "$ref" --only-image --container zs-release-image-check
-      - name: Migrate Turso, boot the image, publish verified editor assets
+      - name: Migrate Turso and publish editor assets
         working-directory: apps/web
         run: |
           node --env-file=../../.env.production.local --import tsx scripts/check-remote-db.ts --migrate

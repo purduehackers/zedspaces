@@ -70,23 +70,19 @@ export function assertBuildId(build: string): string {
 /**
  * Whether a build id names a test-hooks bundle: `script/build-web --test-hooks` suffixes the
  * id with `-test` (`-test-names` with `--names`) and stamps `test_hooks: true` into its
- * build.json. Such a bundle exposes `window.__zs_test` and is only ever served by
- * `scripts/dev-local.sh browser`.
+ * build.json. Such a bundle exposes `window.__zs_test` and must not be delivered.
  */
 export function isTestBuildId(build: string): boolean {
   return /-test(-names)?$/.test(build);
 }
 
 /**
- * Refuses a test-hooks bundle for delivery (by id, or by its build.json when at hand) unless
- * `ZS_ALLOW_TEST_BUNDLE=1` says the deployment is a test one; the shell would otherwise ship
- * `window.__zs_test` to real users.
+ * Refuses a test-hooks bundle for delivery, by id or by its build.json.
  */
-export function assertServableBuild(build: string, meta?: { test_hooks?: unknown }, allow = process.env.ZS_ALLOW_TEST_BUNDLE === "1"): string {
-  if (allow) return build;
-  if (isTestBuildId(build)) throw new Error(`refusing the test-hooks bundle ${build} (set ZS_ALLOW_TEST_BUNDLE=1 for a test deployment)`);
+export function assertServableBuild(build: string, meta?: { test_hooks?: unknown }): string {
+  if (isTestBuildId(build)) throw new Error(`refusing the test-hooks bundle ${build}`);
   if (meta?.test_hooks === true) {
-    throw new Error(`refusing ${build}: its build.json says test_hooks: true (set ZS_ALLOW_TEST_BUNDLE=1 for a test deployment)`);
+    throw new Error(`refusing ${build}: its build.json says test_hooks: true`);
   }
   return build;
 }
@@ -178,7 +174,7 @@ export async function fetchEditorBundles(opts: {
     if (wanted.length >= Math.max(1, opts.keep)) break;
     const id = assertBuildId(older);
     // A test bundle listed at the source is skipped, never fetched beside the production ones.
-    if (isTestBuildId(id) && process.env.ZS_ALLOW_TEST_BUNDLE !== "1") {
+    if (isTestBuildId(id)) {
       log(`${id}: skipped (a test-hooks bundle is never delivered)`);
       continue;
     }

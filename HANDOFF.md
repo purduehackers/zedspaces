@@ -1,12 +1,24 @@
 # Handoff: Zed Codespaces
 
+**Latest owner direction (2026-09-06): no tests in `zedspaces`.** All web,
+supervisor, and image test suites, fixtures, test-only runtime helpers and CI
+test jobs have been removed. Keep lint, type checking and production builds.
+Tests in the separate `zed/` fork are unchanged. Older test plans, orchestration
+scripts and results below are historical, not instructions to restore tests.
+The test-heavy CI rerun `34051650584` was canceled during this cleanup.
+No deployment was performed; multiplayer remains undeployed.
+Cleanup validation: web lint/typecheck/production build, supervisor fmt/Clippy/release
+build, actionlint, shellcheck, Dockerfile `--check`, and `git diff --check` passed.
+The web build retained dynamic-filesystem tracing warnings; its packaging guard
+passed (largest Function trace 15.5 MiB). Tests were removed, not run.
+
 **Owner direction (2026-09-06, latest):** this is greenfield with no users.
 Breaking production changes and removing obsolete code are authorized. Do not
 add legacy modes or compatibility shims. This supersedes the older instructions
 to preserve old editor generations. Multiplayer now replaces the web singleton
 path: no feature flag or takeover UI. See [the current implementation](docs/briefs/multiplayer.md).
-The full Chromium suite passes 19/19; app/Rust checks and the production web build pass.
-Multiplayer and layout also pass on Firefox and WebKit; see the brief for logs and artifacts.
+Before removal, the full Chromium suite passed 19/19; app/Rust checks and the production web build passed.
+Multiplayer and layout also passed on Firefox and WebKit; see the brief for historical evidence.
 Multiplayer is not yet deployed. Its fork implementation is published as
 `648cf2f801`; the app and release-gate changes accompany this revision.
 The production CI environment still lacks `VERCEL_TOKEN`.
@@ -16,7 +28,7 @@ The production CI environment still lacks `VERCEL_TOKEN`.
 passed production WASM and app/supervisor checks, but browser E2E exhausted disk
 and the Linux server runner received a shutdown signal (cause unconfirmed).
 CI now disables debug/incremental build data, reclaims unused hosted-runner SDKs,
-skips the unused native E2E binary in browser/dev mode, fails builds without stale
+no longer builds native E2E binaries, fails builds without stale
 binary fallback, and records disk/memory usage during builds. See deploy-vercel.md.
 
 **UX follow-up (2026-09-06):** the deployed cleanup removes the extra HTML status strip,

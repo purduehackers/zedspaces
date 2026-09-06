@@ -1,6 +1,5 @@
 /**
- * {@link SandboxError} lives in its own module so both `lib/sandbox.ts` (the
- * real driver) and `lib/sandbox-fake.ts` can import it without a cycle.
+ * Shared sandbox failures for the Vercel and local adapters.
  */
 
 /** Failure classes the sandbox driver distinguishes (b9 §3.16). */

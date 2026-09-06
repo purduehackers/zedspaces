@@ -14,11 +14,6 @@
     "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
     "db:push": "dotenv -e .env.local -- drizzle-kit push",
-    "test": "vitest run",
-    "test:integration": "vitest run -c vitest.integration.config.mts",
-    "test:e2e": "scripts/dev-local.sh browser",
-    "test:e2e:ci": "ZS_E2E_CI=1 scripts/dev-local.sh browser --project=chromium",
-    "test:browser": "playwright test -c tests/e2e-browser/playwright.config.ts --project=smoke",
     "zs:keygen": "tsx scripts/keygen.ts",
     "deploy:check": "dotenv -e .env.local -- tsx scripts/deploy-preflight.ts",
     "deploy:check:db": "dotenv -e .env.local -- tsx scripts/check-remote-db.ts",
@@ -41,27 +36,19 @@
     "zod": "4.5.4"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vercel/config": "0.7.0",
-    "@workflow/vitest": "4.0.21",
     "dotenv": "17.4.2",
     "dotenv-cli": "11.0.0",
     "drizzle-kit": "0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "jsdom": "^30.0.1",
-    "playwright": "^1.62.1",
     "tailwindcss": "^4",
     "tsx": "4.23.13",
-    "typescript": "^5",
-    "vite-tsconfig-paths": "6.1.1",
-    "vitest": "4.1.11"
+    "typescript": "^5"
   },
   "engines": {
     "node": "24.x"

@@ -1,14 +1,7 @@
-/**
- * The only module that talks to `@vercel/sandbox` (b9 §3.16). Steps and route
- * handlers depend on {@link SandboxApi}, never on the SDK, so they stay
- * testable; `ZS_SANDBOX_DRIVER=fake` swaps in the in-memory driver of
- * `lib/sandbox-fake.ts` (Workflow integration tests cannot `vi.mock`).
- */
+/** Vercel Sandbox SDK adapter, with a local process backend for development. */
 import { Readable } from "node:stream";
 import { APIError, Sandbox, Snapshot } from "@vercel/sandbox";
-import { env, EnvError } from "./env";
 import { SandboxError } from "./sandbox-error";
-import { fakeSandboxApi } from "./sandbox-fake";
 import { localBackendEnabled, localSandboxApi } from "./sandbox-local";
 import type { Region } from "./schema";
 
@@ -420,37 +413,9 @@ export function sandboxWsScheme(): "wss" | "ws" {
   return sandboxBackend() === "local" ? "ws" : "wss";
 }
 
-/**
- * The configured driver: the real SDK, the local process backend
- * (`ZS_SANDBOX_BACKEND=local`), or the in-memory fake when
- * `ZS_SANDBOX_DRIVER=fake`. Memoized per process.
- */
+/** The Vercel SDK or local process backend, memoized per process. */
 export function sandboxApi(): SandboxApi {
   if (cached) return cached;
-  const e = env();
-  if (e.ZS_SANDBOX_DRIVER === "fake") {
-    // Like `ZS_AUTH_MODE=dev` and `ZS_SANDBOX_BACKEND=local`: a production build never runs
-    // workspaces, prebuilds or image builds against in-memory state with no VM behind it.
-    if (e.NODE_ENV === "production" || process.env.NODE_ENV === "production") {
-      throw new EnvError(["ZS_SANDBOX_DRIVER"], "ZS_SANDBOX_DRIVER=fake is refused in a production build");
-    }
-    cached = fakeSandboxApi();
-  } else if (sandboxBackend() === "local") cached = localSandboxApi();
-  else cached = new RealSandboxApi();
+  cached = sandboxBackend() === "local" ? localSandboxApi() : new RealSandboxApi();
   return cached;
-}
-
-/**
- * Wraps an SDK `Sandbox` in the real driver's handle. Exported for the
- * conformance test, which asserts over a stubbed `Sandbox` that a
- * `RunInput.timeoutMs` reaches `runCommand` for both `run` and `runDetached`
- * (b10 §6.4 `builder_command_carries_budget`).
- */
-export function realSandboxHandle(sandbox: Sandbox): SandboxHandle {
-  return new RealSandboxHandle(sandbox);
-}
-
-/** Drops the memoized driver so a test can flip `ZS_SANDBOX_DRIVER`. */
-export function _resetSandboxApiForTests(): void {
-  cached = null;
 }

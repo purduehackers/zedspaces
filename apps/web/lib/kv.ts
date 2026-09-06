@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { dbReady } from "./db";
-import { env, EnvError } from "./env";
 
 /**
  * The small key-value interface every lock and counter in the system goes
- * through. libSQL in production; an in-process map for isolated tests.
+ * through. libSQL in both production and local development.
  */
 export interface KV {
   get(key: string): Promise<string | null>;
@@ -20,76 +19,6 @@ export interface KV {
   /** Sets or refreshes the TTL of an existing key; a missing key is left alone. */
   expire(key: string, exMs: number): Promise<void>;
   mget(keys: string[]): Promise<(string | null)[]>;
-}
-
-interface MemoryEntry {
-  value: string;
-  expiresAt: number | null;
-}
-
-// Kept on globalThis: @workflow/vitest runs the step bundle as a separate
-// module instance in the same worker, and both must see one store.
-const MEMORY_KEY = "__zsMemoryKv" as const;
-type GlobalWithKv = typeof globalThis & { [MEMORY_KEY]?: Map<string, MemoryEntry> };
-
-function memoryStore(): Map<string, MemoryEntry> {
-  const g = globalThis as GlobalWithKv;
-  if (!g[MEMORY_KEY]) g[MEMORY_KEY] = new Map();
-  return g[MEMORY_KEY];
-}
-
-class MemoryKv implements KV {
-  private live(key: string): MemoryEntry | null {
-    const store = memoryStore();
-    const entry = store.get(key);
-    if (!entry) return null;
-    if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
-      store.delete(key);
-      return null;
-    }
-    return entry;
-  }
-
-  async get(key: string): Promise<string | null> {
-    return this.live(key)?.value ?? null;
-  }
-
-  async set(key: string, value: string, opts?: { exMs?: number; nx?: boolean }): Promise<boolean> {
-    if (opts?.nx && this.live(key)) return false;
-    memoryStore().set(key, { value, expiresAt: opts?.exMs !== undefined ? Date.now() + opts.exMs : null });
-    return true;
-  }
-
-  async del(key: string): Promise<void> {
-    memoryStore().delete(key);
-  }
-
-  async compareDelete(key: string, value: string): Promise<void> {
-    if (this.live(key)?.value === value) memoryStore().delete(key);
-  }
-
-  async incr(key: string, exMs?: number): Promise<number> {
-    return this.incrBy(key, 1, exMs);
-  }
-
-  async incrBy(key: string, delta: number, exMs?: number): Promise<number> {
-    const entry = this.live(key);
-    const next = (entry ? Number(entry.value) : 0) + delta;
-    memoryStore().set(key, {
-      value: String(next),
-      expiresAt: entry ? entry.expiresAt : exMs !== undefined ? Date.now() + exMs : null,
-    });
-    return next;
-  }
-
-  async expire(key: string, exMs: number): Promise<void> {
-    const entry = this.live(key);
-    if (entry) memoryStore().set(key, { value: entry.value, expiresAt: Date.now() + exMs });
-  }
-
-  async mget(keys: string[]): Promise<(string | null)[]> {
-    return keys.map((key) => this.live(key)?.value ?? null);
-  }
 }
 
 /** One SQL statement (or atomic batch) per operation, shared across Vercel instances. */
@@ -145,37 +74,15 @@ export class SqlKv implements KV {
 
 /** Reads enforce expiry immediately; cron also reclaims abandoned rows. */
 export async function sweepExpiredKv(now = Date.now()): Promise<void> {
-  if (memoryKvEnabled()) return;
   await (await dbReady()).$client.execute({ sql: "DELETE FROM kv WHERE expires_at<=?", args: [now] });
 }
 let kvInstance: KV | null = null;
 
-/** Shared SQL KV, or the test-only in-process map. */
+/** Shared SQL KV. */
 export function kv(): KV {
   if (kvInstance) return kvInstance;
-  kvInstance = memoryKvEnabled() ? new MemoryKv() : new SqlKv();
+  kvInstance = new SqlKv();
   return kvInstance;
-}
-
-/**
- * True when `ZS_KV=memory`. Fails closed like `ZS_AUTH_MODE=dev`,
- * `ZS_SANDBOX_BACKEND=local` and `ZS_SANDBOX_DRIVER=fake`: a production build
- * never runs its locks, rate limits and caches against a per-process map
- * (every serverless instance would hold its own).
- */
-export function memoryKvEnabled(): boolean {
-  const e = env();
-  if (e.ZS_KV !== "memory") return false;
-  if (e.NODE_ENV === "production" || process.env.NODE_ENV === "production") {
-    throw new EnvError(["ZS_KV"], "ZS_KV=memory is refused in a production build");
-  }
-  return true;
-}
-
-/** Drops the memoized clients and empties the memory store. Tests only. */
-export function _resetKvForTests(): void {
-  kvInstance = null;
-  memoryStore().clear();
 }
 
 /**

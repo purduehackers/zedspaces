@@ -9,14 +9,14 @@ import { env, EnvError } from "./env";
 import * as schema from "./schema";
 import { localClientQueue } from "./db-local-client";
 
-// Capture before isolation tests change cwd. Do not use a module-relative URL:
+// Resolve from the app root. Do not use a module-relative URL:
 // Turbopack would try to import the directory. Remote databases migrate explicitly.
 const MIGRATIONS_DIR = path.resolve(process.cwd(), "drizzle-sqlite");
 export type Db = LibSQLDatabase<typeof schema> & { $client: Client };
 export type DbLike = BaseSQLiteDatabase<"async", ResultSet, typeof schema>;
 
 interface DbState { instance: Db | null; ready: Promise<Db> | null }
-// Workflow steps are bundled separately but must share the same test/local DB.
+// Workflow steps are bundled separately but must share the same local DB.
 const STATE_KEY = "__zsLibsqlDbState" as const;
 type GlobalWithDb = typeof globalThis & { [STATE_KEY]?: DbState };
 function state(): DbState {
@@ -24,7 +24,7 @@ function state(): DbState {
   return g[STATE_KEY] ??= { instance: null, ready: null };
 }
 
-/** Turso in deployment; an isolated file (or :memory: for tests) locally. */
+/** Turso in deployment; a local file for development. */
 export function databaseConfig(): { url: string; authToken?: string } {
   const e = env();
   const deployed = Boolean(e.VERCEL_ENV && e.VERCEL_ENV !== "development");
@@ -75,16 +75,6 @@ export async function migrateDb(db: Db, opts?: { migrationsFolder?: string }): P
   await migrate(db, { migrationsFolder: opts?.migrationsFolder ?? MIGRATIONS_DIR });
 }
 
-/** A fresh migrated DB, independent of the singleton. Caller closes $client. */
-export async function newTestDb(): Promise<Db> {
-  const db = drizzle(localClientQueue(createClient({ url: ":memory:" })), { schema });
-  await db.$client.execute("PRAGMA foreign_keys = ON");
-  await migrateDb(db);
-  return db;
-}
-
-export async function closeDb(): Promise<void> { _resetDbForTests(); }
-
 /** SQLite constraint errors may be wrapped in a Drizzle query error. */
 export function isUniqueViolation(err: unknown): boolean {
   let current: unknown = err;
@@ -97,7 +87,7 @@ export function isUniqueViolation(err: unknown): boolean {
   return false;
 }
 
-export function _resetDbForTests(): void {
+export async function closeDb(): Promise<void> {
   const s = state();
   s.instance?.$client.close();
   s.instance = null;

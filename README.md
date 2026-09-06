@@ -97,13 +97,11 @@ and binds to `http://127.0.0.1:3100`. It does not need cloud credentials.
 ```sh
 pnpm typecheck
 pnpm lint
-pnpm test
-pnpm test:integration
-pnpm dev:local browser --project=chromium --project=firefox --project=webkit --project=smoke
+pnpm build
 ```
 
-Browser tests use a separate database and VM root. Diagnose failures from
-console/network evidence. The local working tree also has the diagnostic helper
+This repository has no test suites. CI runs lint, type checking, and builds.
+Diagnose browser problems from console/network evidence. The local working tree has the diagnostic helper
 `apps/web/.zs-dev/netdiag.mjs` (ignored, not part of a fresh clone).
 
 ## Deploying to Vercel
@@ -125,8 +123,8 @@ before sharing this intentionally open, shared app.
 
 The **Release Zedspaces** Actions workflow builds matching browser/server
 artifacts and can publish the image, assets, and Vercel app in one manual run.
-Its [first build-only run passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327),
-including both builds and production browser smoke tests. Publishing still needs
+Its [first build-only run passed](https://github.com/purduehackers/zedspaces/actions/runs/34016549327).
+Tests and their release gates have since been removed. Publishing still needs
 the `production` environment's `VERCEL_TOKEN`; its public Blob token is configured.
 See [CI setup and release checks](docs/deploy-vercel.md#ci-releases).
 
@@ -137,7 +135,7 @@ The cleanup reduced maintained web implementation from 30,289 to 14,640 lines
 are excluded from both counts. Run `node infra/source-metrics.mjs` to recount;
 see [validation and remaining gaps](docs/status/deslop.md).
 
-- `apps/web/` — dashboard, editor shell, API, database, workflows, and tests.
+- `apps/web/` — dashboard, editor shell, API, database, and workflows.
 - `zed/` — modified Zed, WASM platform integration, and remote server.
 - `sandbox/supervisor/` — Rust VM supervisor.
 - `sandbox/image/` — Linux server and workspace-image builds.

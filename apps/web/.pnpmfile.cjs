@@ -12,6 +12,11 @@ module.exports = {
           if (pkg.optionalDependencies) delete pkg.optionalDependencies[name];
         }
       }
+      // No browser suite: Next's optional test peer must not keep Playwright installed.
+      if (pkg.name === "next") {
+        if (pkg.peerDependencies) delete pkg.peerDependencies["@playwright/test"];
+        if (pkg.peerDependenciesMeta) delete pkg.peerDependenciesMeta["@playwright/test"];
+      }
       return pkg;
     },
   },

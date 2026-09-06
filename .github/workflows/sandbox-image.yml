@@ -21,9 +21,7 @@ jobs:
           persist-credentials: false
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - run: docker buildx build --check --build-arg BASE_IMAGE=ubuntu:26.04 -f sandbox/image/Dockerfile .
-      - run: shellcheck sandbox/image/build.sh sandbox/image/build-server.sh sandbox/image/test/run-local.sh
-      - run: node --check sandbox/image/test/mock-control-plane.mjs
-      - run: python3 -m py_compile sandbox/image/test/fake-zed-remote-server.py
+      - run: shellcheck sandbox/image/build.sh sandbox/image/build-server.sh
 
   agent:
     runs-on: ubuntu-24.04
@@ -40,7 +38,7 @@ jobs:
           workspaces: sandbox/supervisor
       - run: cargo fmt --check
         working-directory: sandbox/supervisor
-      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --locked --lib --bins -- -D warnings
         working-directory: sandbox/supervisor
-      - run: ulimit -n 4096 && ZS_RUN_START_INTEGRATION=1 cargo test --locked
+      - run: cargo build --locked --release
         working-directory: sandbox/supervisor

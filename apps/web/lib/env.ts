@@ -13,7 +13,7 @@ export const INFRA_PORT_MAX = 8451;
 /**
  * Zod view of every environment variable the control plane reads.
  *
- * Values are read lazily so unit tests and local builds need no cloud accounts.
+ * Values are read lazily so local builds need no cloud accounts.
  * The deployment preflight separately requires persistent storage and real VM configuration.
  */
 export const envSchema = z.object({
@@ -21,7 +21,6 @@ export const envSchema = z.object({
   TURSO_DATABASE_URL: z.string().min(1).optional(),
   TURSO_AUTH_TOKEN: z.string().min(1).optional(),
   ZS_DB_URL: z.string().min(1).optional(),
-  ZS_KV: z.enum(["sql", "memory"]).default("sql"),
   ZS_MAX_RUNNING_WORKSPACES: z.coerce.number().int().min(1).max(100).default(5),
 
   // Vercel Cron (sent automatically as `Authorization: Bearer`).
@@ -85,9 +84,8 @@ export const envSchema = z.object({
   ZS_SESSION_TIMEOUT_MS: z.coerce.number().int().default(4 * 3600_000),
   /** Platform session cap (controlled stop and resume at this age). */
   ZS_SESSION_CAP_MS: z.coerce.number().int().default(24 * 3600_000),
-  ZS_SANDBOX_DRIVER: z.enum(["real", "fake"]).default("real"),
   /**
-   * What backs the `real` driver: the Vercel Sandbox SDK, or (`local`, refused
+   * What backs the sandbox: the Vercel Sandbox SDK, or (`local`, refused
    * in production) child processes on this machine driven by
    * `lib/sandbox-local.ts` — the supervisor and `zed-remote-server serve` on
    * `127.0.0.1` with no Vercel account.
@@ -101,18 +99,6 @@ export const envSchema = z.object({
   ZS_AGENT_BIN: z.string().optional(),
   /** Local backend: the `zed-remote-server` binary the supervisor spawns (`ZS_SERVER_BIN`). */
   ZS_SERVE_BIN: z.string().optional(),
-  /**
-   * Local backend: a loopback TCP proxy in front of every sandbox's rpc listener
-   * (`domain(8443)` answers the proxy's port), so the test-only route of the browser
-   * end-to-end suite can sever live connections (`lib/local-rpc-proxy.ts`).
-   */
-  ZS_LOCAL_RPC_PROXY: z.enum(["0", "1"]).default("0"),
-  /**
-   * Test-only routes (`/api/workspaces/{id}/test-local`; `lib/test-routes.ts`), for the
-   * browser end-to-end suite on the local backend. Refused in a production build whatever
-   * the value.
-   */
-  ZS_TEST_ROUTES: z.enum(["0", "1"]).default("0"),
 
   // Blob store for rebuild tarballs (Marketplace: Vercel Blob injects the token).
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
@@ -159,8 +145,7 @@ function cleanProcessEnv(): Record<string, string | undefined> {
 
 /**
  * Memoized, validated view of `process.env`. Throws {@link EnvError} listing
- * every invalid key on the first call; later calls return the cached value
- * until {@link _resetEnvForTests} is called.
+ * every invalid key on the first call; later calls return the cached value.
  */
 export function env(): Env {
   if (cached) return cached;
@@ -183,14 +168,10 @@ export function isTestClientBuild(build: string | undefined): boolean {
 }
 
 /**
- * A test-hooks bundle (`window.__zs_test`) is only ever served by the local backend in
- * development (`scripts/dev-local.sh browser`): a production build or deployment stamping it
- * into new workspaces is refused, unless `ZS_ALLOW_TEST_BUNDLE=1` says the deployment is a
- * test one. `scripts/fetch-editor-bundle.ts` refuses to deliver such a bundle for the same
- * reason.
+ * Production must not serve a fork bundle exposing `window.__zs_test`.
+ * `scripts/fetch-editor-bundle.ts` also refuses to deliver these bundles.
  */
 function refusesTestBundles(e: Env): boolean {
-  if (process.env.ZS_ALLOW_TEST_BUNDLE === "1") return false;
   return e.NODE_ENV === "production" || process.env.NODE_ENV === "production" || e.VERCEL_ENV === "production";
 }
 
@@ -199,7 +180,7 @@ function refuseTestClientBuildInProduction(e: Env): void {
   if (refusesTestBundles(e)) {
     throw new EnvError(
       ["ZS_CLIENT_BUILD_ID"],
-      `ZS_CLIENT_BUILD_ID=${e.ZS_CLIENT_BUILD_ID} names a test-hooks bundle, which is refused in production (ZS_ALLOW_TEST_BUNDLE=1 to override)`,
+      `ZS_CLIENT_BUILD_ID=${e.ZS_CLIENT_BUILD_ID} names a test-hooks bundle, which is refused in production`,
     );
   }
 }
@@ -213,11 +194,6 @@ function refuseTestClientBuildInProduction(e: Env): void {
  */
 export function refusesTestClientBuild(build: string | undefined): boolean {
   return isTestClientBuild(build) && refusesTestBundles(env());
-}
-
-/** Clears the memoized environment so tests can mutate `process.env` between cases. */
-export function _resetEnvForTests(): void {
-  cached = null;
 }
 
 /**

@@ -9,13 +9,13 @@ import { assertBuildId, assertServableBuild, editorDir, SERVED_FILES } from "./f
 async function main() {
   const [rawBuild, ...ids] = process.argv.slice(2);
   if (!rawBuild) throw new Error("Usage: scripts/dev-repoint.sh <build-id> [stopped-workspace-id ...]. No IDs means publish only.");
-  const build = assertServableBuild(assertBuildId(rawBuild), undefined, false);
+  const build = assertServableBuild(assertBuildId(rawBuild));
   if (build.endsWith("-names")) throw new Error("Debug name-section bundles are not serving artifacts");
   const dest = path.join(editorDir(), build);
   const source = fs.existsSync(path.join(dest, "build.json")) ? dest
     : path.resolve(process.cwd(), "../../zed/target/web-bundle", build);
   const meta = JSON.parse(fs.readFileSync(path.join(source, "build.json"), "utf8"));
-  assertServableBuild(build, meta, false);
+  assertServableBuild(build, meta);
   if (meta.build_id !== build) throw new Error("Bundle metadata does not match its ID");
   for (const file of SERVED_FILES) if (!fs.statSync(path.join(source, file)).isFile()) throw new Error(`Missing ${file}`);
   if (source !== dest) {

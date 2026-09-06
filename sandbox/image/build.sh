@@ -5,8 +5,6 @@
 #
 #   --push                    push to vcr.vercel.com/<team>/<project>/<tag> (needs VERCEL_TEAM_SLUG
 #                             and VERCEL_PROJECT_SLUG) and wait for VCR to prepare the image
-#   --source context|release  where zed-remote-server comes from (default: context, i.e.
-#                             sandbox/image/dist/zed-remote-server from build-server.sh)
 #   --tag <repo:tag>          image name (default: zs-workspace:$ZS_BUILD_ID)
 #   --engine auto|vcr|docker  builder (default: auto — `vercel vcr build docker` when the Vercel
 #                             CLI is on PATH, plain `docker buildx build` otherwise)
@@ -34,7 +32,6 @@ if [ -z "$build_id" ]; then
 fi
 
 push=""
-source_mode="context"
 tag="zs-workspace:${build_id}"
 engine="auto"
 update_base=""
@@ -45,7 +42,6 @@ extra=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --push) push=1 ;;
-    --source) source_mode="${2:?--source needs a value}"; shift ;;
     --tag) tag="${2:?--tag needs a value}"; shift ;;
     --engine) engine="${2:?--engine needs a value}"; shift ;;
     --update-base) update_base=1 ;;
@@ -57,16 +53,9 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-case "$source_mode" in
-  context|release) ;;
-  *) echo "--source must be 'context' or 'release'" >&2; exit 2 ;;
-esac
-
-# The Dockerfile COPYs sandbox/image/dist/ in both modes.
 mkdir -p "$here/dist"
-if [ "$source_mode" = "context" ] && [ ! -f "$here/dist/zed-remote-server" ]; then
+if [ ! -f "$here/dist/zed-remote-server" ]; then
   echo "sandbox/image/dist/zed-remote-server missing; run sandbox/image/build-server.sh first" >&2
-  echo "(or pass --source release to pull the published asset from cloud.zed.dev)" >&2
   exit 1
 fi
 
@@ -121,7 +110,6 @@ esac
 build_args=(
   --build-arg "BASE_IMAGE=$base_ref"
   --build-arg "ZS_BUILD_ID=$build_id"
-  --build-arg "ZED_SERVER_SOURCE=$source_mode"
 )
 
 # Attestations ride along as extra manifests in the OCI index; off unless asked for, because it

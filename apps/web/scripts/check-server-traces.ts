@@ -9,7 +9,7 @@ function traces(dir: string): string[] {
   });
 }
 const root = process.cwd();
-const dist = path.resolve(root, process.env.ZS_NEXT_DIST_DIR ?? ".next");
+const dist = path.resolve(root, ".next");
 const files = traces(path.join(dist, "server"));
 if (!files.length) throw new Error("No server traces found; run next build first");
 let largest = { file: "", bytes: 0 };

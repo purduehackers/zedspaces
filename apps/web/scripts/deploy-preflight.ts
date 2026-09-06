@@ -24,7 +24,7 @@ export function deploymentProblems(e: Variables): string[] {
   for (const key of ["ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID"]) {
     if (!e[key]) continue;
     try {
-      assertServableBuild(assertBuildId(e[key]!), undefined, false);
+      assertServableBuild(assertBuildId(e[key]!));
       if (/^dev|(?:-names)$/.test(e[key]!)) throw new Error();
     } catch { problems.push(`${key} must name a production build, not dev/test/debug output`); }
   }
@@ -33,14 +33,13 @@ export function deploymentProblems(e: Variables): string[] {
   const served = e.ZS_EDITOR_BUNDLES?.split(",").map((id) => id.trim()).filter(Boolean) ?? [];
   if (e.ZS_CLIENT_BUILD_ID && !served.includes(e.ZS_CLIENT_BUILD_ID)) problems.push("ZS_EDITOR_BUNDLES must include ZS_CLIENT_BUILD_ID");
   for (const id of served) {
-    try { assertServableBuild(assertBuildId(id), undefined, false); if (/^dev|(?:-names)$/.test(id)) throw new Error(); }
+    try { assertServableBuild(assertBuildId(id)); if (/^dev|(?:-names)$/.test(id)) throw new Error(); }
     catch { problems.push("ZS_EDITOR_BUNDLES contains a non-production build"); }
   }
-  for (const [key, value] of [["ZS_SANDBOX_DRIVER", "real"], ["ZS_SANDBOX_BACKEND", "vercel"], ["ZS_KV", "sql"], ["ZS_BLOB_DRIVER", "vercel"]]) {
+  for (const [key, value] of [["ZS_SANDBOX_BACKEND", "vercel"], ["ZS_BLOB_DRIVER", "vercel"]]) {
     if (e[key] && e[key] !== value) problems.push(`${key} must be ${value} in a deployment`);
   }
-  for (const key of ["ZS_TEST_ROUTES", "ZS_LOCAL_RPC_PROXY", "ZS_ALLOW_TEST_BUNDLE"]) if (e[key] === "1") problems.push(`${key} must not be enabled in a deployment`);
-  for (const key of ["ZS_DB_URL", "ZS_LOCAL_ROOT", "ZS_SERVE_BIN", "ZS_AGENT_BIN", "ZS_NEXT_DIST_DIR"]) if (e[key]) problems.push(`${key} is local-only; remove it from deployment variables`);
+  for (const key of ["ZS_DB_URL", "ZS_LOCAL_ROOT", "ZS_SERVE_BIN", "ZS_AGENT_BIN"]) if (e[key]) problems.push(`${key} is local-only; remove it from deployment variables`);
   if (e.CRON_SECRET && e.CRON_SECRET.length < 16) problems.push("CRON_SECRET must have at least 16 characters");
   if (e.ZS_EDITOR_COOKIE_SECRET && Buffer.from(e.ZS_EDITOR_COOKIE_SECRET, "base64").length !== 32) problems.push("ZS_EDITOR_COOKIE_SECRET must encode 32 bytes in base64");
   if (e.ZS_JWT_PRIVATE_KEY) {
@@ -60,7 +59,7 @@ export function bundleProblems(dir: string, builds: string[]): string[] {
       assertBuildId(build);
       const root = path.join(dir, build);
       const meta = JSON.parse(fs.readFileSync(path.join(root, "build.json"), "utf8"));
-      assertServableBuild(build, meta, false);
+      assertServableBuild(build, meta);
       if (meta.build_id !== build || meta.test_hooks !== false) throw new Error("build.json identity/test_hooks mismatch");
       for (const file of SERVED_FILES) if (!fs.statSync(path.join(root, file)).isFile() || fs.statSync(path.join(root, file)).size === 0) throw new Error(`${file} missing or empty`);
       const wasm = fs.openSync(path.join(root, "zed_web_bg.wasm"), "r");

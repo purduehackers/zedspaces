@@ -21,8 +21,7 @@ import { assertWorkspaceCapacity, ACTIVE_WORKSPACE_STATES } from "./workspace-bu
  * (`workflows/*.ts` and `lib/sandbox.ts`, b9 §3.19/§4.8).
  *
  * Routes name a workflow rather than importing it, so the run-id bookkeeping,
- * the busy check and the Redis lock happen in exactly one place and a route
- * test can replace this module wholesale.
+ * the busy check and the database lock happen in exactly one place.
  */
 
 /** The `"use workflow"` entry points a route may start. */

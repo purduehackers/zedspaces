@@ -14,7 +14,6 @@ ARG RUST_TOOLCHAIN=1.97.1
 # inputs). The tag before `@` is documentation only – Docker resolves the digest. Refresh with
 # `docker buildx imagetools inspect <image>:<tag> --format '{{json .Manifest.Digest}}'`.
 ARG RUST_BUILDER_IMAGE=rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97
-ARG SERVER_FETCH_IMAGE=ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 
 # ---- zs-agent (static musl) --------------------------------------------------
 FROM ${RUST_BUILDER_IMAGE} AS agent-builder
@@ -30,40 +29,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release --locked --target x86_64-unknown-linux-musl \
  && install -m 0755 target/x86_64-unknown-linux-musl/release/zs-agent /out-zs-agent
-
-# ---- zed-remote-server: from the build context (default) or the public release ----
-# `context` takes sandbox/image/dist/zed-remote-server (the fork's `serve` build,
-# sandbox/image/build-server.sh). `release` downloads the published asset from
-# cloud.zed.dev; that binary has no `serve` subcommand and is only good for image smoke tests.
-FROM ${SERVER_FETCH_IMAGE} AS server-fetch
-ARG ZED_SERVER_SOURCE=context
-# Latest published stable at the time of writing; resolve a newer one with
-# `curl -s "https://cloud.zed.dev/releases/stable/latest/asset?asset=zed&os=linux&arch=x86_64" | jq -r .version`.
-ARG ZED_SERVER_VERSION=1.18.0
-ARG ZED_RELEASE_CHANNEL=stable
-ARG ZED_SERVER_SHA256=
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl \
- && rm -rf /var/lib/apt/lists/*
-COPY sandbox/image/dist/ /dist/
-RUN set -eu; \
-    if [ "$ZED_SERVER_SOURCE" = "context" ]; then \
-      test -f /dist/zed-remote-server || { \
-        echo "sandbox/image/dist/zed-remote-server missing (build it with sandbox/image/build-server.sh, or pass --build-arg ZED_SERVER_SOURCE=release)" >&2; \
-        exit 1; \
-      }; \
-      install -m 0755 /dist/zed-remote-server /out-zed-remote-server; \
-    elif [ "$ZED_SERVER_SOURCE" = "release" ]; then \
-      curl -fsSL "https://cloud.zed.dev/releases/${ZED_RELEASE_CHANNEL}/${ZED_SERVER_VERSION}/download?asset=zed-remote-server&os=linux&arch=x86_64" \
-        | gunzip > /out-zed-remote-server; \
-      chmod 0755 /out-zed-remote-server; \
-    else \
-      echo "ZED_SERVER_SOURCE must be 'context' or 'release' (got '${ZED_SERVER_SOURCE}')" >&2; \
-      exit 1; \
-    fi; \
-    if [ -n "$ZED_SERVER_SHA256" ]; then \
-      echo "${ZED_SERVER_SHA256}  /out-zed-remote-server" | sha256sum -c -; \
-    fi
 
 # ---- workspace image ---------------------------------------------------------
 FROM ${BASE_IMAGE}
@@ -155,7 +120,7 @@ RUN mkdir -p /opt/lua-language-server \
 #    above through NPM_LS_PACKAGES.
 
 # 4. zed-remote-server + zs-agent (change on every build, so they sit above the slow layers).
-COPY --from=server-fetch /out-zed-remote-server /usr/local/bin/zed-remote-server
+COPY --chmod=0755 sandbox/image/dist/zed-remote-server /usr/local/bin/zed-remote-server
 COPY --from=agent-builder /out-zs-agent /usr/local/bin/zs-agent
 
 # 5. users, paths, git. Nothing above wrote under /vercel; hand the tree back to ubuntu anyway.
@@ -180,6 +145,3 @@ ENV HOME=/vercel \
     ZS_HEALTH_PORT=8448
 USER ubuntu
 WORKDIR /workspaces
-# Vercel Sandbox does not run ENTRYPOINT or CMD for custom images; this CMD exists only for
-# `docker run` in sandbox/image/test/run-local.sh.
-CMD ["/usr/local/bin/zs-agent", "start"]

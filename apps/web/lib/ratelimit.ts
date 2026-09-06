@@ -1,7 +1,6 @@
 import { dbReady } from "./db";
 import { sql } from "drizzle-orm";
 import { ApiError } from "./api";
-import { memoryKvEnabled } from "./kv";
 export type LimitName = keyof typeof LIMITS;
 
 /** Sliding-window budgets: `tokens` requests per `windowSec`. */
@@ -22,15 +21,6 @@ export const LIMITS = {
   "user.repos": { tokens: 30, windowSec: 60 },
 } satisfies Record<string, { tokens: number; windowSec: number }>;
 
-const MEMORY_KEY = "__zsMemoryRatelimit" as const;
-type GlobalWithRl = typeof globalThis & { [MEMORY_KEY]?: Map<string, number[]> };
-
-function memoryWindows(): Map<string, number[]> {
-  const g = globalThis as GlobalWithRl;
-  if (!g[MEMORY_KEY]) g[MEMORY_KEY] = new Map();
-  return g[MEMORY_KEY];
-}
-
 function rateLimited(retryAfterSec: number): ApiError {
   const retryAfter = Math.max(1, Math.ceil(retryAfterSec));
   return new ApiError(429, "rate_limited", "Too many requests", { retryAfterSec: retryAfter }, {
@@ -41,24 +31,10 @@ function rateLimited(retryAfterSec: number): ApiError {
 /**
  * Consumes one token of `name` for `subject` (a user id, sandbox name or
  * ip). Throws `ApiError(429, "rate_limited")` carrying `Retry-After` when the
- * window is exhausted. Memory-backed sliding window under `ZS_KV=memory`.
+ * window is exhausted.
  */
 export async function limit(name: LimitName, subject: string): Promise<void> {
   const { tokens, windowSec } = LIMITS[name];
-  if (memoryKvEnabled()) {
-    const now = Date.now();
-    const windowMs = windowSec * 1000;
-    const key = `${name}:${subject}`;
-    const windows = memoryWindows();
-    const hits = (windows.get(key) ?? []).filter((at) => at > now - windowMs);
-    if (hits.length >= tokens) {
-      windows.set(key, hits);
-      throw rateLimited((hits[0] + windowMs - now) / 1000);
-    }
-    hits.push(now);
-    windows.set(key, hits);
-    return;
-  }
   // libSQL write transactions serialize this read/modify/write across instances.
   const db = await dbReady();
   await db.transaction(async (tx) => {
@@ -72,9 +48,4 @@ export async function limit(name: LimitName, subject: string): Promise<void> {
     await tx.run(sql`INSERT INTO kv (key,value,expires_at) VALUES (${key},${JSON.stringify(hits)},${now + windowMs})
       ON CONFLICT(key) DO UPDATE SET value=excluded.value, expires_at=excluded.expires_at`);
   });
-}
-
-/** Clears memory windows and memoized limiters. Tests only. */
-export function _resetRatelimitForTests(): void {
-  memoryWindows().clear();
 }

@@ -12,20 +12,15 @@ const isolation = [
 /**
  * The plain config, before the Workflow wrapper. Headers live here rather
  * than in vercel.ts because `next dev` honours next.config.ts; the
- * per-request nonce CSP is in proxy.ts. Exported so tests can read the
- * header rules without invoking the workflow bundler.
+ * per-request nonce CSP is in proxy.ts.
  */
-export const baseConfig: NextConfig = {
+const baseConfig: NextConfig = {
   // The local Sandbox adapter reads arbitrary developer paths. Those are runtime
   // local files, never Function dependencies; WASM/assets belong on the static CDN.
   outputFileTracingExcludes: {
-    "/*": ["./public/**/*", "./.zs-dev/**/*", "./test-results/**/*", "./tests/**/*", "./.env*"],
-    "/.well-known/workflow/**": ["./public/**/*", "./.zs-dev/**/*", "./test-results/**/*", "./tests/**/*", "./.env*"],
+    "/*": ["./public/**/*", "./.zs-dev/**/*", "./.env*"],
+    "/.well-known/workflow/**": ["./public/**/*", "./.zs-dev/**/*", "./.env*"],
   },
-  // `scripts/dev-local.sh browser` runs a second `next dev` (its own port, database and
-  // sandboxes) beside a developer's `dev` session; Next holds one dev-server lock per
-  // `distDir`, so that mode builds into `.next-browser` instead (ZS_NEXT_DIST_DIR).
-  distDir: process.env.ZS_NEXT_DIST_DIR || ".next",
   headers: async () => [
     {
       // Every page (dashboard forms included) refuses to be framed; the editor

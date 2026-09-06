@@ -22,7 +22,6 @@ import {
   type SandboxUsage,
 } from "@/lib/sandbox";
 import { SandboxError } from "@/lib/sandbox-error";
-import { fakeSandbox } from "@/lib/sandbox-fake";
 import { eq } from "drizzle-orm";
 import { workspaces, type Workspace } from "@/lib/schema";
 import type { HealthProbe } from "@/lib/types";
@@ -229,8 +228,7 @@ export async function stepProbeHealth(
 ): Promise<HealthProbe | null> {
   "use step";
   void expectBuild;
-  const probe =
-    env().ZS_SANDBOX_DRIVER === "fake" ? fakeSandbox().takeHealth(healthHost) : await probeHealth(healthHost);
+  const probe = await probeHealth(healthHost);
   if (probe) {
     const db = await dbReady();
     const [row] = await db

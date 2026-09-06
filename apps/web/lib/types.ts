@@ -357,9 +357,8 @@ export const forwardViewSchema = z.object({
 });
 
 /**
- * Zod view of {@link SandboxManifest} (b9 §4.7, CONTRACTS.md §7.3), the
- * schema the shared fixture `docs/contracts/fixtures/manifest.example.json`
- * is pinned with (D19). Unknown keys pass through, as b8's serde does; the
+ * Zod view of {@link SandboxManifest} (b9 §4.7, CONTRACTS.md §7.3).
+ * Unknown keys pass through, as b8's serde does; the
  * optional members accept `null` as well as absence because b8 models them as
  * `Option<T>`.
  */

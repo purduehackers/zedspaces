@@ -40,8 +40,8 @@ Multiplayer has not been deployed.
 - Drizzle's open-session index is `(workspace_id, holder_tab_id)`. No extra
   participant database, login, feature flag, singleton broker, takeover handshake
   or UI. The handshake requires a replica ID; client state requires a registered peer.
-- The release workflow gates deployment on the full Chromium suite, including
-  the two-participant lifecycle case, plus production client/server smoke.
+- The owner subsequently removed all Zedspaces tests and test release gates.
+  The verification above records historical results; CI now checks source and builds only.
 
 ## Bounds and remaining limits
 
