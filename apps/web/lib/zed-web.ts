@@ -7,8 +7,6 @@
  * Nothing here touches the server, so client components may import it freely.
  */
 
-import type { CallAction } from "./call-protocol";
-
 /** Boot stages `ZsHost.bootProgress` reports, in the order they occur. */
 export const ZS_BOOT_STAGES = [
   "booting",
@@ -123,8 +121,6 @@ export interface ZsHost {
   onLifecycle(kind: ZsLifecycleKind, seconds: number): void;
   /** Runs after the GPUI callback returns, so status updates cannot reenter its App borrow. */
   updateAction(action: ZsUpdateAction): void;
-  /** Synchronous so browser media permission requests retain the click's activation. */
-  callAction(action: CallAction, replica: number, name: string): void;
   /** Archives saved working files in the sandbox and starts a browser download. */
   downloadProject(path: string, includeIgnored: boolean): Promise<string>;
   /** Mints a one-use capability for sandbox DAP I/O; never a public preview. */
@@ -146,8 +142,6 @@ export interface ZedWebModule {
   has_unsaved_changes(): boolean;
   build_id(): string;
   set_update_status(statusJson: string): void;
-  /** Absent in older pinned builds, which must still boot before an update. */
-  set_call_status?(statusJson: string): void;
   /** Present only in the development stub of §"bundle not built" (public/editor/README.md). */
   zsStub?: boolean;
 }

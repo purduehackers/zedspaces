@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BrowserCall } from "./browser-call";
-import { CallPanel } from "./call-panel";
 import type { ShellWorkspace } from "@/lib/types";
 import type { ZsBootConfig, ZsBootStage, ZsConnectInfo, ZsDocumentKind, ZsHostOs, ZsLifecycleKind } from "@/lib/zed-web";
 import { asBootFailure } from "@/lib/zed-web";
@@ -209,8 +207,6 @@ export function EditorShell({
   const runtimeRef = useRef<EditorRuntime | null>(null);
   const [runtime, setRuntime] = useState<EditorRuntime | null>(null);
   const updaterRef = useRef<EditorUpdater | null>(null);
-  const callRef = useRef<BrowserCall | null>(null);
-  const [call, setCall] = useState<BrowserCall | null>(null);
   const bootedRef = useRef(false);
   const flushAllowedRef = useRef(true);
   const stopReasonRef = useRef<StopReason>("unknown");
@@ -343,7 +339,6 @@ export function EditorShell({
       },
       lifecycle,
       updateAction: (action) => updaterRef.current?.action(action),
-      callAction: (action, replica, name) => callRef.current?.action(action, replica, name),
       refreshConnectInfo: async () => {
         try {
           return await connect("reconnect");
@@ -399,11 +394,7 @@ export function EditorShell({
       });
       runtimeRef.current = booted.runtime;
       setRuntime(booted.runtime);
-      booted.started.then(() => {
-        const call = new BrowserCall(workspaceId, status => booted.runtime.setCallStatus(status));
-        callRef.current = call;
-        setCall(call);
-      }).catch((err: unknown) => {
+      booted.started.catch((err: unknown) => {
         const failure = asBootFailure(err);
         applyTransition(transitionForBootFailure(failure.code, { stopReason: stopReasonRef.current }));
         void reportClientError(workspaceId, build, { kind: "boot", message: failure.message }, deps);
@@ -437,14 +428,6 @@ export function EditorShell({
     updaterRef.current = updater;
     return () => { updater.dispose(); updaterRef.current = null; };
   }, [deps, navigation, runtime, workspaceId]);
-
-  useEffect(() => {
-    return () => { call?.dispose(); if (callRef.current === call) callRef.current = null; };
-  }, [call]);
-
-  useEffect(() => {
-    if (phase.kind === "stopped" || phase.kind === "restarting" || phase.kind === "error") callRef.current?.leave();
-  }, [phase.kind]);
 
   useEffect(() => {
     const updater = updaterRef.current;
@@ -508,7 +491,6 @@ export function EditorShell({
     <div className="zs-shell" data-zs="shell">
       <ShellOverlay phase={phase} workspace={initial} actions={actions} />
       <LifecycleToasts toasts={toasts} />
-      {call && <CallPanel call={call} />}
     </div>
   );
 }

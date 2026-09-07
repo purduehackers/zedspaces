@@ -1,7 +1,7 @@
 import type { EditorRelease } from "./builds";
 import { env, EnvError } from "./env";
 
-/** Builds predating the web updater need one bootstrap upgrade before they can defer. */
+/** Only bundles compatible with the current browser host can boot before upgrading. */
 export function canDeferUpgrade(clientBuild: string): boolean {
   const e = env();
   return clientBuild.startsWith("dev") ||

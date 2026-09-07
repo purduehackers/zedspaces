@@ -106,20 +106,7 @@ each tab. Closing the first tab does not end the project.
 Avatars sit at the far right, using Zed's person-icon fallback style. Names such as
 “Anonymous Owl” appear on hover and beside cursors; no external avatar requests are made.
 
-Audio calls and screen sharing use browser WebRTC, with Zed-styled title-bar
-controls and a small panel for shared screens. Join muted, then explicitly enable
-the microphone or choose a screen. Up to eight people can join; anyone with the
-workspace link has access. Zedspaces does not record calls. Turso holds expiring
-signaling messages only, never media. Native controls, three-party calls, decoded
-synthetic audio and screen-sharing video have been verified in production. If the
-browser blocks playback, choose **Unmute Audio** to retry. Physical spoken audio
-and restrictive-network connectivity are not yet verified.
-
-Direct calls use public STUN. For networks that require a relay, configure
-`ZS_TURN_KEY_ID` and `ZS_TURN_API_TOKEN` from
-[Cloudflare Realtime TURN](https://developers.cloudflare.com/realtime/turn/generate-credentials/)
-in Vercel; the long-lived key stays on the server. No TURN service is configured
-yet, so connectivity across restrictive networks is not guaranteed.
+Multiplayer is collaborative editing only. Calls and screen sharing are not included.
 
 This is a breaking replacement for single-editor sessions, not an optional mode.
 There is no takeover UI or old-editor compatibility path. The matching client/server release is deployed at

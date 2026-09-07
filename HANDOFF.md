@@ -1,5 +1,17 @@
 # Handoff: Zed Codespaces
 
+**Latest owner direction (2026-09-07): remove calling entirely.** Calls, screen
+sharing, their custom title-bar controls, host bridge, API, signaling and TURN
+configuration are removed in source; the unfinished device selectors are discarded.
+Publication is pending. Collaborative editing and its approved avatars stay.
+
+**Architecture constraint:** preserve Zed's native UI and functionality. Browser
+support belongs at the web-platform boundary, so native editor behavior runs through
+browser capabilities. Do not add custom feature/UI replacements inside Zed; explicit
+owner-requested feature removals are allowed. This supersedes the calls priority and
+any broader permission for fork changes below. Historical call validation is not a
+request to restore calling.
+
 **Browser feature pass deployed (2026-09-07).** The approved sequence is shipped:
 clipboard, accessibility/input adapters, ZIP exports, debugger, inline Python REPL,
 and audio/screen-sharing calls. App `55fd6cb`, fork `ad778ac746`, matching build
