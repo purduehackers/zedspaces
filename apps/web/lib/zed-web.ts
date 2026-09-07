@@ -125,6 +125,8 @@ export interface ZsHost {
   downloadProject(path: string, includeIgnored: boolean): Promise<string>;
   /** Mints a one-use capability for sandbox DAP I/O; never a public preview. */
   connectDebugAdapter(launch: string): Promise<{ url: string; token: string }>;
+  /** Starts a private Python kernel; null selects the bundled sandbox environment. */
+  connectKernel(python: string | null, cwd: string): Promise<{ launch: string; url: string; token: string }>;
   /** Optional: the raw close frame, telemetry only (b7 §3.21). */
   onClosed?(info: ZsCloseInfo): void;
 }

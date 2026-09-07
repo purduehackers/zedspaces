@@ -7,7 +7,7 @@ import type {
   ZsLifecycleKind,
   ZsUpdateAction,
 } from "@/lib/zed-web";
-import { connectDebugAdapter, putSettingsDocument, reportClientError, type ApiDeps } from "./api-client";
+import { connectDebugAdapter, connectKernel, putSettingsDocument, reportClientError, type ApiDeps } from "./api-client";
 import { ConnectError } from "./connect-client";
 import { downloadProject } from "./download-project";
 
@@ -131,6 +131,10 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
 
     connectDebugAdapter(launch) {
       return connectDebugAdapter(shell.workspaceId, launch, shell.deps);
+    },
+
+    connectKernel(python, cwd) {
+      return connectKernel(shell.workspaceId, python, cwd, shell.deps);
     },
 
     onClosed(info) {

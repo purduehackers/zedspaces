@@ -119,10 +119,18 @@ RUN mkdir -p /opt/lua-language-server \
 # 3. agents: claude-code, codex, opencode and pi come from the base image; gemini-cli is added
 #    above through NPM_LS_PACKAGES.
 
+# Private inline Python REPL. Keep its dependencies out of project environments.
+COPY sandbox/image/repl-requirements.txt /opt/zedspaces/repl-requirements.txt
+RUN uv venv --python python3 /opt/zedspaces/repl \
+ && uv pip sync --python /opt/zedspaces/repl/bin/python --require-hashes --no-build --no-cache /opt/zedspaces/repl-requirements.txt \
+ && chmod -R a+rX /opt/zedspaces/repl
+
 # 4. zed-remote-server + zs-agent (change on every build, so they sit above the slow layers).
 COPY --chmod=0755 sandbox/image/dist/zed-remote-server /usr/local/bin/zed-remote-server
 COPY --from=agent-builder /out-zs-agent /usr/local/bin/zs-agent
 COPY --chmod=0644 sandbox/image/export-project.py /usr/local/lib/zedspaces/export-project.py
+COPY --chmod=0644 sandbox/image/kernel.py /usr/local/lib/zedspaces/kernel.py
+RUN chmod 0755 /usr/local/lib/zedspaces
 
 # 5. users, paths, git. Nothing above wrote under /vercel; hand the tree back to ubuntu anyway.
 RUN mkdir -p /workspaces && chown ubuntu:ubuntu /workspaces \

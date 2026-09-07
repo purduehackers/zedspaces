@@ -1,4 +1,4 @@
-//! Authenticated DAP tunnel on the existing service listener, never a preview port.
+//! Authenticated DAP/kernel byte tunnel on the service listener, never a preview port.
 
 use anyhow::{Context as _, Result, bail, ensure};
 use base64::Engine as _;
@@ -187,7 +187,7 @@ impl DebugService {
         let Ok(permit) = self.slots.clone().try_acquire_owned() else {
             return response(
                 StatusCode::TOO_MANY_REQUESTS,
-                "Four debug adapters are already running",
+                "Four debugger or kernel sessions are already running",
             );
         };
         if !req

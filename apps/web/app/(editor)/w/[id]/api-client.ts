@@ -63,14 +63,17 @@ export async function keepAlive(workspaceId: string, deps?: ApiDeps): Promise<Ke
   return { keptAliveUntil: typeof body.keptAliveUntil === "string" ? body.keptAliveUntil : null };
 }
 
-export async function connectDebugAdapter(workspaceId: string, launch: string, deps?: ApiDeps): Promise<{ url: string; token: string }> {
-  const res = await fetchOf(deps)(`/api/workspaces/${workspaceId}/debug`, {
+async function connectProcess(workspaceId: string, kind: "debug" | "kernel", body: unknown, deps?: ApiDeps): Promise<{ launch: string; url: string; token: string }> {
+  const res = await fetchOf(deps)(`/api/workspaces/${workspaceId}/${kind}`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify(launch), cache: "no-store", signal: AbortSignal.timeout(15_000),
+    body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error((await apiErrorBody(res)).message);
   return res.json();
 }
+
+export const connectDebugAdapter = (workspaceId: string, launch: string, deps?: ApiDeps) => connectProcess(workspaceId, "debug", launch, deps);
+export const connectKernel = (workspaceId: string, python: string | null, cwd: string, deps?: ApiDeps) => connectProcess(workspaceId, "kernel", { python, cwd }, deps);
 
 /**
  * Re-mints the `zs_editor` cookie (every 6 h and after any `401`,

@@ -1,17 +1,18 @@
 # Production deployment — 2026-09-07
 
-Current production, verified 10:17 UTC: app `ef8a3c6`, fork `c95465378f`, matching
-build `c95465378-34105886840.1`, deployment `dpl_H5d8r7v267jiLmx5PWC6ZBVUfmgj`.
-[Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34105886840)
+Current production, verified 11:12 UTC: app `fe30d19`, fork `1ea9ecbca0`, matching
+build `1ea9ecbca-34110736641.1`, deployment `dpl_9gpCr7SPcWHz5pz3qa7TyskxX4Bq`.
+[Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34110736641)
 passed; local authenticated publication deployed its matching image and assets.
 Chromium's actual module reports the matching build, cross-origin isolation and
-no test hooks. The disposable workspace upgraded via Zed's native confirmation.
+no test hooks. The disposable workspace upgraded through the update API, preserving files.
 Production ZIP downloads passed save-before-download, 7.3 MB streaming, folder/
 Unicode, ignored-file choices, integrity, path/origin refusal and temporary cleanup.
-The file picker and prompts expose names/roles/focus; a rendering-cache omission
-affecting unchanged accessibility subtrees was found and is fixed in source,
-not yet deployed. Real assistive-technology/mobile checks have not been run.
-Debugger changes are also source-only pending their release and browser checks.
+The rendering-cache accessibility fix is deployed; file-tree and tab semantics
+now remain present across unchanged frames. Live Node debugging passed terminal
+launch, child sessions, breakpoints, stack/variables, stepping and disconnect.
+Real assistive-technology/mobile checks have not been run. Python live checks are
+in progress. Inline REPL source and Linux protocol checks pass but are not yet live.
 Owner workspaces were not modified; our verification workspace remains active.
 
 ## Earlier deferred-update verification — 05:53 UTC

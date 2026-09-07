@@ -1,20 +1,24 @@
 # Handoff: Zed Codespaces
 
 **Browser features in progress (2026-09-07).** Clipboard and the first accessibility/
-input adapter and ZIP exports are deployed: app `ef8a3c6`, fork `c95465378f`, matching
-build `c95465378-34105886840.1`. Live Chromium verified fresh/denied/delayed clipboard
+input adapter, ZIP exports and debugger transport are deployed: app `fe30d19`, fork
+`1ea9ecbca0`, matching build `1ea9ecbca-34110736641.1`. Live Chromium verified fresh/denied/delayed clipboard
 reads, Vim registers, terminal text, PNG-to-Markdown paste, full-document accessible
 text and IME composition without consuming candidate-navigation keys. Firefox and
 WebKit also booted and passed text clipboard checks. Real assistive-technology and
 physical mobile/IME checks have not been run.
 Production ZIP checks passed: save-before-download, 7.3 MB streaming download,
 folder export, Unicode, ignored-file choices, integrity, confinement and cleanup.
-File-tree/picker/tab/prompt semantics are live, but cached rendering can omit
-unchanged semantic subtrees. The browser-only fix and modal/composite keyboard
-handling are in the next release alongside the debugger transport.
-Debugger source checks pass; real Node/debugpy sessions passed through the local
-broker, including terminal launches, child sessions, breakpoints, stepping and
-variables. Browser debugger validation and its matching release remain pending.
+The cached semantic-subtree fix and modal/composite keyboard handling are deployed.
+Live Node debugging passed terminal launch, child sessions, breakpoints, stack,
+variables, stepping, continue and disconnect. Python broker checks pass; live UI
+breakpoint checks are in progress. New-tab task/debug configuration replay and
+debugger control labels are fixed in the next fork release.
+Inline Python REPL source passes native/WASM checks and the app production build.
+The Linux image probe passed Unicode, persistent values, errors, Markdown/PNG,
+input(), interrupt, shutdown and restart. Its matching deployment and real browser
+inline-UI checks are pending. Kernels use the private process tunnel, not preview
+ports; bundled Python is isolated from project environments. Calls are still pending.
 The disposable verification workspace is `ws_AAVZ3V9Z1ZC1NEQNC1HQ`; inspect its
 contents before deleting it. Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
 
