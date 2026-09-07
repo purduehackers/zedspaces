@@ -12,6 +12,28 @@ in `zedspaces`; use settings/assets/host integration before changing shared Zed
 components. Keep shell prompts and terminal titles as they were. This overrides
 older plans for extra fork features.
 
+**Deferred editor updates deployed (2026-09-07 UTC).** App `81f8f2b`, fork
+`6981604fa8`, matching WASM/server `6981604fa-34083879179.1` are live at
+code.purduehackers.com, committed and pushed. Update-capable workspaces boot their
+pinned editor first, then cache the new bundle after reaching interactive. Zed's
+unchanged native `UpdateButton` shows download progress and Restart to Update;
+its in-canvas confirmation offers Later and warns that everyone's terminals
+restart. Only confirmation starts the existing file-preserving rebuild. The fork
+contains a small web-only status/action adapter; download/lifecycle logic lives
+in the app. Pre-adapter builds need one bootstrap upgrade before they can defer.
+Release publication retains every live workspace's pinned browser bundle.
+
+Two production releases verified the actual deferred path: a fresh independent
+Chromium tab loaded the old build before downloading the new one, editing/saving
+continued while ready, and Later left the old sandbox running. Confirming update
+restarted both profiles on the new build without downloading WASM/assets again.
+The exact uncommitted file and full Git history survived generation 2 → 3.
+Native check/retry/dismiss controls also worked. CI/checks and production builds
+passed; no repository tests were added. A browser-only fetch receiver bug found
+during live verification was fixed and redeployed. Existing owner workspaces were
+not modified. See [deployment evidence](docs/status/deployment.md) and the
+[browser stub inventory](docs/status/browser-gaps.md).
+
 **Fork cleanup + automatic ports deployed (2026-09-07 UTC).** App `c6343dc`, fork
 `30a7787187`, and matching WASM/server `30a778718-34078287451.1` are live at
 code.purduehackers.com. Both repositories are committed and pushed. Compared against
