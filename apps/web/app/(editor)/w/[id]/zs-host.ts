@@ -9,6 +9,7 @@ import type {
 } from "@/lib/zed-web";
 import { putSettingsDocument, reportClientError, type ApiDeps } from "./api-client";
 import { ConnectError } from "./connect-client";
+import { downloadProject } from "./download-project";
 
 /**
  * The browser host the shell hands to `start(configJson, assets, host)`
@@ -122,6 +123,10 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
 
     updateAction(action) {
       queueMicrotask(() => shell.updateAction(action));
+    },
+
+    downloadProject(path, includeIgnored) {
+      return downloadProject(shell.workspaceId, path, includeIgnored, shell.deps);
     },
 
     onClosed(info) {

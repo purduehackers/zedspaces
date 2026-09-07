@@ -121,6 +121,8 @@ export interface ZsHost {
   onLifecycle(kind: ZsLifecycleKind, seconds: number): void;
   /** Runs after the GPUI callback returns, so status updates cannot reenter its App borrow. */
   updateAction(action: ZsUpdateAction): void;
+  /** Archives saved working files in the sandbox and starts a browser download. */
+  downloadProject(path: string, includeIgnored: boolean): Promise<string>;
   /** Optional: the raw close frame, telemetry only (b7 §3.21). */
   onClosed?(info: ZsCloseInfo): void;
 }

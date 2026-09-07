@@ -1,12 +1,14 @@
 # Handoff: Zed Codespaces
 
-**Browser features in progress (2026-09-07).** Clipboard foundation is deployed:
-app `deed053`, fork `997b2dd550`, build `997b2dd55-34095329320.1`. Live Chromium
-checks covered palette/keyboard paste, browser Copy/Cut events, denied and delayed
-reads, Vim/system versus named registers, terminal paste and PNG-to-Markdown paste.
-The accessibility/input adapter and synchronous terminal-copy follow-up are in fork
-`8d0ba26f84`; WASM and native GPUI compile checks passed, but that patch is **not yet
-built or deployed**. Continue its release and browser validation before ZIP export.
+**Browser features in progress (2026-09-07).** Clipboard and the first accessibility/
+input adapter are deployed: app `77afa00`, fork `8d0ba26f84`, matching build
+`8d0ba26f8-34100218324.1`. Live Chromium verified fresh/denied/delayed clipboard
+reads, Vim registers, terminal text, PNG-to-Markdown paste, full-document accessible
+text and IME composition without consuming candidate-navigation keys. Firefox and
+WebKit also booted and passed text clipboard checks. Real assistive-technology and
+physical mobile/IME checks have not been run.
+ZIP export and accessibility follow-ups (file tree, picker results, tabs and prompts)
+are in source; their matching release and live validation are still pending.
 The disposable verification workspace is `ws_AAVZ3V9Z1ZC1NEQNC1HQ`; inspect its
 contents before deleting it. Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
 

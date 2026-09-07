@@ -17,6 +17,7 @@ export const LIMITS = {
   "user.workspaces.create": { tokens: 10, windowSec: 600 },
   "user.connect": { tokens: 60, windowSec: 60 },
   "user.keepalive": { tokens: 30, windowSec: 60 },
+  "user.export": { tokens: 3, windowSec: 60 },
   "user.client-errors": { tokens: 60, windowSec: 60 },
   "user.repos": { tokens: 30, windowSec: 60 },
 } satisfies Record<string, { tokens: number; windowSec: number }>;

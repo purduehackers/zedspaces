@@ -60,6 +60,19 @@ bundle, not general browser extension installation.
 New clones fetch the selected branch's full history. An older shallow checkout
 can fetch its missing history with `git fetch --unshallow origin`.
 
+Clipboard Copy/Cut/Paste uses the browser clipboard, including image paste into
+Markdown. Browser permissions still apply; denied reads show an error rather than
+pasting stale text. **Web: Toggle Screen Reader Mode** exposes full editor text and
+lets Tab leave the editor. Accessibility support is in progress; this is not yet
+a claim of complete VoiceOver/NVDA or mobile-input compatibility.
+
+**Web: Download Project Zip** exports saved working files, including uncommitted
+changes. Folder context menus also offer **Download ZIP…**. Choose whether to
+include ignored files, and save dirty project buffers first when prompted. Git
+metadata, links and special files are excluded; untitled buffers are not exported.
+The limit is 256 MiB of source data and 20,000 paths per export. Files are read
+while the workspace stays live, so concurrent writes are not an atomic snapshot.
+
 ## Multiplayer
 
 Anonymous multiplayer is live: share a workspace's `/w/<id>`
