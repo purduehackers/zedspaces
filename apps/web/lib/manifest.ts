@@ -7,7 +7,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { sha256FromBlobPathname } from "./archive";
 import { blobStore } from "./blob";
 import { dbReady } from "./db";
-import { controlPlaneUrl, env, portPool, proxySlots } from "./env";
+import { controlPlaneUrl, env, proxySlots } from "./env";
 import { cloneUrl } from "./github";
 import { portAudience } from "./port-token";
 import type { SandboxPrincipal } from "./sandbox-auth";
@@ -130,7 +130,6 @@ async function workspaceManifest(workspace: Workspace): Promise<SandboxManifest>
     jwt,
     forwards,
     proxySlots: proxySlots(),
-    portPool: portPool(),
     idle: { minutes: workspace.idleMinutes },
     session: {
       id: workspace.currentSandboxSessionId ?? "",

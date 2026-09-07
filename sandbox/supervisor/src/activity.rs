@@ -242,6 +242,7 @@ impl ActivityRelay {
             tokio::select! {
                 _ = self.shutdown.cancelled() => break,
                 _ = ticker.tick() => {}
+                _ = self.listening.changed() => {}
             }
             self.poll_server_health().await;
             match self.ping(&mut policy).await {

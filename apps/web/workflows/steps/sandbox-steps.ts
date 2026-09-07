@@ -322,14 +322,6 @@ export async function stepExtendTimeout(sandboxName: string, ms: number): Promis
   await handle.extendTimeout(ms);
 }
 
-/** Replaces the sandbox's declared port list (public forwards outside the pool). */
-export async function stepUpdatePorts(sandboxName: string, ports: number[]): Promise<void> {
-  "use step";
-  const handle = await sandboxApi().get(sandboxName, { resume: false }).catch(fail);
-  if (!handle) throw new FatalError(`sandbox_missing:${sandboxName}`);
-  await handle.updatePorts(ports);
-}
-
 /** Deletes a sandbox and, when asked, every snapshot it owns. A missing sandbox is success. */
 export async function stepDeleteSandbox(
   sandboxName: string,

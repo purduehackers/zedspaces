@@ -55,18 +55,12 @@ pub struct Manifest {
     pub secret_names: Vec<String>,
     /// `{ issuer, audience, publicKeys }` → `serve --issuer/--audience/--jwt-public-key`.
     pub jwt: JwtSpec,
-    /// Standard base64 (padded) of 32 bytes; HMAC key of the port bootstrap token (§3.10); per
-    /// generation. Optional: the control plane does not emit it today (CONTRACTS §14 M12 – b9
-    /// mints ES256 port tokens instead), and a manifest without it boots with the private-port
-    /// proxies off rather than failing the whole workspace.
+    /// Optional HMAC bootstrap key for private forwards. Public previews need no key.
     #[serde(default)]
     pub port_session_secret: Option<SecretString>,
     /// Current forwards; seeds `ForwardsState`.
     #[serde(default)]
     pub forwards: Vec<Forward>,
-    /// Pool ports declared at create (BUILD-SPEC §5.2).
-    #[serde(default)]
-    pub port_pool: Vec<u16>,
     /// Idle threshold.
     pub idle: IdleSpec,
     /// Vercel sandbox session; `id` is `LogBatch.sessionId`, `resumed` is the control plane's hint.
@@ -163,10 +157,10 @@ pub struct Forward {
     /// Optional label from `portsAttributes` or the UI.
     #[serde(default)]
     pub label: Option<String>,
-    /// Public: slot/pool URL; private: the control plane's `/open` link (D8).
+    /// Public: proxy slot URL; private: the control plane's `/open` link (D8).
     #[serde(default)]
     pub url: Option<String>,
-    /// Private only: the proxy slot the control plane allocated (D8/D21); learned from the first
+    /// The proxy slot the control plane allocated; private slots can also be learned from the first
     /// valid bootstrap token when absent (§3.11).
     #[serde(default)]
     pub slot: Option<u16>,
@@ -450,7 +444,7 @@ impl Manifest {
 
     /// Every rule from §4.1: version; identity equals the environment; `workspace_dir` under
     /// `workspaces_dir`; keys and secrets well-formed; ports outside the infra set; slots valid
-    /// (against `config.proxy_slots`, D21), unique and private-only; session ordering; tarball
+    /// (against `config.proxy_slots`, D21), unique; session ordering; tarball
     /// scheme; origins; interval and batch ceilings.
     pub fn validate(&self, config: &Config) -> anyhow::Result<()> {
         self.check_shape(Some(&config.proxy_slots))?;
@@ -526,7 +520,7 @@ impl Manifest {
     }
 
     /// Rules that need no environment; `slots`, when given, is the allowed proxy-slot set
-    /// (`Config::proxy_slots`). Slot uniqueness and private-only hold either way.
+    /// (`Config::proxy_slots`). Slot uniqueness holds either way.
     fn check_shape(&self, slots: Option<&[u16]>) -> anyhow::Result<()> {
         if self.version != MANIFEST_VERSION {
             bail!("manifest: unsupported version {}", self.version);
@@ -576,12 +570,6 @@ impl Manifest {
                 bail!("manifest: forwards[].port {} is not allowed", forward.port);
             }
             if let Some(slot) = forward.slot {
-                if forward.visibility != Visibility::Private {
-                    bail!(
-                        "manifest: forwards[].slot on a public forward (port {})",
-                        forward.port
-                    );
-                }
                 if let Some(slots) = slots
                     && !slots.contains(&slot)
                 {
@@ -590,11 +578,6 @@ impl Manifest {
                 if !seen_slots.insert(slot) {
                     bail!("manifest: forwards[].slot {slot} is used twice");
                 }
-            }
-        }
-        for port in &self.port_pool {
-            if *port == 0 || INFRA_PORTS.contains(port) {
-                bail!("manifest: portPool entry {port} is not allowed");
             }
         }
         if self.session.cap_at <= self.session.started_at {

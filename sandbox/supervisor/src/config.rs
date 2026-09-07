@@ -1,19 +1,8 @@
-//! Environment and filesystem contract for `zs-agent` (brief §3.3 and §4.6).
+//! Supervisor environment and port map.
 //!
-//! The environment is read once at startup; every other module receives a `&Config`. The port
-//! map below is the **D21** map from `DECISIONS.md`, which supersedes the brief's §3.3 table:
-//!
-//! | Port | Bind | Owner | Declared to Vercel | Purpose |
-//! |---|---|---|---|---|
-//! | 8443 | `0.0.0.0` | `zed-remote-server serve --listen` | yes | `/rpc`, `/files`, `/extensions/*`, public `/health` |
-//! | 8444-8447 | `0.0.0.0` | `zs-agent` proxy slots 0-3 | yes | private-port proxy (D8/D21), cookie-gated |
-//! | 8448 | `0.0.0.0` | `zs-agent` health listener | yes | `GET /health`, minimal unauthenticated body |
-//! | 8449 | – | reserved | no | part of the infra set, unbound |
-//! | 8450 | `127.0.0.1` | `zs-agent` local API | no | `/ports`, `/extensions`, `/git-token`, `/lifecycle`, `/health` detail (`ZS_SUPERVISOR_URL`) |
-//! | 8451 | `127.0.0.1` | `zed-remote-server serve --control-listen` | no | `/control/lifecycle`, `/control/ports`, `/control/extensions` |
-//!
-//! Forward pool: `3000, 3001, 4000, 5000, 5173, 8000, 8080, 8888`. The infrastructure set
-//! `8443-8451` is excluded from user forwards everywhere.
+//! Exposed: editor RPC 8443, health 8448, and 13 reusable preview proxies at
+//! 8444-8447 / 8452-8460. Loopback-only: supervisor API 8450, server control 8451.
+//! App discovery excludes 8443-8460 and VM services (22, 53, 111, 23456).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -29,16 +18,21 @@ pub const DEFAULT_WORKSPACES_DIR: &str = "/workspaces";
 pub const DEFAULT_SERVER_BIN: &str = "/usr/local/bin/zed-remote-server";
 /// `zed-remote-server serve --listen` port (declared, public).
 pub const RPC_PORT: u16 = 8443;
-/// D21 private-port proxy slots (declared, public); one private forward per slot.
-pub const PROXY_SLOTS: [u16; 4] = [8444, 8445, 8446, 8447];
+/// Reusable preview slots: Vercel's 15-port budget minus RPC and health.
+pub const PROXY_SLOTS: [u16; 13] = [
+    8444, 8445, 8446, 8447, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460,
+];
 /// D21 supervisor health listener (declared, public): `GET /health` with the minimal body only.
 pub const HEALTH_PORT: u16 = 8448;
 /// D21 supervisor loopback API (`ZS_SUPERVISOR_URL`); bound to `127.0.0.1`, never declared.
 pub const LOCAL_API_PORT: u16 = 8450;
 /// D21 `serve --control-listen` port; loopback, owned by the server, never declared.
 pub const SERVER_CONTROL_PORT: u16 = 8451;
-/// D21 infrastructure set `8443-8451`, excluded from user forwards everywhere (8449 is reserved).
-pub const INFRA_PORTS: [u16; 9] = [8443, 8444, 8445, 8446, 8447, 8448, 8449, 8450, 8451];
+/// VM control/services and proxy listeners: never targets of app forwards.
+pub const INFRA_PORTS: [u16; 22] = [
+    22, 53, 111, 8443, 8444, 8445, 8446, 8447, 8448, 8449, 8450, 8451, 8452, 8453, 8454, 8455,
+    8456, 8457, 8458, 8459, 8460, 23456,
+];
 /// Path prefix appended to `ZS_CONTROL_URL` (which already ends in `/api`).
 pub const SANDBOX_API_PREFIX: &str = "/sandboxes";
 /// D21 default of `ZS_SUPERVISOR_URL` (and of the server's `DEFAULT_SUPERVISOR_URL`).
@@ -117,7 +111,7 @@ pub struct Config {
     pub local_api_listen: SocketAddr,
     /// `ZS_PROXY_BIND_IP`, default `0.0.0.0`; the slot ports come from `proxy_slots`.
     pub proxy_bind_ip: IpAddr,
-    /// `ZS_PROXY_SLOTS`, default `8444,8445,8446,8447` (D21); unique, non-empty, disjoint from the
+    /// `ZS_PROXY_SLOTS`, defaults to `PROXY_SLOTS`; unique, non-empty, disjoint from the
     /// other bound infra ports.
     pub proxy_slots: Vec<u16>,
     /// `ZS_RPC_LISTEN`, default `0.0.0.0:8443`.

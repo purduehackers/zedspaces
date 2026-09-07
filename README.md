@@ -61,14 +61,14 @@ can fetch its missing history with `git fetch --unshallow origin`.
 ## Multiplayer
 
 Anonymous multiplayer is live: share a workspace's `/w/<id>`
-URL to edit together with live cursors and round animal avatars. Zed's existing
+URL to edit together with live cursors and round avatars. Zed's existing
 CRDT and project protocol run through the sandbox's WebSockets; there is no
 WebRTC signaling service, hosted Zed account, or second collaboration database.
 Files and language servers are shared; terminals and saved layouts belong to
 each tab. Closing the first tab does not end the project.
 
-Avatars sit at the far right. Names such as “Anonymous Owl” appear on hover and beside cursors;
-the artwork is bundled locally, without external avatar requests.
+Avatars sit at the far right, using Zed's person-icon fallback style. Names such as
+“Anonymous Owl” appear on hover and beside cursors; no external avatar requests are made.
 
 This is a breaking replacement for single-editor sessions, not an optional mode.
 There is no takeover UI or old-editor compatibility path. The matching client/server release is deployed at
@@ -80,6 +80,10 @@ There is no takeover UI or old-editor compatibility path. The matching client/se
 The modified Zed fork at `zed/` is a pinned submodule of
 [purduehackers/zed](https://github.com/purduehackers/zed), on its default
 `zedspaces` branch.
+Keep this fork close to upstream: only browser/runtime integration and explicitly
+approved UI changes belong there. Product behavior, sandbox configuration and
+deployment belong in this repository; prefer settings, assets and host integration
+over edits to shared Zed components. Shell prompts stay unchanged.
 The app, supervisor, and documentation live here on `main`. Clone with
 submodules (repository access is required while the repository is private):
 

@@ -141,7 +141,6 @@ ENV HOME=/vercel \
     ZS_SERVER_BIN=/usr/local/bin/zed-remote-server \
     ZS_SUPERVISOR_URL=http://127.0.0.1:8450 \
     ZS_CONTROL_SECRET_FILE=/vercel/.zs/run/control.secret \
-    ZS_PROXY_SLOTS=8444,8445,8446,8447 \
     ZS_HEALTH_PORT=8448
 USER ubuntu
 WORKDIR /workspaces

@@ -8,7 +8,7 @@ import { FatalError } from "workflow";
 import { closeOpenSession } from "@/lib/connect";
 import type { EditorRelease } from "@/lib/builds";
 import { dbReady } from "@/lib/db";
-import { env, envTag, portPool, proxySlots } from "@/lib/env";
+import { env, envTag, proxySlots } from "@/lib/env";
 import { newSandboxName } from "@/lib/ids";
 import { MACHINES } from "@/lib/plans";
 import { currentRelease } from "@/lib/release";
@@ -135,10 +135,8 @@ export async function stepBuildCreateInput(
     name: workspace.sandboxName,
     region: workspace.region,
     vcpus: MACHINES[workspace.machine].vcpus,
-    // D8/D21: the rpc listener, the four proxy slots, supervisor health and the
-    // forward pool are declared once, at create; `update({ ports })` only ever
-    // adds a public forward outside the pool.
-    ports: [...new Set([e.ZS_RPC_PORT, ...proxySlots(), e.ZS_HEALTH_PORT, ...portPool()])],
+    // Reusable proxies reach app servers, including localhost-only listeners.
+    ports: [e.ZS_RPC_PORT, ...proxySlots(), e.ZS_HEALTH_PORT],
     timeoutMs: e.ZS_SESSION_TIMEOUT_MS,
     image: image.image,
     // Identity only: no secrets and no tokens reach `Sandbox.create`.

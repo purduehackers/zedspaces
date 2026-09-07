@@ -10,10 +10,9 @@ import { restartSession } from "@/workflows/restart-session";
 import { stopWorkspace } from "@/workflows/stop-workspace";
 import { ApiError } from "./api";
 import { dbReady } from "./db";
-import { infraPorts, portPool } from "./env";
+import { infraPorts } from "./env";
 import { keys, kv, withLock } from "./kv";
-import { sandboxApi } from "./sandbox";
-import { forwards, workspaces, type Workspace } from "./schema";
+import { workspaces } from "./schema";
 import { assertWorkspaceCapacity, ACTIVE_WORKSPACE_STATES } from "./workspace-budget";
 
 /**
@@ -129,43 +128,6 @@ export async function isRunActive(runId: string | null): Promise<boolean> {
   if (runId.startsWith("admitting:")) return true;
   const status = await runStatus(runId);
   return status === "pending" || status === "running";
-}
-
-/**
- * Every port the workspace's sandbox must have routes for: the infrastructure
- * set, the forward pool and every public forward already recorded.
- */
-async function declaredPorts(workspaceId: string, extra: number): Promise<number[]> {
-  const db = await dbReady();
-  const rows = await db
-    .select({ port: forwards.port, visibility: forwards.visibility })
-    .from(forwards)
-    .where(eq(forwards.workspaceId, workspaceId));
-  const set = new Set<number>([...infraPorts(), ...portPool(), extra]);
-  for (const row of rows) if (row.visibility === "public") set.add(row.port);
-  return [...set].sort((a, b) => a - b);
-}
-
-/**
- * The public `https://…` URL of a forwarded port on a running sandbox,
- * declaring the port first when it is outside the pool. Never resumes a
- * stopped sandbox: `409 workspace_not_running` instead.
- */
-export async function publicForwardUrl(workspace: Workspace, port: number): Promise<string> {
-  if (workspace.state !== "running") {
-    throw new ApiError(409, "workspace_not_running", "Start the workspace before forwarding a public port");
-  }
-  const handle = await sandboxApi().get(workspace.sandboxName, { resume: false });
-  if (!handle || handle.status !== "running") {
-    throw new ApiError(409, "workspace_not_running", "The sandbox is not running");
-  }
-  try {
-    return `https://${new URL(handle.domain(port)).host}`;
-  } catch {
-    // No route for this port yet: declare the full list and try once more.
-  }
-  await handle.updatePorts(await declaredPorts(workspace.id, port));
-  return `https://${new URL(handle.domain(port)).host}`;
 }
 
 /** Ports the last activity ping reported as listening inside the sandbox. */

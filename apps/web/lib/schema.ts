@@ -275,9 +275,9 @@ export const forwards = sqliteTable(
     port: integer("port").notNull(),
     visibility: portVisibilityEnum("visibility").notNull().default("private"),
     label: text("label"),
-    /** public: https://<domain(port)>; private: the control plane /open link (D8). */
+    /** Public proxy URL or private control-plane /open link. */
     url: text("url"),
-    /** Private forwards only: the proxy slot (one of ZS_PROXY_SLOTS) the supervisor binds to `port` (D8). */
+    /** Reusable proxy listener bound to this app port. */
     slot: integer("slot"),
     createdAt: ts("created_at").notNull().default(nowMs),
   },

@@ -8,7 +8,7 @@ export const LIMITS = {
   "sandbox.manifest": { tokens: 60, windowSec: 60 },
   "sandbox.git-token": { tokens: 30, windowSec: 60 },
   "sandbox.ports": { tokens: 30, windowSec: 60 },
-  "sandbox.activity": { tokens: 10, windowSec: 60 },
+  "sandbox.activity": { tokens: 40, windowSec: 60 },
   "sandbox.logs": { tokens: 120, windowSec: 60 },
   "sandbox.client-errors": { tokens: 60, windowSec: 60 },
   "sandbox.extensions": { tokens: 30, windowSec: 60 },

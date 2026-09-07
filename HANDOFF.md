@@ -1,5 +1,44 @@
 # Handoff: Zed Codespaces
 
+**Owner direction (2026-09-06): finish through publication.** Commit, push and
+deploy completed project changes without asking again. This supersedes older
+permission gates below; it does not authorize unrelated actions or destructive
+Git commands. Verify the matching release on production before handing it back.
+
+**Owner direction (2026-09-06): keep the Zed fork close to upstream.** Only
+necessary web/runtime integration and explicitly approved UI changes belong in
+`purduehackers/zed`. Product behavior, sandbox configuration and deployment belong
+in `zedspaces`; use settings/assets/host integration before changing shared Zed
+components. Keep shell prompts and terminal titles as they were. This overrides
+older plans for extra fork features.
+
+**Local cleanup awaiting commit/build/deploy (2026-09-06).** Compared against
+upstream base `c3cf80c0d1`: removed the abandoned AI-proxy client, edit-prediction
+proxy, provider overrides, origin plumbing and their tests; restored upstream
+language-model tests and provider registration except required WASM dependency
+gates. Removed the unused desktop workspace-opening wrapper, desktop restore
+guards and test-only `run --user-data-dir` addition. The sandbox server is now
+opt-in via `--features serve`, already used by both Zedspaces image build paths.
+Required WASM/threading/filesystem/SQLite/transport adaptations, multiplayer,
+browser shortcuts, language support and approved appearance changes remain.
+
+The pending avatar change uses a person icon in web-only title-bar code;
+the shared `Avatar` component is unchanged. Animal artwork is removed, but names
+and colors remain. Reverted the proposed shell prompt, terminal title and terminal
+localhost-link rewriting changes. Automatic port exposure remains entirely in the
+app/supervisor: 13 reusable public HTTP/WebSocket proxy slots (8444–8447,
+8452–8460), with RPC 8443 and health 8448 filling Vercel's other exposed ports.
+Control/VM services are excluded. Closed listeners free slots; explicit unforward
+stays off until the listener closes. No database migration.
+
+Local validation: production and diagnostic-feature WASM compile checks, native
+server compile checks with/without `serve`, and 19 existing `zed_web_core` checks
+passed. The preceding port work passed web lint/typecheck/build, supervisor Clippy
+and isolated SQLite/real-proxy diagnostics. Docker became unresponsive during
+image validation; it did not complete. New release artifacts and live browser/
+Vercel verification have **not** run. Nothing committed, pushed or deployed;
+production below is unchanged.
+
 **Automatic upgrades + appearance deployed (2026-09-06, 22:03 UTC).**
 App `c6d4151`, fork `4e766bcb8e`, matching production WASM/server
 `4e766bcb8-34060994866.1` are live at code.purduehackers.com.
@@ -190,9 +229,9 @@ wed/
 **New crates, written for this project:**
 
 - `zed/crates/zed_web/` — the browser entry point. Boot sequence, host bridge, connect, keymap,
-  settings, window, workspace chrome, AI proxy client, test hooks. About 9,100 lines.
+  settings, window, workspace chrome and diagnostic hooks. The obsolete AI proxy is removed.
 - `zed/crates/zed_web_core/` — host-testable logic split out of `zed_web` so it can be unit
-  tested natively: settings merging, asset pack, AI proxy URLs, boot config. About 4,300 lines.
+  tested natively: settings merging, asset pack, host detection and boot config.
 - `zed/crates/zs_smol_shim/` — a `smol` stand-in for wasm.
 
 **Upstream crates that already existed and were barely touched:**
@@ -372,9 +411,8 @@ The wasm debugging playbook is in the memory file
   completions even when the binaries are installed. One focused continuation run omitted the
   database preservation flag and pruned ten older browser-test databases plus its temporary one;
   reports/traces/bundles, owner/native databases and full5's database remain.
-- **The owner's standing rules:** no commits or pushes unless asked; never run `git checkout`,
-  `stash`, `reset` or `clean`; no outward-facing actions such as GitHub pushes or Vercel deploys
-  without explicit confirmation.
+- **The owner's standing rules:** finish completed changes through commit, push and deployment
+  (latest authorization above). Never run `git checkout`, `stash`, `reset` or `clean`.
 
 ## 9. How this was built, and the record of it
 

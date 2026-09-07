@@ -1,20 +1,8 @@
-//! Cookie-gated private-port reverse proxy (brief §3.11; D8, D21).
+//! HTTP/WebSocket preview proxy, one app per exposed slot.
 //!
-//! **Routing decision: one listener per proxy slot, slot-bound target port, no path prefix, no
-//! Host routing.** Each declared sandbox port has its own `https://<id>.vercel.run` host, so the
-//! Host header on a slot is constant; a path prefix breaks web apps that emit absolute paths. The
-//! control plane allocates one of the four D21 slots (`8444-8447`) per private forward and every
-//! request on slot `S` is forwarded verbatim to `127.0.0.1:<port bound to S>` (or `[::1]` when
-//! the socket table shows a v6-only listener).
-//!
-//! Entry: `GET {origin}/api/workspaces/{id}/ports/{port}/open` → 303 to
-//! `https://<slot-host>/__zs/auth?zs_port_token=<token>&next=/`; the proxy verifies the token
-//! under `portSessionSecret`, binds the slot to the token's port when unbound (or follows
-//! `forwards[].slot`), mints its cookie for its own host and redirects to `next`.
-//!
-//! The cookie is signed with a per-boot key that lives only in memory, so every resume invalidates
-//! every cookie and a private port costs one click per session (nothing secret reaches the
-//! snapshotted disk, BUILD-SPEC §10.4).
+//! Public bindings are open; private bindings require their port-session cookie.
+//! Each slot has its own Vercel hostname, so paths stay unchanged and localhost-only
+//! servers work without asking the user to rebind them to 0.0.0.0.
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -582,7 +570,7 @@ fn bootstrap_route(
     response
 }
 
-/// Cookie check, then a verbatim reverse proxy to the slot's bound port.
+/// Check visibility, then reverse proxy to the slot's bound port.
 async fn forward(
     runtime: Arc<SlotRuntime>,
     mut req: Request<Incoming>,
@@ -749,12 +737,21 @@ async fn forward(
     client_response
 }
 
-/// Cookie → slot binding → target port, or the 401/404 to answer with.
+/// Public binding or valid private cookie → target port; otherwise refuse.
 fn authorize(
     runtime: &SlotRuntime,
     req: &Request<Incoming>,
 ) -> Result<u16, Box<Response<BoxBody>>> {
     let config = &runtime.config;
+    if let Some(port) = config.forwards.public_slot_port(config.slot) {
+        if !is_infra_port(port) {
+            return Ok(port);
+        }
+        return Err(Box::new(json_response(
+            StatusCode::FORBIDDEN,
+            serde_json::json!({ "error": "infra_port" }),
+        )));
+    }
     let cookie = req
         .headers()
         .get(COOKIE)

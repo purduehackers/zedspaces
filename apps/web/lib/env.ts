@@ -1,14 +1,9 @@
 import { z } from "zod";
 
-/**
- * Lowest and highest port of the sandbox infrastructure set (D21): `8443` rpc,
- * `8444`-`8447` private proxy slots, `8448` supervisor health, `8449` reserved,
- * `8450` supervisor loopback API, `8451` serve control listener. User forwards
- * may never target a port in this range.
- */
+/** VM infrastructure (RPC, proxy slots, health and loopback control listeners). */
 export const INFRA_PORT_MIN = 8443;
 /** See {@link INFRA_PORT_MIN}. */
-export const INFRA_PORT_MAX = 8451;
+export const INFRA_PORT_MAX = 8460;
 
 /**
  * Zod view of every environment variable the control plane reads.
@@ -72,9 +67,7 @@ export const envSchema = z.object({
 
   // Regions and ports (D21 port map).
   ZS_DEFAULT_REGION: z.enum(["iad1", "sfo1", "cle1", "cdg1"]).default("iad1"),
-  ZS_PORT_POOL: z.string().default("3000,3001,4000,5000,5173,8000,8080,8888"),
   ZS_RPC_PORT: z.coerce.number().int().default(8443),
-  ZS_PROXY_SLOTS: z.string().default("8444,8445,8446,8447"),
   ZS_HEALTH_PORT: z.coerce.number().int().default(8448),
 
   // Lifecycle policy.
@@ -239,65 +232,20 @@ export function envTag(): "production" | "preview" | "development" {
   return env().VERCEL_ENV ?? "development";
 }
 
-function parsePortList(raw: string, name: string): number[] {
-  const ports = raw
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .map((part) => Number(part));
-  for (const port of ports) {
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new EnvError([name], `${name}: "${raw}" contains an invalid port`);
-    }
-  }
-  return [...new Set(ports)];
-}
-
-/** The public forward pool declared at sandbox create (`ZS_PORT_POOL`). */
-export function portPool(): number[] {
-  const pool = parsePortList(env().ZS_PORT_POOL, "ZS_PORT_POOL");
-  const clash = pool.find((port) => port >= INFRA_PORT_MIN && port <= INFRA_PORT_MAX);
-  if (clash !== undefined) {
-    throw new EnvError(
-      ["ZS_PORT_POOL"],
-      `ZS_PORT_POOL: port ${clash} lies inside the infrastructure range ${INFRA_PORT_MIN}-${INFRA_PORT_MAX}`,
-    );
-  }
-  return pool;
-}
-
-/**
- * The four private-port proxy slots (D8, D21): exactly four distinct ports,
- * none equal to `ZS_RPC_PORT` or `ZS_HEALTH_PORT` and none in the pool.
- */
+/** Vercel's 15 exposed ports, minus editor RPC and supervisor health. */
 export function proxySlots(): number[] {
-  const e = env();
-  const slots = parsePortList(e.ZS_PROXY_SLOTS, "ZS_PROXY_SLOTS");
-  if (slots.length !== 4) {
-    throw new EnvError(["ZS_PROXY_SLOTS"], `ZS_PROXY_SLOTS must list exactly four distinct ports (got ${slots.length})`);
-  }
-  if (slots.includes(e.ZS_RPC_PORT)) {
-    throw new EnvError(["ZS_PROXY_SLOTS"], `ZS_PROXY_SLOTS must not include the rpc port ${e.ZS_RPC_PORT}`);
-  }
-  if (slots.includes(e.ZS_HEALTH_PORT)) {
-    throw new EnvError(["ZS_PROXY_SLOTS"], `ZS_PROXY_SLOTS must not include the health port ${e.ZS_HEALTH_PORT}`);
-  }
-  const pool = new Set(portPool());
-  const clash = slots.find((slot) => pool.has(slot));
-  if (clash !== undefined) {
-    throw new EnvError(["ZS_PROXY_SLOTS"], `ZS_PROXY_SLOTS: slot ${clash} is also in ZS_PORT_POOL`);
-  }
-  return slots;
+  return [8444, 8445, 8446, 8447, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460];
 }
 
 /**
- * Every port user forwards may never target (D21): the infrastructure range
- * `8443`-`8451` unioned with the configured rpc, slot and health ports.
+ * Ports that can never be app previews: the infrastructure range
+ * `8443`-`8460`, VM services and configured RPC/health listeners.
  * Sorted ascending, deduplicated.
  */
 export function infraPorts(): number[] {
   const e = env();
-  const set = new Set<number>();
+  // VM services and Vercel's controller are never app previews.
+  const set = new Set<number>([22, 53, 111, 23456]);
   for (let port = INFRA_PORT_MIN; port <= INFRA_PORT_MAX; port += 1) set.add(port);
   set.add(e.ZS_RPC_PORT);
   set.add(e.ZS_HEALTH_PORT);

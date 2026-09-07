@@ -97,10 +97,7 @@ pub struct ListeningPort {
     /// Has an IPv6 listener.
     #[serde(skip)]
     pub v6: bool,
-    /// Every listener on this port is bound to a loopback address: reachable through the
-    /// private proxy (which dials `127.0.0.1`) but not through a public forward, which Vercel's
-    /// ingress reaches over the sandbox's external interface. Not on b4's `PortsBody` (its
-    /// proto has no such field yet); carried to the control plane on the activity report.
+    /// Every listener is loopback-bound; the preview proxy reaches it locally.
     #[serde(skip)]
     pub loopback_only: bool,
 }
@@ -122,7 +119,7 @@ pub fn diff_ports(previous: &BTreeSet<u16>, current: &BTreeSet<u16>) -> PortDiff
     }
 }
 
-/// `config::INFRA_PORTS` (`8443-8451`, D21).
+/// Reserved VM services, control listeners and preview slots.
 pub fn is_infra_port(port: u16) -> bool {
     INFRA_PORTS.contains(&port)
 }
@@ -509,6 +506,7 @@ pub mod lsof {
 #[derive(Clone, Default)]
 pub struct ListeningState {
     inner: Arc<RwLock<Vec<ListeningPort>>>,
+    changed: Arc<tokio::sync::Notify>,
 }
 
 impl ListeningState {
@@ -522,9 +520,17 @@ impl ListeningState {
 
     /// Replaces the list.
     pub fn set(&self, ports: Vec<ListeningPort>) {
-        if let Ok(mut inner) = self.inner.write() {
+        if let Ok(mut inner) = self.inner.write()
+            && *inner != ports
+        {
             *inner = ports;
+            self.changed.notify_one();
         }
+    }
+
+    /// Wake the activity relay immediately when discovery changes.
+    pub async fn changed(&self) {
+        self.changed.notified().await;
     }
 
     /// `(v4, v6)` flags of a listening port, if known.
@@ -555,7 +561,7 @@ pub async fn watch(
     let self_pid = std::process::id();
     let mut forwards_changed = forwards.changed();
     let mut server_up = state.server_up_watch();
-    let mut previous: BTreeSet<u16> = BTreeSet::new();
+    let mut previous = BTreeMap::new();
     let mut owners: BTreeMap<u64, (u32, String)> = BTreeMap::new();
     let mut scan_error_logged = false;
     // The first pass always publishes, so the server learns the table even when nothing listens;
@@ -567,8 +573,9 @@ pub async fn watch(
                 Ok(scanned) => {
                     scan_error_logged = false;
                     let current: BTreeSet<u16> = scanned.keys().copied().collect();
-                    let diff = diff_ports(&previous, &current);
-                    let changed = !diff.added.is_empty() || !diff.removed.is_empty();
+                    let diff = diff_ports(&previous.keys().copied().collect(), &current);
+                    // Rebinding the same port can change the owner or IPv4/IPv6 address family.
+                    let changed = previous != scanned;
                     if changed || pending {
                         let unknown: Vec<u64> = scanned
                             .values()
@@ -612,7 +619,7 @@ pub async fn watch(
                                 "listening ports changed"
                             );
                         }
-                        previous = current;
+                        previous = scanned;
                         pending = true;
                         match server.post_ports(&ports, &forwards.current()).await {
                             Ok(()) => pending = false,

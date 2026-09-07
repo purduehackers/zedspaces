@@ -35,9 +35,9 @@ export interface ForwardView {
   port: number;
   visibility: PortVisibility;
   label: string | null;
-  /** public: `https://<domain(port)>`; private: the control plane `/open` link; null while unavailable. */
+  /** Public proxy URL or private control-plane `/open` link; null while unavailable. */
   url: string | null;
-  /** The proxy slot of a private forward (D8); null for public forwards. */
+  /** Proxy listener assigned to this app port. */
   slot: number | null;
 }
 
@@ -398,8 +398,7 @@ export const sandboxManifestSchema = z
       })
       .passthrough(),
     forwards: z.array(forwardViewSchema),
-    proxySlots: z.array(z.number().int()).length(4),
-    portPool: z.array(z.number().int()),
+    proxySlots: z.array(z.number().int()).length(13),
     idle: z.object({ minutes: z.number().int().min(0) }),
     session: z.object({
       id: z.string(),

@@ -1,23 +1,13 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { ApiError } from "./api";
 import type { DbLike } from "./db";
-import { controlApiBase, proxySlots } from "./env";
+import { controlApiBase, env, proxySlots } from "./env";
 import { forwards, workspaces, type Workspace } from "./schema";
-
-/** Number of private-port proxy slots per workspace (D8). */
-export const PROXY_SLOT_COUNT = 4;
 
 /** Proxy-slot port (as a string key) → host of `domain(slot)` for the current sandbox session. */
 export type SlotHosts = Record<string, string>;
 
-/**
- * Allocates a proxy slot for a private forward of `port`. Must run inside
- * the caller's transaction: it locks the workspace row (`SELECT … FOR
- * UPDATE`, so two parallel private forwards of one workspace serialize even
- * when no forward exists yet), returns the slot an existing forward of `port`
- * already holds, else the first free slot of `proxySlots()`, and throws
- * `ApiError(409, "no_free_slot")` when all four are in use.
- */
+/** Allocate inside a SQLite write transaction; retain existing bindings. */
 export async function allocateSlot(db: DbLike, workspaceId: string, port: number): Promise<number> {
   await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
   const held = await db
@@ -32,11 +22,16 @@ export async function allocateSlot(db: DbLike, workspaceId: string, port: number
     throw new ApiError(
       409,
       "no_free_slot",
-      "all four private-port slots are in use – unforward one first",
+      "All 13 preview ports are in use. Stop a server or unforward a port first.",
       { slots: proxySlots() },
     );
   }
   return free;
+}
+
+export function publicSlotUrl(workspace: Pick<Workspace, "currentSlotHosts">, slot: number): string | null {
+  const host = slotHost(workspace, slot);
+  return host ? `${env().ZS_SANDBOX_BACKEND === "local" ? "http" : "https"}://${host}` : null;
 }
 
 /** The public host of `slot` for the workspace's current session, or `null` while stopped. */

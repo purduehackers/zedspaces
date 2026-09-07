@@ -134,7 +134,7 @@ export interface LocalSandboxRecord {
   name: string;
   region: string;
   vcpus: number;
-  /** Every declared port (the create-time list plus `updatePorts`). */
+  /** Ports declared at create. */
   ports: number[];
   /** Declared port → allocated loopback port (only the D21 infrastructure set is remapped). */
   portMap: Record<string, number>;
@@ -664,17 +664,6 @@ class LocalHandle implements SandboxHandle {
   async extendTimeout(ms: number): Promise<void> {
     const record = this.record();
     record.expiresAt = (record.expiresAt ?? Date.now()) + ms;
-    writeRecord(record);
-  }
-
-  async updatePorts(ports: number[]): Promise<void> {
-    // The allocation binds and closes sockets (it awaits), so the record is re-read afterwards:
-    // a concurrent mutation in the window (an exit handler writing `exitCode`, `runDetached`,
-    // `extendTimeout`) must not be clobbered by a stale copy.
-    const portMap = await allocatePortMap(ports, this.record().portMap, portsInUseByRecords());
-    const record = this.record();
-    record.portMap = { ...record.portMap, ...portMap };
-    record.ports = [...new Set(ports)];
     writeRecord(record);
   }
 

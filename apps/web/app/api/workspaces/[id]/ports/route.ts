@@ -1,22 +1,15 @@
-import { and, eq } from "drizzle-orm";
 import { ApiError, clientIp, handler, json, noContent, parseBody } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { dbReady } from "@/lib/db";
-import { isInfraPort, proxySlots } from "@/lib/env";
-import { listeningPorts, publicForwardUrl } from "@/lib/lifecycle";
-import { allocateSlot, privateForwardUrl } from "@/lib/ports";
+import { proxySlots } from "@/lib/env";
+import { createForward, removeForward } from "@/lib/forwards";
+import { listeningPorts } from "@/lib/lifecycle";
 import { requireWorkspaceParam, type WorkspaceParams } from "@/lib/route-context";
-import { forwards, type Workspace } from "@/lib/schema";
-import { createForwardInput, type ForwardView } from "@/lib/types";
-import { forwardViews, toForwardView } from "@/lib/views";
+import { createForwardInput } from "@/lib/types";
+import { forwardViews } from "@/lib/views";
 
 export const runtime = "nodejs";
 
-/**
- * `GET /api/workspaces/{id}/ports` – the forwards of a workspace, the ports the
- * last activity ping saw a process listening on, and how many of the four
- * private proxy slots are still free (D8).
- */
+/** Current forwards, discovered listeners and remaining preview capacity. */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
   const { workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
   const ports = await forwardViews(workspace.id);
@@ -28,23 +21,11 @@ export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
   });
 });
 
-/**
- * `POST /api/workspaces/{id}/ports` – forwards a port.
- *
- * A private forward takes one of the four proxy slots and is reached through
- * the control plane's `/open` link, which redirects to the slot host's
- * `/__zs/auth` with a 10-minute bootstrap token (D8). A public forward gets the
- * sandbox's own `https://…` domain for that port and holds no slot.
- */
+/** Explicitly forward a port or change its visibility. */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
   const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true, control: true });
   const input = await parseBody(req, createForwardInput);
-  assertForwardable(input.port);
-
-  const forward =
-    input.visibility === "private"
-      ? await upsertPrivateForward(workspace, input.port, input.label ?? null)
-      : await upsertPublicForward(workspace, input.port, input.label ?? null);
+  const forward = await createForward(workspace, input);
 
   await audit({
     actorType: "user",
@@ -69,8 +50,7 @@ export const DELETE = handler<Request, WorkspaceParams>(async (req, ctx) => {
   if (!raw || !Number.isInteger(port) || port < 1 || port > 65535) {
     throw new ApiError(400, "invalid_port", "A `port` query parameter is required");
   }
-  const db = await dbReady();
-  await db.delete(forwards).where(and(eq(forwards.workspaceId, workspace.id), eq(forwards.port, port)));
+  await removeForward(workspace.id, port);
   await audit({
     actorType: "user",
     actorId: viewer.userId,
@@ -82,46 +62,3 @@ export const DELETE = handler<Request, WorkspaceParams>(async (req, ctx) => {
   });
   return noContent();
 });
-
-/** Rejects the infrastructure ports (D21: `8443`-`8451` plus the configured set). */
-function assertForwardable(port: number): void {
-  if (isInfraPort(port)) {
-    throw new ApiError(400, "infra_port", `Port ${port} is reserved by the platform`);
-  }
-}
-
-/**
- * Allocates a slot and stores the forward in one transaction, so two parallel
- * requests can never hand out the same slot.
- */
-async function upsertPrivateForward(workspace: Workspace, port: number, label: string | null): Promise<ForwardView> {
-  const db = await dbReady();
-  const url = privateForwardUrl(workspace.id, port);
-  return db.transaction(async (tx) => {
-    const slot = await allocateSlot(tx, workspace.id, port);
-    const [row] = await tx
-      .insert(forwards)
-      .values({ workspaceId: workspace.id, port, visibility: "private", label, url, slot })
-      .onConflictDoUpdate({
-        target: [forwards.workspaceId, forwards.port],
-        set: { visibility: "private", label, url, slot },
-      })
-      .returning();
-    return toForwardView(row);
-  });
-}
-
-/** Declares the port on the sandbox (when needed) and stores its public URL. */
-async function upsertPublicForward(workspace: Workspace, port: number, label: string | null): Promise<ForwardView> {
-  const url = await publicForwardUrl(workspace, port);
-  const db = await dbReady();
-  const [row] = await db
-    .insert(forwards)
-    .values({ workspaceId: workspace.id, port, visibility: "public", label, url, slot: null })
-    .onConflictDoUpdate({
-      target: [forwards.workspaceId, forwards.port],
-      set: { visibility: "public", label, url, slot: null },
-    })
-    .returning();
-  return toForwardView(row);
-}

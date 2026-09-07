@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { handler, json, parseBody, type RouteCtx } from "@/lib/api";
 import { dbReady } from "@/lib/db";
 import { env } from "@/lib/env";
+import { syncListeningForwards } from "@/lib/forwards";
 import { keys, kv } from "@/lib/kv";
 import { requireSandboxParam, type SandboxParams } from "@/lib/sandbox-request";
 import { sessions, workspaces, type Workspace } from "@/lib/schema";
@@ -180,6 +181,7 @@ export const POST = handler(async (req: Request, ctx: RouteCtx<SandboxParams>) =
   await writeActivityKeys(workspace, report, facts, now, activityAt);
   await syncWorkspaceRow(workspace, report, now, activityAt);
   const keepaliveAt = Number((await kv().get(keys.keepalive(workspace.id))) ?? 0);
+  await syncListeningForwards(workspace, report.listening);
   const forwards = await forwardViews(workspace.id);
   return json(directiveFor(workspace, report, now, activityAt, keepaliveAt, forwards));
 });

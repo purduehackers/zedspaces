@@ -364,7 +364,7 @@ impl AgentState {
             .map(|slot| {
                 let bound = forwards
                     .iter()
-                    .find(|f| f.visibility == Visibility::Private && f.slot == Some(*slot))
+                    .find(|f| f.slot == Some(*slot))
                     .map(|f| f.port);
                 (*slot, bound)
             })
@@ -491,8 +491,7 @@ impl ForwardsState {
         let mut next: BTreeMap<u16, Forward> = forwards.into_iter().map(|f| (f.port, f)).collect();
         let mut slots: BTreeMap<u16, u16> = BTreeMap::new();
         for forward in next.values() {
-            if forward.visibility == Visibility::Private
-                && let Some(slot) = forward.slot
+            if let Some(slot) = forward.slot
                 && inner.known_slots.contains(&slot)
             {
                 slots.insert(slot, forward.port);
@@ -527,10 +526,8 @@ impl ForwardsState {
         if inner.forwards.get(&forward.port) == Some(&forward) {
             return;
         }
-        if forward.visibility == Visibility::Private
-            && let Some(slot) = forward.slot
-        {
-            inner.slots.retain(|_, port| *port != forward.port);
+        inner.slots.retain(|_, port| *port != forward.port);
+        if let Some(slot) = forward.slot {
             inner.slots.insert(slot, forward.port);
         }
         inner.forwards.insert(forward.port, forward);
@@ -561,6 +558,17 @@ impl ForwardsState {
     pub fn slot_port(&self, slot: u16) -> Option<u16> {
         let inner = self.inner.read().unwrap_or_else(|e| e.into_inner());
         inner.slots.get(&slot).copied()
+    }
+
+    /// Public proxies need no cookie; only explicitly public bindings qualify.
+    pub fn public_slot_port(&self, slot: u16) -> Option<u16> {
+        let inner = self.inner.read().unwrap_or_else(|e| e.into_inner());
+        let port = *inner.slots.get(&slot)?;
+        inner
+            .forwards
+            .get(&port)
+            .filter(|forward| forward.visibility == Visibility::Public)
+            .map(|_| port)
     }
 
     /// Token-learned binding (§3.11); refuses when `port` is not a private forward, when the

@@ -88,8 +88,6 @@ export interface SandboxHandle {
    * so only call it right after observing `status === "running"`.
    */
   extendTimeout(ms: number): Promise<void>;
-  /** Replaces the declared port list (the full desired set, not a delta). */
-  updatePorts(ports: number[]): Promise<void>;
   /** Stops the sandbox, returning the snapshot it produced and the session's usage. */
   stop(): Promise<{ snapshotId?: string; snapshotSizeBytes?: number; usage: SandboxUsage }>;
   /** Snapshots the sandbox (`expirationMs` 0 = never expires); auto-resumes a stopped sandbox. */
@@ -289,10 +287,6 @@ class RealSandboxHandle implements SandboxHandle {
 
   async extendTimeout(ms: number): Promise<void> {
     await call(() => this.sandbox.extendTimeout(ms));
-  }
-
-  async updatePorts(ports: number[]): Promise<void> {
-    await call(() => this.sandbox.update({ ports }));
   }
 
   async stop(): Promise<{ snapshotId?: string; snapshotSizeBytes?: number; usage: SandboxUsage }> {

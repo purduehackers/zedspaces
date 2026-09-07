@@ -567,18 +567,18 @@ impl Boot {
         Ok(Some(supervisor))
     }
 
-    /// One cookie-gated proxy per D21 slot, all sharing the manifest's bootstrap key and one
-    /// per-boot cookie key.
+    /// One preview proxy per slot, with shared keys for any private bindings.
     fn spawn_proxies(&mut self, manifest: &Arc<Manifest>) {
-        if manifest.port_session_secret.is_none() {
-            // The control plane mints ES256 port tokens and sends no HMAC secret (M12): the
-            // workspace is fully usable without private forwards, so this is not `degraded`.
-            tracing::warn!("manifest carries no portSessionSecret; private-port proxies are off");
-            self.state.update(|inner| inner.proxy_running = false);
-            return;
-        }
-        let bootstrap = match manifest.port_session_key() {
-            Ok(key) => Arc::new(PortTokenCodec::new(key)),
+        // Public previews need no bootstrap token. Without a private-port key,
+        // use an unshared per-boot key so private bindings remain closed.
+        let bootstrap = match manifest
+            .port_session_secret
+            .as_ref()
+            .map(|_| manifest.port_session_key())
+            .transpose()
+        {
+            Ok(Some(key)) => Arc::new(PortTokenCodec::new(key)),
+            Ok(None) => Arc::new(PortTokenCodec::random()),
             Err(error) => {
                 tracing::error!(error = %error, "portSessionSecret unusable; private forwards are off");
                 self.state.set_error("port_session_secret");
@@ -608,7 +608,7 @@ impl Boot {
         let shutdown = self.shutdown.clone();
         self.tasks.push(tokio::spawn(async move {
             if let Err(error) = proxy::run_all(configs, state.clone(), logs, shutdown).await {
-                tracing::error!(error = %error, "private-port proxy stopped");
+                tracing::error!(error = %error, "preview proxy stopped");
                 state.update(|inner| inner.proxy_running = false);
             }
         }));

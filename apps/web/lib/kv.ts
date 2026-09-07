@@ -112,6 +112,8 @@ export const keys = {
   cpu: (ws: string) => `zs:cpu:${ws}`,
   /** JSON number[] from the last activity ping's listening[]. */
   listening: (ws: string) => `zs:listening:${ws}`,
+  /** Explicitly unforwarded ports; cleared when their listeners close. */
+  mutedPorts: (ws: string) => `zs:muted-ports:${ws}`,
   /** "<phase>" while the last ping reported busy || phase !== "ready" (D13; TTL 120 s). */
   busy: (ws: string) => `zs:busy:${ws}`,
   /** Keepalive unix ms (TTL idleMinutes). */
