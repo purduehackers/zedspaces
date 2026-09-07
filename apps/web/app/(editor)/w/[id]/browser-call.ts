@@ -6,7 +6,7 @@ interface Peer {
   audio: RTCRtpTransceiver;
   video: RTCRtpTransceiver;
   stream: MediaStream;
-  source?: MediaStreamAudioSourceNode;
+  playback: HTMLAudioElement;
   makingOffer: boolean;
   ignoringOffer: boolean;
   answering: boolean;
@@ -34,8 +34,6 @@ export class BrowserCall {
   private microphone: MediaStream | null = null;
   private screen: MediaStream | null = null;
   private requesting = new Set<"microphone" | "screen">();
-  private audioContext: AudioContext | null = null;
-  private gain: GainNode | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private outgoing: CallOutgoing[] = [];
   private sent = 0;
@@ -70,8 +68,10 @@ export class BrowserCall {
     if (this.status.phase !== "joined") return;
     if (action === "audio") {
       this.status.deafened = !this.status.deafened;
-      if (this.gain) this.gain.gain.value = this.status.deafened ? 0 : 1;
-      void this.audioContext?.resume().catch(() => this.fail("Click Unmute Audio to allow call playback."));
+      for (const peer of this.peers.values()) {
+        peer.playback.muted = this.status.deafened;
+        if (!this.status.deafened && peer.playback.srcObject) this.play(peer);
+      }
       this.changed();
     } else void this.capture(action);
   }
@@ -83,9 +83,6 @@ export class BrowserCall {
     this.identity = identity; this.replica = replica; this.name = name;
     this.status = { ...this.status, phase: "joining", error: null }; this.open = true;
     try {
-      this.audioContext = new AudioContext();
-      this.gain = this.audioContext.createGain(); this.gain.connect(this.audioContext.destination);
-      void this.audioContext.resume().catch(() => { if (this.identity === identity) this.fail("Click Unmute Audio to allow call playback."); });
       this.changed();
       const reply = await this.request({ ...identity, op: "join", replica, name });
       if (this.identity !== identity) { this.depart(identity); return; }
@@ -133,6 +130,7 @@ export class BrowserCall {
     const pc = new RTCPeerConnection({ iceServers: this.iceServers, bundlePolicy: "max-bundle" });
     const peer: Peer = { info, pc, audio: pc.addTransceiver(this.microphone?.getAudioTracks()[0] ?? "audio", { direction: "sendrecv" }),
       video: pc.addTransceiver(this.screen?.getVideoTracks()[0] ?? "video", { direction: "sendrecv" }), stream: new MediaStream(),
+      playback: new Audio(),
       makingOffer: false, ignoringOffer: false, answering: false, candidates: [], restarts: 0 };
     this.peers.set(info.id, peer);
     pc.onicecandidate = ({ candidate }) => { if (candidate) this.send(info.id, { candidate: candidate.toJSON() }); };
@@ -146,9 +144,11 @@ export class BrowserCall {
     };
     pc.ontrack = ({ track }) => {
       peer.stream.addTrack(track);
-      if (track.kind === "audio" && this.audioContext && this.gain) {
-        peer.source?.disconnect();
-        peer.source = this.audioContext.createMediaStreamSource(new MediaStream([track])); peer.source.connect(this.gain);
+      if (track.kind === "audio") {
+        // A media element drives remote WebRTC audio decoding in Chromium.
+        peer.playback.srcObject = new MediaStream([track]);
+        peer.playback.muted = this.status.deafened;
+        this.play(peer);
       }
       track.onunmute = () => this.changed();
       track.onended = () => { peer.stream.removeTrack(track); this.changed(); };
@@ -162,6 +162,16 @@ export class BrowserCall {
       this.changed();
     };
     return peer;
+  }
+
+  private play(peer: Peer): void {
+    const stream = peer.playback.srcObject;
+    void peer.playback.play().catch(() => {
+      if (this.peers.get(peer.info.id) !== peer || peer.playback.srcObject !== stream || this.status.deafened) return;
+      this.status.deafened = true;
+      for (const peer of this.peers.values()) peer.playback.muted = true;
+      this.fail("Call audio could not start. Click Unmute Audio to try again.");
+    });
   }
 
   private async signal(message: CallIncoming): Promise<void> {
@@ -260,13 +270,15 @@ export class BrowserCall {
     void fetch(`/api/workspaces/${encodeURIComponent(this.workspaceId)}/call`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...identity, op: "leave" }), keepalive: true }).catch(() => undefined);
   }
-  private closePeer(peer: Peer): void { peer.pc.onconnectionstatechange = null; peer.pc.close(); peer.source?.disconnect(); stop(peer.stream); }
+  private closePeer(peer: Peer): void {
+    peer.pc.onconnectionstatechange = null; peer.pc.close();
+    peer.playback.pause(); peer.playback.srcObject = null; stop(peer.stream);
+  }
   leave(): void {
     const identity = this.identity; this.identity = null;
     clearTimeout(this.timer);
     for (const peer of this.peers.values()) this.closePeer(peer);
     this.peers.clear(); stop(this.microphone); stop(this.screen); this.microphone = this.screen = null;
-    void this.audioContext?.close().catch(() => undefined); this.audioContext = null; this.gain = null;
     this.outgoing = []; this.sent = this.received = 0; this.signalingError = false;
     this.status = { ...this.status, phase: "idle", muted: true, deafened: false, sharing_screen: false, peers: 0, error: null };
     this.open = false; this.changed();
