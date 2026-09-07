@@ -57,7 +57,7 @@ export class EditorUpdater {
 
   constructor(private readonly workspaceId: string, private readonly runtime: EditorRuntime,
     private readonly reload: () => void, private readonly deps: ApiDeps) {
-    this.doFetch = deps.fetch ?? fetch;
+    this.doFetch = deps.fetch ?? fetch.bind(globalThis);
     this.timer = setInterval(() => void this.check(), 60_000);
   }
 
