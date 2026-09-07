@@ -34,6 +34,10 @@ async def main():
 
     async def send(message):
         message.pop("buffers", None)  # Inline rich output, not binary widget comms.
+        # Zed's typed protocol requires status on control replies; ipykernel
+        # omits it on shutdown replies, and SIGINT replies are generated here.
+        if message.get("header", {}).get("msg_type") in ("interrupt_reply", "shutdown_reply"):
+            message["content"].setdefault("status", "ok")
         payload = json.dumps(message, default=json_default).encode() + b"\n"
         if len(payload) > MAX_MESSAGE:
             raise ValueError("Kernel output exceeds the 8 MiB message limit")

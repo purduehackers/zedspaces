@@ -86,8 +86,9 @@ The inline Python REPL uses Zed's existing output UI and a private Jupyter kerne
 in the sandbox. Select **Python (sandbox)** to use the bundled environment, or a
 project interpreter with `ipykernel` installed. Use **REPL: Run**, **Interrupt**,
 **Restart**, and **Shutdown** from the command palette. Notebook editing and
-interactive widgets are not included. The browser runtime correction is awaiting
-the next matching editor release.
+interactive widgets are not included. Unicode, persistent values, rich output,
+errors and input have been verified live. A control-reply correction for Interrupt
+is validated and awaiting the next image release.
 
 ## Multiplayer
 
@@ -105,7 +106,8 @@ Audio calls and screen sharing use browser WebRTC, with Zed-styled title-bar
 controls and a small panel for shared screens. Join muted, then explicitly enable
 the microphone or choose a screen. Up to eight people can join; anyone with the
 workspace link has access. Zedspaces does not record calls. Turso holds expiring
-signaling messages only, never media. This addition is awaiting publication.
+signaling messages only, never media. Native controls, three-party calls, audio
+packets and decoded screen-sharing video have been verified in production.
 
 Direct calls use public STUN. For networks that require a relay, configure
 `ZS_TURN_KEY_ID` and `ZS_TURN_API_TOKEN` from

@@ -1,8 +1,8 @@
 # Handoff: Zed Codespaces
 
 **Browser features in progress (2026-09-07).** Clipboard and the first accessibility/
-input adapter, ZIP exports and debugger transport are deployed: app `c50a64a`, fork
-`042113f255`, matching build `042113f25-34115916087.1`. Live Chromium verified fresh/denied/delayed clipboard
+input adapter, ZIP exports and debugger transport are deployed: app `a441a6f`, fork
+`c26ab6ba1`, matching build `c26ab6ba1-34121133575.1`. Live Chromium verified fresh/denied/delayed clipboard
 reads, Vim registers, terminal text, PNG-to-Markdown paste, full-document accessible
 text and IME composition without consuming candidate-navigation keys. Firefox and
 WebKit also booted and passed text clipboard checks. Real assistive-technology and
@@ -14,18 +14,22 @@ Live Node debugging passed terminal launch, child sessions, breakpoints, stack,
 variables, stepping, continue and disconnect. Live Python launch, breakpoints,
 stack/variables, stepping, continue and terminate also pass. New-tab task/debug
 configuration replay and debugger control labels are in the deployed release.
-Inline Python REPL source passes native/WASM checks and the app production build.
-The Linux image probe passed Unicode, persistent values, errors, Markdown/PNG,
-input(), interrupt, shutdown and restart. The deployed browser run caught a
-jupyter-protocol SystemTime panic; the browser-clock correction passes WASM/native
-checks and awaits the next release. Kernels use the private process tunnel, not
-preview ports; bundled Python is isolated from project environments.
-Calls source uses browser WebRTC plus expiring Turso/Drizzle signaling. Temporary
-Chromium/Firefox checks passed simultaneous/late joins, synthetic microphone audio,
-actual tab video capture/remote frame decoding, mute/deafen, screen stop and leave.
-Calls are not deployed yet; optional Cloudflare TURN is not configured. The next
-release also completes secondary Vim/Helix async clipboard paths and pauses macro
-replay around browser reads. Those paths still need deployed-browser validation.
+Inline Python executes live: Unicode, persistent values, Markdown/PNG, errors and
+input() pass through the real editor. The browser-clock panic is fixed. A control
+reply missing `status` made Interrupt disconnect; its sandbox-only correction is
+validated in the disposable VM and awaiting image publication. Kernels use the
+private process tunnel, not preview ports. Production protocol checks also passed
+missing-ipykernel errors, token replay rejection and process cleanup.
+Calls are deployed: native Zed controls, Firefox synthetic audio to Chromium,
+three-peer joins, actual tab capture with decoded remote video, mute/deafen,
+screen stop, leave/rejoin, origin and participant-secret guards pass. Optional
+Cloudflare TURN remains unconfigured; physical microphones were not tested.
+Secondary Vim clipboard checks pass: insert-register, dot repeat, motion/object
+replacement, cancellation, Helix paste action and macros suspended during reads.
+A stale browser picker click caused a command-palette bounds panic; the web-only
+guard passes native/WASM checks and awaits publication. TypeScript source-map
+breakpoints/stepping pass with stopOnEntry; fast-start mapping remains under
+investigation, including one unreproduced Atomics.wait exception on the prior build.
 The disposable verification workspace is `ws_AAVZ3V9Z1ZC1NEQNC1HQ`; inspect its
 contents before deleting it. Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
 
