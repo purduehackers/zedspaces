@@ -12,7 +12,9 @@ in `zedspaces`; use settings/assets/host integration before changing shared Zed
 components. Keep shell prompts and terminal titles as they were. This overrides
 older plans for extra fork features.
 
-**Local cleanup awaiting commit/build/deploy (2026-09-06).** Compared against
+**Fork cleanup + automatic ports deployed (2026-09-07 UTC).** App `c6343dc`, fork
+`30a7787187`, and matching WASM/server `30a778718-34078287451.1` are live at
+code.purduehackers.com. Both repositories are committed and pushed. Compared against
 upstream base `c3cf80c0d1`: removed the abandoned AI-proxy client, edit-prediction
 proxy, provider overrides, origin plumbing and their tests; restored upstream
 language-model tests and provider registration except required WASM dependency
@@ -22,22 +24,26 @@ opt-in via `--features serve`, already used by both Zedspaces image build paths.
 Required WASM/threading/filesystem/SQLite/transport adaptations, multiplayer,
 browser shortcuts, language support and approved appearance changes remain.
 
-The pending avatar change uses a person icon in web-only title-bar code;
+The shipped avatar change uses a person icon in web-only title-bar code;
 the shared `Avatar` component is unchanged. Animal artwork is removed, but names
 and colors remain. Reverted the proposed shell prompt, terminal title and terminal
 localhost-link rewriting changes. Automatic port exposure remains entirely in the
-app/supervisor: 13 reusable public HTTP/WebSocket proxy slots (8444–8447,
-8452–8460), with RPC 8443 and health 8448 filling Vercel's other exposed ports.
+app/supervisor: 12 reusable public HTTP/WebSocket proxy slots (8444–8447,
+8452–8459), plus RPC 8443 and health 8448. Live Vercel create/update calls returned
+HTTP 500 with 15 declared ports but succeeded with 14; do not restore the 15th.
 Control/VM services are excluded. Closed listeners free slots; explicit unforward
 stays off until the listener closes. No database migration.
 
 Local validation: production and diagnostic-feature WASM compile checks, native
 server compile checks with/without `serve`, and 19 existing `zed_web_core` checks
-passed. The preceding port work passed web lint/typecheck/build, supervisor Clippy
-and isolated SQLite/real-proxy diagnostics. Docker became unresponsive during
-image validation; it did not complete. New release artifacts and live browser/
-Vercel verification have **not** run. Nothing committed, pushed or deployed;
-production below is unchanged.
+passed. Release CI built both production Zed artifacts; the final port fix passed
+web and supervisor CI. The image is ready in VCR and Vercel production is READY.
+Live verification passed automatic upgrade/recovery with full Git history and an
+uncommitted file preserved, simultaneous boot in two Chromium profiles, and
+automatic IPv4/IPv6 HTTP/WebSocket exposure plus closed-listener removal. No root
+test suite was added or run. Upstream local-AI provider probes emit non-blocking
+CSP messages; no browser panic or page error occurred. Exact artifacts, limits and
+cleanup are in [current deployment evidence](docs/status/deployment.md).
 
 **Automatic upgrades + appearance deployed (2026-09-06, 22:03 UTC).**
 App `c6d4151`, fork `4e766bcb8e`, matching production WASM/server
