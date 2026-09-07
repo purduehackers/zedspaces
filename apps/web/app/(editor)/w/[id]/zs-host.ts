@@ -10,6 +10,7 @@ import type {
 import { connectDebugAdapter, connectKernel, putSettingsDocument, reportClientError, type ApiDeps } from "./api-client";
 import { ConnectError } from "./connect-client";
 import { downloadProject } from "./download-project";
+import type { CallAction } from "@/lib/call-protocol";
 
 /**
  * The browser host the shell hands to `start(configJson, assets, host)`
@@ -32,6 +33,7 @@ export interface ShellController {
   /** Applies one lifecycle notice (toasts, the restart countdown). */
   lifecycle(kind: ZsLifecycleKind, seconds: number): void;
   updateAction(action: ZsUpdateAction): void;
+  callAction(action: CallAction, replica: number, name: string): void;
   /** Mints a fresh connection; throws {@link ConnectError}. */
   refreshConnectInfo(): Promise<ZsConnectInfo>;
   /** Where a settings document is written (`/api/workspaces/{id}/settings` or `…/keymap`, editor-cookie routes). */
@@ -123,6 +125,10 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
 
     updateAction(action) {
       queueMicrotask(() => shell.updateAction(action));
+    },
+
+    callAction(action, replica, name) {
+      shell.callAction(action, replica, name);
     },
 
     downloadProject(path, includeIgnored) {

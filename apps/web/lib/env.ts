@@ -104,6 +104,10 @@ export const envSchema = z.object({
   ZS_LOG_SINK_URL: z.url().optional(),
   ZS_LOG_SINK_TOKEN: z.string().optional(),
 
+  // Optional Cloudflare TURN relay; long-lived credentials never reach browsers.
+  ZS_TURN_KEY_ID: z.string().min(1).optional(),
+  ZS_TURN_API_TOKEN: z.string().min(1).optional(),
+
   // Vercel system variables.
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z.string().optional(),

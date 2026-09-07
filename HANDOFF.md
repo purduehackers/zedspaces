@@ -1,8 +1,8 @@
 # Handoff: Zed Codespaces
 
 **Browser features in progress (2026-09-07).** Clipboard and the first accessibility/
-input adapter, ZIP exports and debugger transport are deployed: app `fe30d19`, fork
-`1ea9ecbca0`, matching build `1ea9ecbca-34110736641.1`. Live Chromium verified fresh/denied/delayed clipboard
+input adapter, ZIP exports and debugger transport are deployed: app `c50a64a`, fork
+`042113f255`, matching build `042113f25-34115916087.1`. Live Chromium verified fresh/denied/delayed clipboard
 reads, Vim registers, terminal text, PNG-to-Markdown paste, full-document accessible
 text and IME composition without consuming candidate-navigation keys. Firefox and
 WebKit also booted and passed text clipboard checks. Real assistive-technology and
@@ -11,14 +11,21 @@ Production ZIP checks passed: save-before-download, 7.3 MB streaming download,
 folder export, Unicode, ignored-file choices, integrity, confinement and cleanup.
 The cached semantic-subtree fix and modal/composite keyboard handling are deployed.
 Live Node debugging passed terminal launch, child sessions, breakpoints, stack,
-variables, stepping, continue and disconnect. Python broker checks pass; live UI
-breakpoint checks are in progress. New-tab task/debug configuration replay and
-debugger control labels are fixed in the next fork release.
+variables, stepping, continue and disconnect. Live Python launch, breakpoints,
+stack/variables, stepping, continue and terminate also pass. New-tab task/debug
+configuration replay and debugger control labels are in the deployed release.
 Inline Python REPL source passes native/WASM checks and the app production build.
 The Linux image probe passed Unicode, persistent values, errors, Markdown/PNG,
-input(), interrupt, shutdown and restart. Its matching deployment and real browser
-inline-UI checks are pending. Kernels use the private process tunnel, not preview
-ports; bundled Python is isolated from project environments. Calls are still pending.
+input(), interrupt, shutdown and restart. The deployed browser run caught a
+jupyter-protocol SystemTime panic; the browser-clock correction passes WASM/native
+checks and awaits the next release. Kernels use the private process tunnel, not
+preview ports; bundled Python is isolated from project environments.
+Calls source uses browser WebRTC plus expiring Turso/Drizzle signaling. Temporary
+Chromium/Firefox checks passed simultaneous/late joins, synthetic microphone audio,
+actual tab video capture/remote frame decoding, mute/deafen, screen stop and leave.
+Calls are not deployed yet; optional Cloudflare TURN is not configured. The next
+release also completes secondary Vim/Helix async clipboard paths and pauses macro
+replay around browser reads. Those paths still need deployed-browser validation.
 The disposable verification workspace is `ws_AAVZ3V9Z1ZC1NEQNC1HQ`; inspect its
 contents before deleting it. Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
 

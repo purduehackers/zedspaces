@@ -73,25 +73,45 @@ metadata, links and special files are excluded; untitled buffers are not exporte
 The limit is 256 MiB of source data and 20,000 paths per export. Files are read
 while the workspace stays live, so concurrent writes are not an atomic snapshot.
 
-Debugger integration is in progress: Zed's existing DAP UI connects to adapters
+Zed's existing debugger UI connects to adapters
 inside the sandbox through a one-use, workspace-scoped WebSocket capability.
-Node and Python transport diagnostics pass; browser validation is pending.
+Node and Python launch, breakpoints, stack/variables, stepping and stopping have
+been verified in the deployed browser editor.
 Adapters download through the remote server, using normal `.zed/debug.json`
 configurations. Debug-managed ports are excluded from automatic public previews;
 use an explicit private preview for an HTTP server launched under the debugger.
 There is no desktop debugger process or local port forwarding.
+
+The inline Python REPL uses Zed's existing output UI and a private Jupyter kernel
+in the sandbox. Select **Python (sandbox)** to use the bundled environment, or a
+project interpreter with `ipykernel` installed. Use **REPL: Run**, **Interrupt**,
+**Restart**, and **Shutdown** from the command palette. Notebook editing and
+interactive widgets are not included. The browser runtime correction is awaiting
+the next matching editor release.
 
 ## Multiplayer
 
 Anonymous multiplayer is live: share a workspace's `/w/<id>`
 URL to edit together with live cursors and round avatars. Zed's existing
 CRDT and project protocol run through the sandbox's WebSockets; there is no
-WebRTC signaling service, hosted Zed account, or second collaboration database.
+hosted Zed account or second collaboration database.
 Files and language servers are shared; terminals and saved layouts belong to
 each tab. Closing the first tab does not end the project.
 
 Avatars sit at the far right, using Zed's person-icon fallback style. Names such as
 “Anonymous Owl” appear on hover and beside cursors; no external avatar requests are made.
+
+Audio calls and screen sharing use browser WebRTC, with Zed-styled title-bar
+controls and a small panel for shared screens. Join muted, then explicitly enable
+the microphone or choose a screen. Up to eight people can join; anyone with the
+workspace link has access. Zedspaces does not record calls. Turso holds expiring
+signaling messages only, never media. This addition is awaiting publication.
+
+Direct calls use public STUN. For networks that require a relay, configure
+`ZS_TURN_KEY_ID` and `ZS_TURN_API_TOKEN` from
+[Cloudflare Realtime TURN](https://developers.cloudflare.com/realtime/turn/generate-credentials/)
+in Vercel; the long-lived key stays on the server. No TURN service is configured
+yet, so connectivity across restrictive networks is not guaranteed.
 
 This is a breaking replacement for single-editor sessions, not an optional mode.
 There is no takeover UI or old-editor compatibility path. The matching client/server release is deployed at

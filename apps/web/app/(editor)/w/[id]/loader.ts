@@ -1,4 +1,5 @@
 import type { ZedWebModule, ZsBootConfig, ZsBootStage, ZsHost, ZsUpdateStatus } from "@/lib/zed-web";
+import type { CallStatus } from "@/lib/call-protocol";
 
 /**
  * Loads and starts `/editor/<build>/zed_web.js` (b9 §3.26 bullet 1 and 3;
@@ -35,6 +36,7 @@ export interface EditorRuntime {
   /** Build id the bundle reports about itself. */
   buildId(): string;
   setUpdateStatus(status: ZsUpdateStatus): void;
+  setCallStatus(status: CallStatus): void;
 }
 
 /** A started editor: the exports, plus the single-shot `start()` promise. */
@@ -136,6 +138,7 @@ export const bootEditor: BootRunner = async ({ build, config, host, onStage }) =
       hasUnsavedChanges: () => mod.has_unsaved_changes(),
       buildId: () => mod.build_id(),
       setUpdateStatus: (status) => mod.set_update_status(JSON.stringify(status)),
+      setCallStatus: (status) => mod.set_call_status?.(JSON.stringify(status)),
     },
   };
 };

@@ -1,8 +1,8 @@
 # Production deployment — 2026-09-07
 
-Current production, verified 11:12 UTC: app `fe30d19`, fork `1ea9ecbca0`, matching
-build `1ea9ecbca-34110736641.1`, deployment `dpl_9gpCr7SPcWHz5pz3qa7TyskxX4Bq`.
-[Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34110736641)
+Current production, verified 12:02 UTC: app `c50a64a`, fork `042113f255`, matching
+build `042113f25-34115916087.1`, deployment `dpl_FiXtyJDPr9sZ81wZc7XacRSc1jb3`.
+[Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34115916087)
 passed; local authenticated publication deployed its matching image and assets.
 Chromium's actual module reports the matching build, cross-origin isolation and
 no test hooks. The disposable workspace upgraded through the update API, preserving files.
@@ -11,8 +11,11 @@ Unicode, ignored-file choices, integrity, path/origin refusal and temporary clea
 The rendering-cache accessibility fix is deployed; file-tree and tab semantics
 now remain present across unchanged frames. Live Node debugging passed terminal
 launch, child sessions, breakpoints, stack/variables, stepping and disconnect.
-Real assistive-technology/mobile checks have not been run. Python live checks are
-in progress. Inline REPL source and Linux protocol checks pass but are not yet live.
+Python launch, breakpoints, variables, stepping and terminate also passed live.
+Real assistive-technology/mobile checks have not been run. The REPL image and
+transport are deployed, but its first live Run exposed a jupyter-protocol clock
+panic; the browser-clock fix passes compilation and awaits the next release.
+Calls and the Vim/Helix clipboard follow-up are in source, not production.
 Owner workspaces were not modified; our verification workspace remains active.
 
 ## Earlier deferred-update verification — 05:53 UTC
