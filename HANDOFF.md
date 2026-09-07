@@ -1,5 +1,15 @@
 # Handoff: Zed Codespaces
 
+**Browser features in progress (2026-09-07).** Clipboard foundation is deployed:
+app `deed053`, fork `997b2dd550`, build `997b2dd55-34095329320.1`. Live Chromium
+checks covered palette/keyboard paste, browser Copy/Cut events, denied and delayed
+reads, Vim/system versus named registers, terminal paste and PNG-to-Markdown paste.
+The accessibility/input adapter and synchronous terminal-copy follow-up are in fork
+`8d0ba26f84`; WASM and native GPUI compile checks passed, but that patch is **not yet
+built or deployed**. Continue its release and browser validation before ZIP export.
+The disposable verification workspace is `ws_AAVZ3V9Z1ZC1NEQNC1HQ`; inspect its
+contents before deleting it. Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
+
 **Approved feature order (2026-09-07):** clipboard → accessibility/input → project
 and folder ZIP export → debugger (JS/TS, Python first) → inline Python Jupyter REPL
 → calls (audio and screen sharing first). Native/desktop integration is permanently
