@@ -1,22 +1,53 @@
 # Production deployment — 2026-09-07
 
-Current production, verified 12:02 UTC: app `c50a64a`, fork `042113f255`, matching
-build `042113f25-34115916087.1`, deployment `dpl_FiXtyJDPr9sZ81wZc7XacRSc1jb3`.
-[Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34115916087)
-passed; local authenticated publication deployed its matching image and assets.
-Chromium's actual module reports the matching build, cross-origin isolation and
-no test hooks. The disposable workspace upgraded through the update API, preserving files.
-Production ZIP downloads passed save-before-download, 7.3 MB streaming, folder/
-Unicode, ignored-file choices, integrity, path/origin refusal and temporary cleanup.
-The rendering-cache accessibility fix is deployed; file-tree and tab semantics
-now remain present across unchanged frames. Live Node debugging passed terminal
-launch, child sessions, breakpoints, stack/variables, stepping and disconnect.
-Python launch, breakpoints, variables, stepping and terminate also passed live.
-Real assistive-technology/mobile checks have not been run. The REPL image and
-transport are deployed, but its first live Run exposed a jupyter-protocol clock
-panic; the browser-clock fix passes compilation and awaits the next release.
-Calls and the Vim/Helix clipboard follow-up are in source, not production.
-Owner workspaces were not modified; our verification workspace remains active.
+Current production, verified 14:12 UTC: app `3adc561`, fork `ad778ac746`, matching
+build `ad778ac74-34127509100.1`, deployment `dpl_2cRRc5ybPWR8zAguJYpNwxL7w8J1`.
+[Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34127509100)
+passed web lint/typecheck/build, supervisor checks and both production Rust builds.
+Actions deployment was intentionally skipped (`deploy=false`); authenticated local
+publication deployed the matching image, checksum-verified assets and Vercel app.
+No root test suite was added or run.
+
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:2c69b503ae9ff699630cff30ed6811e09b3b675bab920c12f4454523a91fbf03`.
+- Editor archive SHA-256: `817d2fe42dff64ef1db520fa0c4acf70bb6073ddd8be16135c539b15e4e57d06`.
+- Retained builds: current, `c26ab6ba1-34121133575.1`, `4e766bcb8-34060994866.1`,
+  and `6981604fa-34083879179.1`. Every existing workspace's pin remains available.
+
+The actual Chromium module reports the new build, cross-origin isolation and no
+test hooks. Zed's native Restart to Update confirmation upgraded the disposable
+workspace and automatically reloaded the browser, preserving all fixture files.
+The installed kernel bridge matches committed source. Actual editor Run, Interrupt,
+Restart and Shutdown pass; interruption preserves variables, restart clears them,
+and shutdown leaves no kernel processes or private listening ports. Earlier live
+checks covered Unicode, persistent state, Markdown/PNG, errors and stdin input.
+
+On the final build, production calls passed Firefox synthetic audio to Chromium,
+three peers, actual tab capture with decoded 1920×1080 video, mute/deafen, screen
+stop, leave/rejoin, origin/schema/participant-secret/no-cache guards. Delayed stale
+picker-row focus/click checks and a current command remained interactive without
+a panic/page error. The first calls launcher ran before the upgrade was ready;
+the first picker probe lacked an active kernel. Both diagnostics were corrected
+and rerun successfully; neither initial attempt is counted as passed.
+
+Earlier production checks passed clipboard text/PNG, Vim register/dot/motion/object/
+macro paths, the Helix paste action, and Firefox/WebKit text clipboard. Accessibility
+checks covered full-document text, IME composition/candidate keys, semantic subtree
+retention, modal focus, and tree/picker/tab navigation. ZIP checks passed 7.3 MB
+streaming, save-before-download, folder context menus, Unicode, ignored-file choices,
+integrity, confinement and canceled-download cleanup. Node/Python debugger launch,
+breakpoints, stack/variables, stepping and stop passed. TypeScript mapped stepping
+and two fast-start breakpoint launches passed with `runtimeSourcemapPausePatterns`.
+
+Not run: real VoiceOver/NVDA, physical IME/mobile input, physical microphones, or
+restrictive-network/TURN checks. TURN is unconfigured. One older-build debug shutdown
+`Atomics.wait` exception was not reproduced and remains unclassified. Upstream
+local-AI probes still emit blocked CSP messages; CSP was not weakened.
+Diagnostics are outside the repository in `/tmp/zedspaces-browser-features.qRKGq9/`.
+
+Cleanup verified at 14:13 UTC: disposable workspace `ws_AAVZ3V9Z1ZC1NEQNC1HQ`
+returns 410 and SDK inventory for its exact sandbox prefix is empty. Its files
+were inventoried before deletion and contained only our fixtures. All diagnostic
+browser profiles are closed; owner workspaces were not modified.
 
 ## Earlier deferred-update verification — 05:53 UTC
 

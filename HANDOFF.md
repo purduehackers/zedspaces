@@ -1,8 +1,10 @@
 # Handoff: Zed Codespaces
 
-**Browser features in progress (2026-09-07).** Clipboard and the first accessibility/
-input adapter, ZIP exports and debugger transport are deployed: app `a441a6f`, fork
-`c26ab6ba1`, matching build `c26ab6ba1-34121133575.1`. Live Chromium verified fresh/denied/delayed clipboard
+**Browser feature pass deployed (2026-09-07).** The approved sequence is shipped:
+clipboard, accessibility/input adapters, ZIP exports, debugger, inline Python REPL,
+and audio/screen-sharing calls. App `3adc561`, fork `ad778ac746`, matching build
+`ad778ac74-34127509100.1` are live. CI passed; local authenticated publication
+deployed the matching image/assets and Vercel app. Live Chromium verified fresh/denied/delayed clipboard
 reads, Vim registers, terminal text, PNG-to-Markdown paste, full-document accessible
 text and IME composition without consuming candidate-navigation keys. Firefox and
 WebKit also booted and passed text clipboard checks. Real assistive-technology and
@@ -15,9 +17,9 @@ variables, stepping, continue and disconnect. Live Python launch, breakpoints,
 stack/variables, stepping, continue and terminate also pass. New-tab task/debug
 configuration replay and debugger control labels are in the deployed release.
 Inline Python executes live: Unicode, persistent values, Markdown/PNG, errors and
-input() pass through the real editor. The browser-clock panic is fixed. A control
-reply missing `status` made Interrupt disconnect; its sandbox-only correction is
-validated in the disposable VM and awaiting image publication. Kernels use the
+input() pass through the real editor. The browser-clock and control-reply fixes
+are deployed. Run, Interrupt (namespace retained), Restart (fresh namespace), and
+Shutdown pass through the actual editor on the published image. Kernels use the
 private process tunnel, not preview ports. Production protocol checks also passed
 missing-ipykernel errors, token replay rejection and process cleanup.
 Calls are deployed: native Zed controls, Firefox synthetic audio to Chromium,
@@ -27,11 +29,13 @@ Cloudflare TURN remains unconfigured; physical microphones were not tested.
 Secondary Vim clipboard checks pass: insert-register, dot repeat, motion/object
 replacement, cancellation, Helix paste action and macros suspended during reads.
 A stale browser picker click caused a command-palette bounds panic; the web-only
-guard passes native/WASM checks and awaits publication. TypeScript source-map
-breakpoints/stepping pass with stopOnEntry; fast-start mapping remains under
-investigation, including one unreproduced Atomics.wait exception on the prior build.
-The disposable verification workspace is `ws_AAVZ3V9Z1ZC1NEQNC1HQ`; inspect its
-contents before deleting it. Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
+guard is deployed and delayed stale-row focus/click checks pass. TypeScript source-map
+breakpoints/stepping pass, including two fast-start launches using the adapter's
+`runtimeSourcemapPausePatterns` setting; see README. One Atomics.wait exception on
+the older `042113f25` build was not reproduced and remains unclassified.
+Folder context-menu downloads and aborted-stream temporary cleanup also pass.
+Current diagnostics: `/tmp/zedspaces-browser-features.qRKGq9/`.
+See [deployment evidence](docs/status/deployment.md) for release pins and cleanup.
 
 **Approved feature order (2026-09-07):** clipboard → accessibility/input → project
 and folder ZIP export → debugger (JS/TS, Python first) → inline Python Jupyter REPL

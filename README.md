@@ -75,20 +75,24 @@ while the workspace stays live, so concurrent writes are not an atomic snapshot.
 
 Zed's existing debugger UI connects to adapters
 inside the sandbox through a one-use, workspace-scoped WebSocket capability.
-Node and Python launch, breakpoints, stack/variables, stepping and stopping have
+Node, TypeScript and Python launch, breakpoints, stack/variables, stepping and stopping have
 been verified in the deployed browser editor.
 Adapters download through the remote server, using normal `.zed/debug.json`
 configurations. Debug-managed ports are excluded from automatic public previews;
 use an explicit private preview for an HTTP server launched under the debugger.
 There is no desktop debugger process or local port forwarding.
+For compiled TypeScript, enable source maps and point `program`/`outFiles` at the
+built JavaScript. Very short programs may need
+`"runtimeSourcemapPausePatterns": ["$ZED_WORKTREE_ROOT/dist/**/*.js"]`
+(adjust to your output directory) so source breakpoints bind before execution.
 
 The inline Python REPL uses Zed's existing output UI and a private Jupyter kernel
 in the sandbox. Select **Python (sandbox)** to use the bundled environment, or a
 project interpreter with `ipykernel` installed. Use **REPL: Run**, **Interrupt**,
 **Restart**, and **Shutdown** from the command palette. Notebook editing and
 interactive widgets are not included. Unicode, persistent values, rich output,
-errors and input have been verified live. A control-reply correction for Interrupt
-is validated and awaiting the next image release.
+errors, input, Interrupt, Restart and Shutdown have been verified live, including
+preserving variables after interruption and clearing them on restart.
 
 ## Multiplayer
 
@@ -182,7 +186,7 @@ before sharing this intentionally open, shared app.
 
 The **Release Zedspaces** Actions workflow builds matching browser/server
 artifacts and can publish the image, assets, and Vercel app in one manual run.
-The [current production build passed](https://github.com/purduehackers/zedspaces/actions/runs/34054725092)
+The [current production build passed](https://github.com/purduehackers/zedspaces/actions/runs/34127509100)
 and was published using the local Vercel login. Tests and their release gates
 are removed. Publishing from Actions still needs the `production` environment's
 `VERCEL_TOKEN`; its public Blob token is configured. Local CLI publication does not.
