@@ -105,14 +105,17 @@ contain this server and the updated `zs-agent` (empty GitHub credentials).
 
 Host the packaged `editor/` directory without authentication. Configure
 `ZS_EDITOR_BUNDLE_SOURCE` to its parent URL, **not** the `/editor` URL, and
-`ZS_EDITOR_BUNDLES=<current-build>` and `ZS_EDITOR_BUNDLES_KEEP=1`.
-Vercel's prebuild downloads the bundle; WASM is not compiled during deployment.
+let `scripts/release.ts publish/configure` set `ZS_EDITOR_BUNDLES`,
+`ZS_EDITOR_BUNDLES_KEEP`, and `ZS_EDITOR_UPDATE_BUILDS`. Publication retains the
+new build, the currently deployed build, and every non-deleted workspace's pinned
+build; the update-capable subset comes from release metadata. Vercel prebuild must
+fetch all retained bundles successfully. WASM is not compiled during deployment.
 Local test assets and `.zs-dev` state are excluded from CLI uploads.
 
 Every public repo clones on the base workspace image. Custom-image builders,
 prebuilds, AI-provider plumbing, and Stripe billing have been removed.
 
-## Verify, then deploy with confirmation
+## Verify, publish and deploy
 
 ```sh
 cd apps/web
@@ -125,7 +128,8 @@ pnpm build         # Vercel runs the same preflight automatically
 ```
 
 These checks do not create resources, migrate remote data, publish artifacts, or
-deploy. A local build is not a live Vercel certification. After the approved
+deploy. A local build is not a live Vercel certification. The owner authorizes
+completed changes through commit, push and deployment without another prompt. After
 deployment, verify the homepage and `/new/octocat/Hello-World`, then create →
 connect → edit → stop → resume with console/network evidence. Check the cron's
 authenticated sweep and confirm stale sandboxes stop. Set Vercel spending

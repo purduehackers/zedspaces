@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { requireViewer, requireWorkspaceAccess, type Viewer } from "@/lib/auth";
 import { refusesTestClientBuild } from "@/lib/env";
-import { currentRelease } from "@/lib/release";
+import { canDeferUpgrade, currentRelease } from "@/lib/release";
 import { assertWorkspaceId } from "@/lib/route-context";
 import { repoOf, toShellWorkspace, workspacePathsFor } from "@/lib/shell";
 import type { Workspace } from "@/lib/schema";
@@ -33,7 +33,8 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
   if (!workspace) notFound();
   // A test-hooks bundle installs `window.__zs_test` (openFile, save, terminalInput, …) over the
   // live session, so a production deployment must not serve one whatever stamped the row.
-  const { clientBuild } = currentRelease();
+  const clientBuild = canDeferUpgrade(workspace.clientBuild) && !workspace.previousSandboxName
+    ? workspace.clientBuild : currentRelease().clientBuild;
   if (refusesTestClientBuild(clientBuild)) notFound();
 
   const repo = await repoOf(workspace);

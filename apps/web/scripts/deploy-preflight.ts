@@ -10,7 +10,7 @@ export function deploymentProblems(e: Variables): string[] {
   const requireValue = (key: string) => { if (!e[key]?.trim()) problems.push(`${key} is required`); };
   for (const key of ["TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "ZS_CONTROL_URL", "ZS_JWT_PRIVATE_KEY",
     "ZS_EDITOR_COOKIE_SECRET", "CRON_SECRET",
-    "ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID", "ZS_IMAGE_REF", "ZS_EDITOR_BUNDLE_SOURCE", "ZS_EDITOR_BUNDLES",
+    "ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID", "ZS_IMAGE_REF", "ZS_EDITOR_BUNDLE_SOURCE", "ZS_EDITOR_BUNDLES", "ZS_EDITOR_UPDATE_BUILDS",
     "BLOB_READ_WRITE_TOKEN"]) requireValue(key);
   if (e.TURSO_DATABASE_URL && !/^(libsql|https):\/\//.test(e.TURSO_DATABASE_URL)) problems.push("TURSO_DATABASE_URL must be a remote libsql:// or https:// database");
   for (const [key, suffix] of [["ZS_CONTROL_URL", "/api"], ["ZS_EDITOR_BUNDLE_SOURCE", null]] as const) {
@@ -32,6 +32,9 @@ export function deploymentProblems(e: Variables): string[] {
   if (e.ZS_IMAGE_REF && !/^vcr\.vercel\.com\/[a-z0-9._-]+\/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$/.test(e.ZS_IMAGE_REF)) problems.push("ZS_IMAGE_REF must be a digest-pinned VCR image");
   const served = e.ZS_EDITOR_BUNDLES?.split(",").map((id) => id.trim()).filter(Boolean) ?? [];
   if (e.ZS_CLIENT_BUILD_ID && !served.includes(e.ZS_CLIENT_BUILD_ID)) problems.push("ZS_EDITOR_BUNDLES must include ZS_CLIENT_BUILD_ID");
+  const updateBuilds = e.ZS_EDITOR_UPDATE_BUILDS?.split(",").filter(Boolean) ?? [];
+  if (e.ZS_CLIENT_BUILD_ID && !updateBuilds.includes(e.ZS_CLIENT_BUILD_ID)) problems.push("Current build must support deferred updates");
+  if (updateBuilds.some(build => !served.includes(build))) problems.push("Update-capable builds must be served");
   for (const id of served) {
     try { assertServableBuild(assertBuildId(id)); if (/^dev|(?:-names)$/.test(id)) throw new Error(); }
     catch { problems.push("ZS_EDITOR_BUNDLES contains a non-production build"); }
@@ -75,6 +78,12 @@ export function bundleProblems(dir: string, builds: string[]): string[] {
 export function preflight(e: Variables = process.env, dir = editorDir()): void {
   const problems = deploymentProblems(e);
   if (!problems.length) problems.push(...bundleProblems(dir, e.ZS_EDITOR_BUNDLES!.split(",").map((id) => id.trim()).filter(Boolean)));
+  if (!problems.length) for (const build of e.ZS_EDITOR_UPDATE_BUILDS!.split(",")) {
+    const root = path.join(dir, build);
+    const meta = JSON.parse(fs.readFileSync(path.join(root, "build.json"), "utf8"));
+    if (meta.web_updates !== true || meta.assets_bytes !== fs.statSync(path.join(root, "zed-assets.tar")).size ||
+      meta.js_bytes !== fs.statSync(path.join(root, "zed_web.js")).size) problems.push(`${build}: invalid deferred-update metadata`);
+  }
   if (problems.length) throw new Error(`Deployment is not ready:\n${problems.map((p) => `- ${p}`).join("\n")}`);
   console.log("[deploy-preflight] Configuration and editor bundles valid. Remote database, image readiness, and Sandbox boot still require live validation. No resources were changed.");
 }

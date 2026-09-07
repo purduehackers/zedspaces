@@ -47,6 +47,8 @@ export const envSchema = z.object({
    * which bundles are served: `public/` is not traced into the function bundle.
    */
   ZS_EDITOR_BUNDLES: z.string().optional(),
+  /** Served builds carrying the web update UI bridge, stamped by the release publisher. */
+  ZS_EDITOR_UPDATE_BUILDS: z.string().optional(),
 
   /**
    * Canonical control-plane API base (D29): the public origin plus `/api`,

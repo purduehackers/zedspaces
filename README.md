@@ -32,11 +32,13 @@ are shared too. Do not put secrets or sensitive work here. Internal VM tokens,
 signed session tokens, origin checks, and cron authentication still apply.
 Creation is rate-limited and defaults to five active/admitted workspaces.
 
-Old workspaces automatically upgrade when opened or resumed.
-It preserves repository files and Zed's saved editor state, then replaces the VM
-and browser build together. Connected tabs reload after the upgrade completes;
-running terminal commands and dev servers need restarting. Failed upgrades keep
-the old generation and backup for retry. Idle workspaces stay stopped until opened.
+Existing workspaces open their matching editor immediately. Once interactive, the
+next editor bundle downloads in the background; Zed's **Restart to Update** button
+applies it when you're ready, or dismiss it to keep working. **Auto Update: Check**
+in the command palette brings it back. Restarting preserves files and editor state,
+replaces the VM and browser together, and reconnects everyone; terminal commands
+need restarting. Failed upgrades keep the old generation and backup for retry.
+Builds predating this update UI need one initial upgrade. Idle workspaces stay stopped.
 
 ## Browser defaults
 

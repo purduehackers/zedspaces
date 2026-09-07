@@ -25,6 +25,7 @@ import {
 } from "./shell-phase";
 import { LifecycleToasts, ShellOverlay, type ShellActions, type ShellToast } from "./shell-ui";
 import { createHost, type ShellController } from "./zs-host";
+import { EditorUpdater } from "./editor-updater";
 
 /**
  * The editor shell (b9 §3.26): it authenticates the page's connection, loads
@@ -65,7 +66,7 @@ export interface ShellOverrides {
 /** Props of {@link EditorShell}; assembled by the server component. */
 export interface EditorShellProps {
   workspaceId: string;
-  /** Deployed browser bundle; `/connect` upgrades the workspace to match before boot. */
+  /** The workspace's pinned bundle; pre-updater workspaces bootstrap to the deployed build. */
   build: string;
   initial: ShellWorkspace;
   /** `ZsBootConfig.workspace.paths` — the clone inside the sandbox. */
@@ -204,6 +205,8 @@ export function EditorShell({
 
   const deps = useMemo<ApiDeps>(() => ({ fetch: overrides?.fetch }), [overrides?.fetch]);
   const runtimeRef = useRef<EditorRuntime | null>(null);
+  const [runtime, setRuntime] = useState<EditorRuntime | null>(null);
+  const updaterRef = useRef<EditorUpdater | null>(null);
   const bootedRef = useRef(false);
   const flushAllowedRef = useRef(true);
   const stopReasonRef = useRef<StopReason>("unknown");
@@ -335,6 +338,7 @@ export function EditorShell({
         applyTransition(transitionForBootProgress(stage, detail, { stopReason: stopReasonRef.current }));
       },
       lifecycle,
+      updateAction: (action) => updaterRef.current?.action(action),
       refreshConnectInfo: async () => {
         try {
           return await connect("reconnect");
@@ -372,19 +376,6 @@ export function EditorShell({
       ]);
       versionsRef.current = { settings: settingsDoc.version, keymap: keymapDoc.version };
 
-      // Only fetch/cache a bundle after /connect has brought the workspace onto this release.
-      // Development can republish bytes under the same build id, so never precache it.
-      const registerServiceWorker = overrides?.registerServiceWorker ?? process.env.NODE_ENV === "production";
-      const serviceWorker = navigator.serviceWorker;
-      if (registerServiceWorker) {
-        void serviceWorker?.register(`/sw.js?build=${encodeURIComponent(build)}`, { scope: "/w/" }).catch(() => undefined);
-      } else if (typeof serviceWorker?.getRegistrations === "function") {
-        void serviceWorker
-          .getRegistrations()
-          .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-          .catch(() => undefined);
-      }
-
       const config: ZsBootConfig = {
         buildId: build,
         connect: connectInfo,
@@ -402,6 +393,7 @@ export function EditorShell({
         onStage: (stage, detail) => setPhase({ kind: "booting", stage, detail: detail || undefined }),
       });
       runtimeRef.current = booted.runtime;
+      setRuntime(booted.runtime);
       booted.started.catch((err: unknown) => {
         const failure = asBootFailure(err);
         applyTransition(transitionForBootFailure(failure.code, { stopReason: stopReasonRef.current }));
@@ -424,6 +416,26 @@ export function EditorShell({
     bootedRef.current = true;
     void boot();
   }, [boot]);
+
+  // Begin update work only after the old editor is interactive. The worker never
+  // precaches at install time and never owns API requests or workspace lifecycle.
+  useEffect(() => {
+    if (!runtime) return;
+    const updater = new EditorUpdater(workspaceId, runtime, () => {
+      flushAllowedRef.current = false;
+      navigation.reload();
+    }, deps);
+    updaterRef.current = updater;
+    return () => { updater.dispose(); updaterRef.current = null; };
+  }, [deps, navigation, runtime, workspaceId]);
+
+  useEffect(() => {
+    const updater = updaterRef.current;
+    updater?.setInteractive(phase.kind === "ready");
+    if (phase.kind === "ready" && (overrides?.registerServiceWorker ?? process.env.NODE_ENV === "production")) {
+      void navigator.serviceWorker?.register("/sw.js", { scope: "/w/" }).catch(() => undefined);
+    }
+  }, [phase.kind, runtime, overrides?.registerServiceWorker]);
 
   // Visibility, unload and fullscreen wiring (b9 §3.26 bullet 6).
   useEffect(() => {

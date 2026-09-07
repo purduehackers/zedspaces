@@ -5,6 +5,7 @@ import type {
   ZsDocumentKind,
   ZsHost,
   ZsLifecycleKind,
+  ZsUpdateAction,
 } from "@/lib/zed-web";
 import { putSettingsDocument, reportClientError, type ApiDeps } from "./api-client";
 import { ConnectError } from "./connect-client";
@@ -29,6 +30,7 @@ export interface ShellController {
   bootProgress(stage: ZsBootStage, detail: string): void;
   /** Applies one lifecycle notice (toasts, the restart countdown). */
   lifecycle(kind: ZsLifecycleKind, seconds: number): void;
+  updateAction(action: ZsUpdateAction): void;
   /** Mints a fresh connection; throws {@link ConnectError}. */
   refreshConnectInfo(): Promise<ZsConnectInfo>;
   /** Where a settings document is written (`/api/workspaces/{id}/settings` or `…/keymap`, editor-cookie routes). */
@@ -116,6 +118,10 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
 
     onLifecycle(kind, seconds) {
       shell.lifecycle(kind, seconds);
+    },
+
+    updateAction(action) {
+      queueMicrotask(() => shell.updateAction(action));
     },
 
     onClosed(info) {

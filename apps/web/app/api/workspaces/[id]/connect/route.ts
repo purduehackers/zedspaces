@@ -12,7 +12,7 @@ import {
 import { dbReady } from "@/lib/db";
 import { isRunActive, startLifecycle } from "@/lib/lifecycle";
 import { limit } from "@/lib/ratelimit";
-import { currentRelease } from "@/lib/release";
+import { canDeferUpgrade, currentRelease } from "@/lib/release";
 import { requireWorkspaceParam, type WorkspaceParams } from "@/lib/route-context";
 import { users, type Workspace } from "@/lib/schema";
 import { connectInput, type HealthProbe } from "@/lib/types";
@@ -63,9 +63,9 @@ export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
     throw new ApiError(423, "workspace_busy", `Workspace is ${workspace.state}`, { state: workspace.state });
   }
 
-  // An explicit open/resume adopts the deployed release before minting a token.
-  // A transport redial alone must never wake or rebuild an idle workspace.
-  if (input.reason !== "reconnect") {
+  // Normal opens keep their matching editor/server interactive. Only pre-updater builds
+  // and interrupted rebuilds need a blocking bootstrap/recovery. Redials never wake a VM.
+  if (input.reason !== "reconnect" && (!canDeferUpgrade(workspace.clientBuild) || workspace.previousSandboxName)) {
     const release = currentRelease();
     if (input.clientBuild && !buildsCompatible(input.clientBuild, release.clientBuild)) {
       throw new ApiError(409, "client_build_mismatch", "Reload to pick up the current editor bundle", release);

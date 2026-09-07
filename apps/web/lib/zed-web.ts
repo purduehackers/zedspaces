@@ -92,6 +92,13 @@ export interface ZsCloseInfo {
 /** Which of the two user documents `saveDocument` carries. */
 export type ZsDocumentKind = "settings" | "keymap";
 
+export type ZsUpdateAction = "check" | "install";
+export type ZsUpdateStatus =
+  | { phase: "idle" | "checking" }
+  | { phase: "downloading"; build: string; progress: number | null }
+  | { phase: "ready" | "installing"; build: string }
+  | { phase: "error"; message: string };
+
 /**
  * The object the shell passes as the third argument of `start()`. Every
  * method is called from the wasm client; none of them may throw
@@ -112,6 +119,8 @@ export interface ZsHost {
   reportError(kind: "panic" | "boot", message: string, stack: string): void;
   /** Lifecycle notice relayed from the supervisor; `seconds` is the countdown. */
   onLifecycle(kind: ZsLifecycleKind, seconds: number): void;
+  /** Runs after the GPUI callback returns, so status updates cannot reenter its App borrow. */
+  updateAction(action: ZsUpdateAction): void;
   /** Optional: the raw close frame, telemetry only (b7 §3.21). */
   onClosed?(info: ZsCloseInfo): void;
 }
@@ -119,13 +128,14 @@ export interface ZsHost {
 /** The exports of `/editor/<build>/zed_web.js` the shell calls. */
 export interface ZedWebModule {
   /** wasm-bindgen's init; resolves to the instance's exports. */
-  default(options?: { module_or_path?: string }): Promise<ZedWebInstance>;
+  default(options?: { module_or_path?: string | Response }): Promise<ZedWebInstance>;
   /** Single-shot: rejects with `{ code, message }`; every retry is a page reload. */
   start(configJson: string, assets: Uint8Array, host: ZsHost): Promise<void>;
   flush_client_state(): Promise<void>;
   set_hidden(hidden: boolean): void;
   has_unsaved_changes(): boolean;
   build_id(): string;
+  set_update_status(statusJson: string): void;
   /** Present only in the development stub of §"bundle not built" (public/editor/README.md). */
   zsStub?: boolean;
 }

@@ -182,14 +182,9 @@ export async function fetchEditorBundles(opts: {
   }
   const fetched: string[] = [];
   for (const id of wanted) {
-    try {
-      if (await ensureBundle(opts.source, id, dir)) fetched.push(id);
-    } catch (err) {
-      // Only the bundle new workspaces need is mandatory; an older one that is
-      // gone from the source is logged and skipped.
-      if (id === build) throw err;
-      log(`${id}: skipped (${err instanceof Error ? err.message : String(err)})`);
-    }
+    // Every retained build may be needed by an interactive workspace. Fail publication
+    // rather than deploying an incomplete set and forcing those users to upgrade.
+    if (await ensureBundle(opts.source, id, dir)) fetched.push(id);
   }
   const kept = wanted.filter((id) => fs.existsSync(path.join(dir, id, "build.json")));
   fs.writeFileSync(path.join(dir, "manifest.json"), `${JSON.stringify({ builds: kept }, null, 2)}\n`);

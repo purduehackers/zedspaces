@@ -1,4 +1,4 @@
-import type { ZedWebModule, ZsBootConfig, ZsBootStage, ZsHost } from "@/lib/zed-web";
+import type { ZedWebModule, ZsBootConfig, ZsBootStage, ZsHost, ZsUpdateStatus } from "@/lib/zed-web";
 
 /**
  * Loads and starts `/editor/<build>/zed_web.js` (b9 §3.26 bullet 1 and 3;
@@ -34,6 +34,7 @@ export interface EditorRuntime {
   hasUnsavedChanges(): boolean;
   /** Build id the bundle reports about itself. */
   buildId(): string;
+  setUpdateStatus(status: ZsUpdateStatus): void;
 }
 
 /** A started editor: the exports, plus the single-shot `start()` promise. */
@@ -91,31 +92,17 @@ export async function loadZedWeb(build: string): Promise<ZedWebModule> {
   return mod;
 }
 
-/**
- * Fetches the asset tarball, memoised in Cache Storage under
- * `zs-assets-<build>` (the tarball is immutable per build).
- */
-export async function fetchAssets(build: string): Promise<Uint8Array> {
-  const url = bundleUrl(build, "zed-assets.tar");
-  const cacheStorage = loaderGlobals().caches;
-  let response: Response | undefined;
-
-  if (cacheStorage) {
-    try {
-      const cache = await cacheStorage.open(`zs-assets-${build}`);
-      response = await cache.match(url);
-      if (!response) {
-        const fetched = await fetch(url, { cache: "force-cache" });
-        if (fetched.ok) await cache.put(url, fetched.clone());
-        response = fetched;
-      }
-    } catch {
-      response = undefined;
-    }
-  }
-  response ??= await fetch(url, { cache: "force-cache" });
+/** Reads staged bytes directly, including WASM too large for Chromium's HTTP disk cache. */
+export async function fetchBundleFile(build: string, file: string): Promise<Response> {
+  const url = bundleUrl(build, file);
+  const cache = await loaderGlobals().caches?.open(`zs-editor-${build}`).catch(() => undefined);
+  const response = await cache?.match(url).catch(() => undefined) ?? await fetch(url, { cache: "force-cache" });
   if (!response.ok) throw new BundleError("bundle_missing", `${url} is not available (HTTP ${response.status}).`);
-  return new Uint8Array(await response.arrayBuffer());
+  return response;
+}
+
+export async function fetchAssets(build: string): Promise<Uint8Array> {
+  return new Uint8Array(await (await fetchBundleFile(build, "zed-assets.tar")).arrayBuffer());
 }
 
 /**
@@ -131,7 +118,7 @@ export const bootEditor: BootRunner = async ({ build, config, host, onStage }) =
   // The asset tarball is fetched in parallel with `init()` (b7 §3.30).
   const assetsPromise = fetchAssets(build);
   assetsPromise.catch(() => undefined);
-  const instance = await mod.default({ module_or_path: bundleUrl(build, "zed_web_bg.wasm") });
+  const instance = await mod.default({ module_or_path: await fetchBundleFile(build, "zed_web_bg.wasm") });
   const callCtors = globals.__zsCallCtors;
   if (typeof callCtors === "function") callCtors();
   else instance?.__wasm_call_ctors?.();
@@ -148,6 +135,7 @@ export const bootEditor: BootRunner = async ({ build, config, host, onStage }) =
       setHidden: (hidden) => mod.set_hidden(hidden),
       hasUnsavedChanges: () => mod.has_unsaved_changes(),
       buildId: () => mod.build_id(),
+      setUpdateStatus: (status) => mod.set_update_status(JSON.stringify(status)),
     },
   };
 };

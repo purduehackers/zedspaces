@@ -6,10 +6,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { head, list, put } from "@vercel/blob";
+import { isNull } from "drizzle-orm";
+import { closeDb, dbReady } from "../lib/db";
+import { workspaces } from "../lib/schema";
 import { assertBuildId, assertServableBuild, editorDir } from "./fetch-editor-bundle";
 import { bundleProblems } from "./deploy-preflight";
 
-const keys = ["ZS_IMAGE_REF", "ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID", "ZS_EDITOR_BUNDLES", "ZS_EDITOR_BUNDLES_KEEP"] as const;
+const keys = ["ZS_IMAGE_REF", "ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID", "ZS_EDITOR_BUNDLES", "ZS_EDITOR_BUNDLES_KEEP", "ZS_EDITOR_UPDATE_BUILDS"] as const;
 type Values = Record<typeof keys[number], string>;
 interface RecordFile { build: string; values: Values; previous: Record<typeof keys[number], string | null>; assetSha256: string }
 const recordPath = path.resolve("release-record.json");
@@ -24,7 +27,7 @@ export function releaseValues(build: string, image: { build: string; tag: string
   assert.equal(image.tag, `${repository}:${build}`);
   assert.match(image.digest, /^sha256:[a-f0-9]{64}$/);
   return { ZS_IMAGE_REF: `${repository}@${image.digest}`, ZS_CLIENT_BUILD_ID: build, ZS_SERVER_BUILD_ID: build,
-    ZS_EDITOR_BUNDLES: build, ZS_EDITOR_BUNDLES_KEEP: "1" };
+    ZS_EDITOR_BUNDLES: build, ZS_EDITOR_BUNDLES_KEEP: "1", ZS_EDITOR_UPDATE_BUILDS: build };
 }
 
 function api(endpoint: string, method = "GET", body?: unknown) {
@@ -49,6 +52,21 @@ async function publish(build: string, delivery: string) {
   const manifestHead = response.ok ? await head(manifestUrl, { token }) : null;
   const image = JSON.parse(fs.readFileSync("../../sandbox/image/dist/image.json", "utf8"));
   const values = releaseValues(build, image, repository);
+  const meta = JSON.parse(fs.readFileSync(path.join(editorDir(), build, "build.json"), "utf8"));
+  assert.equal(meta.web_updates, true, "New releases must carry the web update bridge");
+  // Keep every workspace's pinned browser plus the currently deployed build, which may
+  // acquire new workspaces while this deployment builds. This query never changes rows.
+  const db = await dbReady();
+  let pinned: string[];
+  try {
+    pinned = (await db.selectDistinct({ build: workspaces.clientBuild }).from(workspaces)
+      .where(isNull(workspaces.deletedAt))).map(row => assertServableBuild(assertBuildId(row.build)));
+  } finally { await closeDb(); }
+  const retained = [...new Set([build, process.env.ZS_CLIENT_BUILD_ID, ...pinned].filter((id): id is string => Boolean(id)))];
+  values.ZS_EDITOR_BUNDLES = retained.join(",");
+  values.ZS_EDITOR_BUNDLES_KEEP = String(retained.length);
+  values.ZS_EDITOR_UPDATE_BUILDS = retained.filter(id => id === build ||
+    process.env.ZS_EDITOR_UPDATE_BUILDS?.split(",").includes(id)).join(",");
 
   const archive = fs.readFileSync(path.join(delivery, "editor", `${build}.tar`));
   const pathname = `editor/${build}.tar`;
@@ -73,7 +91,7 @@ async function publish(build: string, delivery: string) {
   assert.ok(visible, "New manifest must be visible before deployment");
   const previous = Object.fromEntries(keys.map(key => [key, process.env[key] ?? null]));
   fs.writeFileSync(recordPath, JSON.stringify({ build, values, previous, assetSha256 }, null, 2) + "\n");
-  console.log(JSON.stringify({ build, image: values.ZS_IMAGE_REF, assetSha256 }));
+  console.log(JSON.stringify({ build, image: values.ZS_IMAGE_REF, assetSha256, retained }));
 }
 
 export function configure(record: RecordFile, restore: boolean, request = api) {
@@ -99,7 +117,7 @@ async function verify(record: RecordFile) {
     assert.equal(meta.test_hooks, false);
   }
   console.log(`Verified ${origin} and the current production bundle.`);
-  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Zedspaces release\n\n- Live: ${origin}\n- Build: \`${record.build}\`\n- Image: \`${record.values.ZS_IMAGE_REF}\`\n- Outdated workspaces upgrade automatically when opened.\n`);
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Zedspaces release\n\n- Live: ${origin}\n- Build: \`${record.build}\`\n- Image: \`${record.values.ZS_IMAGE_REF}\`\n- Existing workspaces keep their matching editor while updates download in the background.\n`);
 }
 
 async function main() {
