@@ -1,7 +1,7 @@
 //! Supervisor environment and port map.
 //!
-//! Exposed: editor RPC 8443, health 8448, and 13 reusable preview proxies at
-//! 8444-8447 / 8452-8460. Loopback-only: supervisor API 8450, server control 8451.
+//! Exposed: editor RPC 8443, health 8448, and 12 reusable preview proxies at
+//! 8444-8447 / 8452-8459. Loopback-only: supervisor API 8450, server control 8451.
 //! App discovery excludes 8443-8460 and VM services (22, 53, 111, 23456).
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,9 +18,9 @@ pub const DEFAULT_WORKSPACES_DIR: &str = "/workspaces";
 pub const DEFAULT_SERVER_BIN: &str = "/usr/local/bin/zed-remote-server";
 /// `zed-remote-server serve --listen` port (declared, public).
 pub const RPC_PORT: u16 = 8443;
-/// Reusable preview slots: Vercel's 15-port budget minus RPC and health.
-pub const PROXY_SLOTS: [u16; 13] = [
-    8444, 8445, 8446, 8447, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460,
+/// 12 previews plus RPC/health: Vercel currently returns 500 for 15 declared ports.
+pub const PROXY_SLOTS: [u16; 12] = [
+    8444, 8445, 8446, 8447, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459,
 ];
 /// D21 supervisor health listener (declared, public): `GET /health` with the minimal body only.
 pub const HEALTH_PORT: u16 = 8448;

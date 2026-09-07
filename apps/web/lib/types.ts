@@ -398,7 +398,7 @@ export const sandboxManifestSchema = z
       })
       .passthrough(),
     forwards: z.array(forwardViewSchema),
-    proxySlots: z.array(z.number().int()).length(13),
+    proxySlots: z.array(z.number().int()).length(12),
     idle: z.object({ minutes: z.number().int().min(0) }),
     session: z.object({
       id: z.string(),

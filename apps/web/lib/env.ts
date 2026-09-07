@@ -232,9 +232,9 @@ export function envTag(): "production" | "preview" | "development" {
   return env().VERCEL_ENV ?? "development";
 }
 
-/** Vercel's 15 exposed ports, minus editor RPC and supervisor health. */
+/** 12 previews plus RPC/health: Vercel currently returns 500 for 15 declared ports. */
 export function proxySlots(): number[] {
-  return [8444, 8445, 8446, 8447, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460];
+  return [8444, 8445, 8446, 8447, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459];
 }
 
 /**
