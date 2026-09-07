@@ -1,5 +1,13 @@
 # Handoff: Zed Codespaces
 
+**Approved feature order (2026-09-07):** clipboard → accessibility/input → project
+and folder ZIP export → debugger (JS/TS, Python first) → inline Python Jupyter REPL
+→ calls (audio and screen sharing first). Native/desktop integration is permanently
+out of scope, not a backlog item. Reuse Zed's components through browser-specific
+adapters; sandbox services and product behavior belong in Zedspaces. ZIP exports
+contain working files, not recovery/editor-state archives. Full notebook editing,
+camera video and a contacts/account system are not included in this first pass.
+
 **Owner direction (2026-09-06): finish through publication.** Commit, push and
 deploy completed project changes without asking again. This supersedes older
 permission gates below; it does not authorize unrelated actions or destructive
