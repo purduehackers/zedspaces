@@ -1,9 +1,15 @@
 # Handoff: Zed Codespaces
 
 **Latest owner direction (2026-09-07): remove calling entirely.** Calls, screen
-sharing, their custom title-bar controls, host bridge, API, signaling and TURN
-configuration are removed in source; the unfinished device selectors are discarded.
-Publication is pending. Collaborative editing and its approved avatars stay.
+sharing, their custom title-bar controls, host bridge, API, signaling, media CSP
+allowance and TURN configuration are removed and deployed; the unfinished device
+selectors are discarded. App `8bc7d90`, fork `9534a9d8fb`, matching build
+`9534a9d8f-34158944970.1` are live at code.purduehackers.com. CI passed. Live
+Chromium verified no call UI/bridge/media activity, API 404 and two-way editing/saving.
+An old-build workspace automatically upgraded with its exact uncommitted file and
+full Git history preserved. Collaborative editing and its approved avatars stay.
+Only the new build may defer upgrades: older bundles require the deleted host ABI
+and need a file-preserving bootstrap upgrade. Their pinned assets remain retained.
 
 **Architecture constraint:** preserve Zed's native UI and functionality. Browser
 support belongs at the web-platform boundary, so native editor behavior runs through
@@ -12,7 +18,7 @@ owner-requested feature removals are allowed. This supersedes the calls priority
 any broader permission for fork changes below. Historical call validation is not a
 request to restore calling.
 
-**Browser feature pass deployed (2026-09-07).** The approved sequence is shipped:
+**Earlier browser feature pass (2026-09-07; calls superseded above).** The sequence shipped:
 clipboard, accessibility/input adapters, ZIP exports, debugger, inline Python REPL,
 and audio/screen-sharing calls. App `55fd6cb`, fork `ad778ac746`, matching build
 `ad778ac74-34127509100.1` are live. CI passed; local authenticated publication

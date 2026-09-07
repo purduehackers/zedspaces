@@ -1,6 +1,42 @@
 # Production deployment — 2026-09-07
 
-Current production, verified 19:42 UTC: app `55fd6cb`, fork `ad778ac746`, matching
+Current production, verified 21:03 UTC: app `8bc7d90`, fork `9534a9d8fb`, matching
+build `9534a9d8f-34158944970.1`, deployment `dpl_DGkFpHABt9RzAN8ed6ETsppsKusa`
+is READY and aliased to code.purduehackers.com. Calls and screen sharing are removed,
+including their custom Zed controls, host ABI, browser media, API/signaling, TURN
+configuration and media CSP allowance. Collaborative editing/approved avatars stay.
+
+- [Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34158944970)
+  passed the matching server/browser builds and app/supervisor checks. The app-only
+  CSP cleanup passed [web CI](https://github.com/purduehackers/zedspaces/actions/runs/34160022725).
+  Local lint/typecheck/build and Rust formatting passed; no repository tests added/run.
+- Authenticated local publication uploaded the ready VCR image and checksum-verified
+  assets, then deployed Vercel production. Actions used `deploy=false`.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:3ab2c4b9ff6701d7a44ce13868d4773ad36a34a0bf119275f05f575886765ed6`.
+- Editor archive SHA-256: `e3d856724adf0426b54826e06a0fcd3797239e7034dbb9d41b4505155c006103`.
+- Retained builds: current, `ad778ac74-34127509100.1`, `4e766bcb8-34060994866.1`,
+  `6981604fa-34083879179.1`. Only the current build is in `ZS_EDITOR_UPDATE_BUILDS`:
+  older bundles require the deleted host ABI and must bootstrap-upgrade before boot.
+  The release record retains the actual previous configuration for rollback.
+- Disposable old-build workspace `ws_K4EEKEA7HNEECW5TGX22` returned `202 upgrading`,
+  moved generation 1 → 2, and preserved its exact uncommitted file and full three-commit
+  Git history. Two independent Chromium profiles booted the new module, exchanged edits
+  both ways and saved; the sandbox file was independently read back and matched exactly.
+- No call controls, `set_call_status` export, call network requests, peer connections,
+  microphone or screen-capture requests. The removed API returns 404. No panic/page error.
+  The initial editing diagnostics failed to insert text in Vim Normal mode; entering
+  Insert mode and waiting for save completion passed. Those failed attempts are not passes.
+- Production has no TURN credentials or call KV rows. No schema migration was needed/run.
+  Packaging checked 47 Function traces, largest 16.4 MiB; 19 existing tracing warnings
+  remain. Upstream local-AI probes still emit blocked CSP messages; CSP was not weakened.
+
+Cleanup verified 21:04 UTC: the disposable workspace returns 410 and its exact-prefix
+SDK sandbox inventory is empty. Only our `collaboration.txt` fixture was untracked
+before deletion. Diagnostic browsers are closed; no owner workspace was modified.
+
+## Earlier browser feature release — calls subsequently removed
+
+Previous production, verified 19:42 UTC: app `55fd6cb`, fork `ad778ac746`, matching
 build `ad778ac74-34127509100.1`, deployment `dpl_4mnehdi2JMwMVmadB4YVXYZeHtkz`.
 [App-only CI](https://github.com/purduehackers/zedspaces/actions/runs/34156283163)
 and local lint/typecheck/build passed. Authenticated Vercel CLI deployed the audio
