@@ -1,7 +1,11 @@
 # Production deployment — 2026-09-07
 
-Current production, verified 14:12 UTC: app `3adc561`, fork `ad778ac746`, matching
-build `ad778ac74-34127509100.1`, deployment `dpl_2cRRc5ybPWR8zAguJYpNwxL7w8J1`.
+Current production, verified 19:42 UTC: app `55fd6cb`, fork `ad778ac746`, matching
+build `ad778ac74-34127509100.1`, deployment `dpl_4mnehdi2JMwMVmadB4YVXYZeHtkz`.
+[App-only CI](https://github.com/purduehackers/zedspaces/actions/runs/34156283163)
+and local lint/typecheck/build passed. Authenticated Vercel CLI deployed the audio
+playback fix; the existing WASM, server and image were retained, not rebuilt.
+The build still reports 19 existing tracing warnings; all 48 Function traces pass.
 [Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34127509100)
 passed web lint/typecheck/build, supervisor checks and both production Rust builds.
 Actions deployment was intentionally skipped (`deploy=false`); authenticated local
@@ -21,13 +25,30 @@ Restart and Shutdown pass; interruption preserves variables, restart clears them
 and shutdown leaves no kernel processes or private listening ports. Earlier live
 checks covered Unicode, persistent state, Markdown/PNG, errors and stdin input.
 
-On the final build, production calls passed Firefox synthetic audio to Chromium,
+Initial production call checks covered Firefox synthetic audio packets to Chromium,
 three peers, actual tab capture with decoded 1920×1080 video, mute/deafen, screen
 stop, leave/rejoin, origin/schema/participant-secret/no-cache guards. Delayed stale
 picker-row focus/click checks and a current command remained interactive without
 a panic/page error. The first calls launcher ran before the upgrade was ready;
 the first picker probe lacked an active kernel. Both diagnostics were corrected
 and rerun successfully; neither initial attempt is counted as passed.
+
+The audio follow-up reproduced a real Chromium bug: packets arrived, but the
+Web Audio-only playback graph decoded zero samples despite a running AudioContext.
+Native media-element playback fixes this. Temporary Chromium and Firefox diagnostics
+now explicitly assert nonzero decoded audio energy, three peers, mute/unmute,
+deafen/undeafen and leave/rejoin cleanup. Blocked-playback and delayed-rejection checks
+pass. Production's native controls decoded nonzero synthetic audio before and after
+deafen and rejoin; simulated playback denial exposes native Unmute Audio, whose retry
+restores decoded audio. No panic/page error occurred. The first live attempt left a
+background window unjoined; rerunning with explicit focus passed. Earlier asynchronous
+stats waits did not reliably wait for their conditions; the new checks poll and assert
+resolved values. Packet-only evidence is not treated as audible-audio verification.
+
+A real MacBook Air microphone was opened previously, but supplied zero-level audio.
+macOS reports the lid closed: [Apple hardware-disconnects the built-in microphone
+in that state](https://support.apple.com/en-ie/guide/security/secbbd20b00b/web).
+Spoken audio remains unverified. No audio was recorded; all capture tracks are stopped.
 
 Earlier production checks passed clipboard text/PNG, Vim register/dot/motion/object/
 macro paths, the Helix paste action, and Firefox/WebKit text clipboard. Accessibility
@@ -38,13 +59,19 @@ integrity, confinement and canceled-download cleanup. Node/Python debugger launc
 breakpoints, stack/variables, stepping and stop passed. TypeScript mapped stepping
 and two fast-start breakpoint launches passed with `runtimeSourcemapPausePatterns`.
 
-Not run: real VoiceOver/NVDA, physical IME/mobile input, physical microphones, or
+Not run: real VoiceOver/NVDA, physical IME/mobile input, spoken-audio playback, or
 restrictive-network/TURN checks. TURN is unconfigured. One older-build debug shutdown
 `Atomics.wait` exception was not reproduced and remains unclassified. Upstream
 local-AI probes still emit blocked CSP messages; CSP was not weakened.
 Diagnostics are outside the repository in `/tmp/zedspaces-browser-features.qRKGq9/`.
 
-Cleanup verified at 14:13 UTC: disposable workspace `ws_AAVZ3V9Z1ZC1NEQNC1HQ`
+Cleanup verified at 19:43 UTC: audio fixture `ws_CWH4GRM73NG1VFX7AV3Z` returns 410
+and its exact-prefix SDK sandbox inventory is empty. Git inventory was clean before
+deletion. The earlier physical-mic fixture `ws_W5VH9ZR6B3EG7DAM8QZA` was also deleted
+and its absence verified. Diagnostic browsers and the local signaling server are
+closed; no owner workspace was modified.
+
+Earlier cleanup verified at 14:13 UTC: disposable workspace `ws_AAVZ3V9Z1ZC1NEQNC1HQ`
 returns 410 and SDK inventory for its exact sandbox prefix is empty. Its files
 were inventoried before deletion and contained only our fixtures. All diagnostic
 browser profiles are closed; owner workspaces were not modified.

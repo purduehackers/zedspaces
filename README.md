@@ -110,8 +110,10 @@ Audio calls and screen sharing use browser WebRTC, with Zed-styled title-bar
 controls and a small panel for shared screens. Join muted, then explicitly enable
 the microphone or choose a screen. Up to eight people can join; anyone with the
 workspace link has access. Zedspaces does not record calls. Turso holds expiring
-signaling messages only, never media. Native controls, three-party calls, audio
-packets and decoded screen-sharing video have been verified in production.
+signaling messages only, never media. Native controls, three-party calls, decoded
+synthetic audio and screen-sharing video have been verified in production. If the
+browser blocks playback, choose **Unmute Audio** to retry. Physical spoken audio
+and restrictive-network connectivity are not yet verified.
 
 Direct calls use public STUN. For networks that require a relay, configure
 `ZS_TURN_KEY_ID` and `ZS_TURN_API_TOKEN` from

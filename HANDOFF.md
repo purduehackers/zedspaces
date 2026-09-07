@@ -2,7 +2,7 @@
 
 **Browser feature pass deployed (2026-09-07).** The approved sequence is shipped:
 clipboard, accessibility/input adapters, ZIP exports, debugger, inline Python REPL,
-and audio/screen-sharing calls. App `3adc561`, fork `ad778ac746`, matching build
+and audio/screen-sharing calls. App `55fd6cb`, fork `ad778ac746`, matching build
 `ad778ac74-34127509100.1` are live. CI passed; local authenticated publication
 deployed the matching image/assets and Vercel app. Live Chromium verified fresh/denied/delayed clipboard
 reads, Vim registers, terminal text, PNG-to-Markdown paste, full-document accessible
@@ -22,10 +22,15 @@ are deployed. Run, Interrupt (namespace retained), Restart (fresh namespace), an
 Shutdown pass through the actual editor on the published image. Kernels use the
 private process tunnel, not preview ports. Production protocol checks also passed
 missing-ipykernel errors, token replay rejection and process cleanup.
-Calls are deployed: native Zed controls, Firefox synthetic audio to Chromium,
-three-peer joins, actual tab capture with decoded remote video, mute/deafen,
-screen stop, leave/rejoin, origin and participant-secret guards pass. Optional
-Cloudflare TURN remains unconfigured; physical microphones were not tested.
+Calls are deployed: native Zed controls, three-peer joins, actual tab capture with
+decoded remote video, screen stop, leave/rejoin, origin and participant-secret guards
+pass. The 19:42 UTC app-only follow-up fixes Chromium receiving packets without
+decoding audio: remote playback now uses media elements, not a Web Audio-only graph.
+Nonzero synthetic audio decoding and mute/deafen pass locally in Chromium/Firefox
+and through production's native controls; blocked-playback retry also passes locally
+and in production Chromium. No fork/image change.
+The real built-in mic opened but supplied silence with the MacBook lid closed (Apple's
+hardware mic disconnect); spoken audio is not verified. Optional TURN is unconfigured.
 Secondary Vim clipboard checks pass: insert-register, dot repeat, motion/object
 replacement, cancellation, Helix paste action and macros suspended during reads.
 A stale browser picker click caused a command-palette bounds panic; the web-only
