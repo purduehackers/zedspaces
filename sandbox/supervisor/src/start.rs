@@ -125,6 +125,7 @@ pub async fn run(args: StartArgs, config: Config) -> anyhow::Result<()> {
 
 /// Everything step 1 brings up, shared by the rest of the boot.
 struct Boot {
+    debugger: Arc<crate::debugger::DebugService>,
     config: Arc<Config>,
     state: Arc<AgentState>,
     control: ControlPlane,
@@ -191,7 +192,9 @@ impl Boot {
             config.server_control_listen,
             control_secret.clone(),
         )?;
+        let debugger = Arc::new(crate::debugger::DebugService::new(shutdown.clone()));
         let deps = Arc::new(ApiDeps {
+            debugger: debugger.clone(),
             state: state.clone(),
             control: control.clone(),
             forwards: forwards.clone(),
@@ -221,6 +224,7 @@ impl Boot {
         ))];
 
         Ok(Self {
+            debugger,
             config,
             state,
             control,
@@ -461,6 +465,14 @@ impl Boot {
             build: self.config.build_id.clone(),
         });
         write_jwt_keys(&manifest.jwt.public_keys, &self.config.jwt_dir())?;
+        self.debugger.configure(
+            manifest.workspace_id.clone(),
+            manifest.workspace_dir.clone(),
+            manifest.allowed_origins.clone(),
+            &manifest.jwt.issuer,
+            &manifest.jwt.audience,
+            &manifest.jwt.public_keys,
+        )?;
         self.forwards.replace(manifest.forwards.clone());
         tracing::info!(
             workspace = %manifest.workspace_id,

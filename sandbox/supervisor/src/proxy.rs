@@ -580,6 +580,35 @@ async fn forward(
         Ok(port) => port,
         Err(response) => return *response,
     };
+    if is_infra_port(target) {
+        return json_response(
+            StatusCode::FORBIDDEN,
+            serde_json::json!({ "error": "infra_port" }),
+        );
+    }
+    if runtime
+        .config
+        .forwards
+        .public_slot_port(runtime.config.slot)
+        == Some(target)
+    {
+        // Recheck ownership at connection time: a debugger may have rebound a
+        // previously public app port since the last discovery scan.
+        let private = tokio::task::spawn_blocking(move || {
+            crate::ports::owner_of_port(target)
+                .ok()
+                .flatten()
+                .is_none_or(|(pid, _)| crate::debugger::is_debug_process(pid))
+        })
+        .await
+        .unwrap_or(true);
+        if private {
+            return json_response(
+                StatusCode::FORBIDDEN,
+                serde_json::json!({ "error": "private_debug_service" }),
+            );
+        }
+    }
     let upstream_addr = SocketAddr::new(upstream_ip(&runtime.config.listening, target), target);
     let stream = match TcpStream::connect(upstream_addr).await {
         Ok(stream) => stream,

@@ -1,7 +1,7 @@
 //! Health listener and loopback supervisor API (brief §3.12, §4.4; D21).
 //!
 //! Two listeners, one router. **8448** (`0.0.0.0`, declared to Vercel) serves `GET /health` with
-//! the minimal D21 body only; **8450** (`127.0.0.1`, never declared) serves the server-facing and
+//! the minimal D21 body and authenticated `/debug` WebSocket; **8450** (`127.0.0.1`, never declared) serves the server-facing and
 //! helper-facing routes plus the full `/health` detail. Both listeners come up **before** the
 //! manifest is fetched (§3.16 step 1) so the control plane's probe sees `booting`/`manifest`.
 //!
@@ -42,6 +42,8 @@ pub const HEADER_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Everything the router needs; shared by both listeners.
 pub struct ApiDeps {
+    /// Capability-authenticated debug adapter sessions on the service listener.
+    pub debugger: Arc<crate::debugger::DebugService>,
     /// Health state.
     pub state: Arc<AgentState>,
     /// Control-plane client for `/ports`, `/extensions`, `/git-token`.
@@ -73,7 +75,7 @@ impl ApiDeps {
 /// Which listener a request arrived on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Listener {
-    /// `0.0.0.0:8448`, `GET /health` only.
+    /// `0.0.0.0:8448`, health and authenticated debugger sockets.
     Health,
     /// `127.0.0.1:8450`, the supervisor API.
     Local,
@@ -161,7 +163,8 @@ async fn serve(
             let connection = http1::Builder::new()
                 .timer(TokioTimer::new())
                 .header_read_timeout(HEADER_TIMEOUT)
-                .serve_connection(TokioIo::new(stream), service);
+                .serve_connection(TokioIo::new(stream), service)
+                .with_upgrades();
             tokio::select! {
                 result = connection => {
                     if let Err(error) = result {
@@ -203,6 +206,12 @@ where
         return Ok(health_response(&deps, listener, peer));
     }
     if listener == Listener::Health {
+        if path == "/debug" {
+            return Ok(deps
+                .debugger
+                .upgrade(req)
+                .map(|body| body.map_err(|never| match never {}).boxed()));
+        }
         return Ok(json_response(
             StatusCode::NOT_FOUND,
             serde_json::json!({ "error": "not_found" }),

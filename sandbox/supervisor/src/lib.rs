@@ -32,6 +32,7 @@ pub mod bootstrap;
 pub mod config;
 pub mod control_plane;
 pub mod credential;
+pub mod debugger;
 pub mod logs;
 pub mod manifest;
 pub mod port_auth;

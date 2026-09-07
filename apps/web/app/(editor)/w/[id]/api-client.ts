@@ -63,6 +63,15 @@ export async function keepAlive(workspaceId: string, deps?: ApiDeps): Promise<Ke
   return { keptAliveUntil: typeof body.keptAliveUntil === "string" ? body.keptAliveUntil : null };
 }
 
+export async function connectDebugAdapter(workspaceId: string, launch: string, deps?: ApiDeps): Promise<{ url: string; token: string }> {
+  const res = await fetchOf(deps)(`/api/workspaces/${workspaceId}/debug`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify(launch), cache: "no-store", signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error((await apiErrorBody(res)).message);
+  return res.json();
+}
+
 /**
  * Re-mints the `zs_editor` cookie (every 6 h and after any `401`,
  * b9 §3.26 bullet 8). Returns false when the caller must sign in again.

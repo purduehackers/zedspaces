@@ -121,7 +121,7 @@ pub fn diff_ports(previous: &BTreeSet<u16>, current: &BTreeSet<u16>) -> PortDiff
 
 /// Reserved VM services, control listeners and preview slots.
 pub fn is_infra_port(port: u16) -> bool {
-    INFRA_PORTS.contains(&port)
+    INFRA_PORTS.contains(&port) || crate::debugger::is_private_port(port)
 }
 
 /// `/proc/net/tcp`, the IPv4 socket table.
@@ -596,6 +596,14 @@ pub async fn watch(
                         });
                         let ports: Vec<ListeningPort> = scanned
                             .values()
+                            // Inspector/control listeners belong to the debug session,
+                            // never automatic public previews. Explicit private previews
+                            // remain available for servers launched under the debugger.
+                            .filter(|socket| {
+                                owners.get(&socket.inode).is_some_and(|(pid, _)| {
+                                    !crate::debugger::is_debug_process(*pid)
+                                })
+                            })
                             .map(|socket| {
                                 let (pid, process_name) = owners
                                     .get(&socket.inode)

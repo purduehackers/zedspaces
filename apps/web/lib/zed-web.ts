@@ -123,6 +123,8 @@ export interface ZsHost {
   updateAction(action: ZsUpdateAction): void;
   /** Archives saved working files in the sandbox and starts a browser download. */
   downloadProject(path: string, includeIgnored: boolean): Promise<string>;
+  /** Mints a one-use capability for sandbox DAP I/O; never a public preview. */
+  connectDebugAdapter(launch: string): Promise<{ url: string; token: string }>;
   /** Optional: the raw close frame, telemetry only (b7 §3.21). */
   onClosed?(info: ZsCloseInfo): void;
 }

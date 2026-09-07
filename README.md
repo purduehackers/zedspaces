@@ -73,6 +73,14 @@ metadata, links and special files are excluded; untitled buffers are not exporte
 The limit is 256 MiB of source data and 20,000 paths per export. Files are read
 while the workspace stays live, so concurrent writes are not an atomic snapshot.
 
+Debugger integration is in progress: Zed's existing DAP UI connects to adapters
+inside the sandbox through a one-use, workspace-scoped WebSocket capability.
+Node and Python transport diagnostics pass; browser validation is pending.
+Adapters download through the remote server, using normal `.zed/debug.json`
+configurations. Debug-managed ports are excluded from automatic public previews;
+use an explicit private preview for an HTTP server launched under the debugger.
+There is no desktop debugger process or local port forwarding.
+
 ## Multiplayer
 
 Anonymous multiplayer is live: share a workspace's `/w/<id>`
