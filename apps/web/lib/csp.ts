@@ -35,7 +35,6 @@ export function editorCsp(nonce: string, opts: EditorCspOptions): string {
     connectSrc,
     "worker-src 'self' blob:",
     "img-src 'self' blob: data:",
-    "media-src 'self' blob:",
     styleSrc,
     "font-src 'self' blob: data:",
     "object-src 'none'",
