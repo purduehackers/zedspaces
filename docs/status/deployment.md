@@ -1,6 +1,43 @@
 # Production deployment — 2026-09-08 UTC
 
-Current production: app `e01c4b7`, fork `446d547b19`, matching build
+Current production: app `8db1569`, fork `cf857ded3c`, matching build
+`cf857ded3-34188201299.1`, deployment `dpl_8cbSMBc9KX6chA7X5NgvUWHdwkYf`
+is READY at code.purduehackers.com. Astro's upstream grammar/configs and installed
+language server are connected through the web-language adapter, including its
+TypeScript plugin. TOML now uses Taplo. Native Zed UI is unchanged.
+
+- [Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34188201299)
+  passed; matching image/assets were published and Vercel/public verification passed.
+  Full WASM checking, Rust formatting/diff checks, native Astro/query/embedded-grammar
+  checks and real Astro/Taplo LSP probes passed. Both TS server plugin probes passed;
+  Astro/vtsls also passed inside the Linux image. No repository tests added/run.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:d7cde8ba82adc089dad81fb06ddadca48e9b738f2ab7b8bad38718242ada0150`.
+- Editor archive SHA-256: `a5d70dafa5021f750625d25f4a5f88815dfdc7038943e68711e5bed3b4cb569b`.
+- Live Chromium: native Copy Highlight JSON verifies Astro and injected TS/CSS
+  tokens; diagnostics, default formatting/save, method-completion acceptance and
+  TS import → Astro component definition pass. Taplo formatting/save and conflicting
+  key diagnostics pass. Saved bytes were independently read from the sandbox.
+- An old-build scratch workspace upgraded with identical fixture hashes, original
+  README and full three-commit Git history. Only the current and previous
+  `446d547b1-34183434009.1` builds may defer updates; live older pins remain retained.
+- Known limitations: Astro/Volar returns null document colors for colorless files,
+  causing a non-blocking Zed deserialization warning. Native completion acceptance
+  works, but its suggestions are not exposed as semantic list options. No browser
+  panic/page error; existing local-AI CSP and an untracked-file blame warning were
+  observed. This pass did not run Firefox/WebKit, physical-device or real AT checks.
+- The local image built, but its size guard failed on an inherited 1.38 GB base
+  layer. The new Astro layer is 102 MB; VCR accepted and prepared the published
+  image. All 47 Function traces passed, largest 16.4 MiB.
+
+Temporary diagnostics: `/tmp/zedspaces-languages.YPK2G1/`. The final inventory
+contained only our `language-fixture/` and its installed dependencies; the only
+source changes from baseline were native formatting of Astro and TOML fixtures.
+Cleanup verified: `ws_SHGE4PAVEQP4FBAFA527` returns 410 and its exact-prefix SDK
+sandbox inventory is empty. Diagnostic browsers are closed; no owner workspace changed.
+
+## Previous touch-focus release — 2026-09-08 UTC
+
+Previous production: app `e01c4b7`, fork `446d547b19`, matching build
 `446d547b1-34183434009.1`, deployment `dpl_DK7tQQsYQj1vwAMNgnEM6ht9z4wY`
 is READY and aliased to code.purduehackers.com. One `gpui_web` file fixes keyboard
 focus after non-text touch taps and IME editability after hardware commands enter

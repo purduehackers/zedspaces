@@ -1,5 +1,18 @@
 # Handoff: Zed Codespaces
 
+**Language-tooling continuation (2026-09-08 UTC).** App `8db1569`, fork
+`cf857ded3c`, matching build `cf857ded3-34188201299.1` are pushed and deployed at
+code.purduehackers.com. Astro's upstream grammar/configs are bundled under the
+existing web-languages feature; the small installed-tool adapter connects Astro
+and Taplo. Package pins/paths live in the sandbox image. No native UI changes.
+CI, full WASM checking, native grammar/query probes and real LSP protocol checks
+pass. Live Chromium verifies Astro/embedded TypeScript/CSS highlight tokens,
+diagnostics, formatting, completion acceptance and TS-to-Astro definition, plus
+Taplo formatting/diagnostics. General extension installation remains unavailable.
+Known gaps: Astro's server returns null document colors on colorless files,
+producing a non-blocking warning; completion suggestions lack semantic list-option
+exposure. See `docs/status/deployment.md` for release/cleanup evidence.
+
 **Touch-focus follow-up (2026-09-08 UTC).** App `e01c4b7`, fork `446d547b19`,
 matching build `446d547b1-34183434009.1` are pushed and deployed at
 code.purduehackers.com. One `gpui_web` file restores the read-only keyboard target
