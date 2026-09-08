@@ -66,8 +66,7 @@ export const connectDebugAdapter = (workspaceId: string, launch: string) => conn
 export const connectKernel = (workspaceId: string, python: string | null, cwd: string) => connectProcess(workspaceId, "kernel", { python, cwd });
 
 /**
- * Re-mints the `zs_editor` cookie (every 6 h and after any `401`,
- * b9 §3.26 bullet 8). Returns false when the caller must sign in again.
+ * Re-mints the internal editor cookie. Returns false when renewal failed.
  */
 export async function refreshEditorSession(workspaceId: string): Promise<boolean> {
   try {

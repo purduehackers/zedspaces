@@ -1,11 +1,7 @@
 import type { MetadataRoute } from "next";
 
 /**
- * PWA manifest (b9 §3.31, BUILD-SPEC §3.6 "PWA"): installable so the editor
- * gets its own window and icon. `start_url` is the dashboard — a workspace URL
- * would pin one workspace into the installed app. Served at
- * `/manifest.webmanifest`, which `proxy.ts` excludes from the Clerk matcher so
- * the browser can fetch it without a session.
+ * Installable PWA. Start at the dashboard instead of pinning one workspace.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -11,15 +11,14 @@ import { workspaceView } from "@/lib/views";
 export const runtime = "nodejs";
 
 /**
- * `GET /api/workspaces/{id}` – the shell polls this while a resume runs, so
- * the editor cookie is accepted here as well as a Clerk session.
+ * `GET /api/workspaces/{id}` – the shell polls this while a resume runs.
  */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
   const { workspace } = await requireWorkspaceParam(ctx);
   return json({ workspace: await workspaceView(workspace) });
 });
 
-/** `PATCH /api/workspaces/{id}` – rename, or change the idle timeout (owner or org admin). */
+/** `PATCH /api/workspaces/{id}` – rename or change the idle timeout. */
 export const PATCH = handler<Request, WorkspaceParams>(async (req, ctx) => {
   const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   const input = await parseBody(req, patchWorkspaceInput);
@@ -45,8 +44,8 @@ export const PATCH = handler<Request, WorkspaceParams>(async (req, ctx) => {
 });
 
 /**
- * `DELETE /api/workspaces/{id}` – starts `deleteWorkspace` (owner or org
- * admin). Only a run that is still pending or running blocks with
+ * `DELETE /api/workspaces/{id}` – starts `deleteWorkspace`.
+ * Only a run that is still pending or running blocks with
  * `409 workspace_busy`; a terminal run no longer bricks the row (b9 §3.20).
  */
 export const DELETE = handler<Request, WorkspaceParams>(async (req, ctx) => {

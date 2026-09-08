@@ -134,8 +134,7 @@ export type RouteHandler<R extends Request = Request, P = Record<string, never>>
 /**
  * Wraps a route handler so that an {@link ApiError} becomes its response, a
  * zod error a `400 invalid_body`, and anything else a `500 internal` whose
- * `details.requestId` is also written to the server log. Routes that need
- * `NextRequest` (the Clerk webhook) instantiate `R = NextRequest`.
+ * `details.requestId` is also written to the server log.
  */
 export function handler<R extends Request = Request, P = Record<string, never>>(
   fn: RouteHandler<R, P>,

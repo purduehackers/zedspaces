@@ -49,7 +49,7 @@ function sleep(ms: number): Promise<void> {
  * route answered `500 sandbox_unhealthy` for ever.
  */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  // Connecting attaches to the VM (terminals, files, secrets): owner or org admin only.
+  // VM attachment is open to the shared space and subject to its abuse guard.
   const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   await limit("user.connect", viewer.userId);
   const input = await parseBody(req, connectInput);

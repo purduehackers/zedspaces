@@ -7,11 +7,7 @@ import { putSettingsDocInput } from "@/lib/types";
 export const runtime = "nodejs";
 
 /**
- * `GET /api/workspaces/{id}/settings` – the viewer's `settings.json`, as the
- * editor shell reads it at boot. The document is per user, not per workspace;
- * the workspace-scoped path exists so the `zs_editor` cookie (path-scoped to
- * `/api/workspaces/<id>`) authenticates the call after Clerk's 60 s token has
- * expired (b9 §3.8, CONTRACTS.md §8.2 "Clerk or cookie").
+ * The shared space's settings, read by the editor at boot.
  */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
   const { viewer } = await requireWorkspaceParam(ctx);

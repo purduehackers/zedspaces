@@ -19,11 +19,8 @@ export const runtime = "nodejs";
  * verifier can never accept it — which the supervisor's proxy exchanges for
  * its own `zs_port_session` cookie on that slot host.
  *
- * This is a browser navigation, so it authenticates with the Clerk session
- * only: the editor cookie is scoped to `/api/workspaces/<id>` and would be
- * sent here, but a top-level navigation from a foreign site must not be able
- * to mint a port token, and `SameSite=Strict` plus the Clerk check keep that
- * closed.
+ * Private means cookie-gated at the proxy, not private to a person: anyone
+ * in this public shared space can mint a port token.
  */
 export const GET = handler<Request, PortParams>(async (_req, ctx) => {
   const params = await ctx.params;

@@ -2,8 +2,7 @@
  * Naming of the rebuild tarball in the blob store (D9, b9 §4.7).
  *
  * This module deliberately has no imports: the rebuild step runs inside the
- * Workflow step bundle, and pulling `lib/manifest.ts` (and with it the GitHub
- * and Clerk clients) into that bundle is both wasteful and fragile.
+ * Workflow step bundle without needing control-plane clients.
  */
 
 /**

@@ -9,11 +9,8 @@ import type { Workspace } from "@/lib/schema";
 import { EditorShell } from "./editor-shell";
 
 /**
- * The editor document (b9 §3.26). It is the auth gate: `proxy.ts` has already
- * required a Clerk session and minted the `zs_editor` cookie, and this page
- * additionally proves the viewer may see *this* workspace before it hands the
- * shell anything about it. Nothing secret reaches the client — the shell asks
- * `POST /connect` for the token itself.
+ * Public editor document. The shell requests its short-lived VM token from
+ * `POST /connect`; signing keys never reach the browser.
  */
 export const dynamic = "force-dynamic";
 
