@@ -1,17 +1,16 @@
 # syntax=docker/dockerfile:1.7
 #
-# The Zed Codespaces workspace image (linux/amd64), brief b8 §3.19 with the D21 port map.
+# The Zedspaces workspace image (linux/amd64).
 #
 # Build context is the repository root (`sandbox/image/build.sh` passes it), because this file
 # copies both `sandbox/supervisor/` (the zs-agent sources) and `sandbox/image/dist/` (the
 # `zed-remote-server` built by `sandbox/image/build-server.sh`).
 #
-# BASE_IMAGE is passed by build.sh from sandbox/image/base.lock (a digest-pinned ref,
-# BUILD-SPEC §10 item 6); the default here is only for `docker build` by hand.
+# build.sh requires a digest-pinned ZS_BASE_IMAGE; the default is for syntax checks only.
 ARG BASE_IMAGE=vcr.vercel.com/vercel/sandbox/universal:latest
 ARG RUST_TOOLCHAIN=1.97.1
-# Build-stage bases are pinned by digest (BUILD-SPEC §10 item 6: reproducible from pinned
-# inputs). The tag before `@` is documentation only – Docker resolves the digest. Refresh with
+# Build-stage bases are pinned by digest. The tag before `@` is documentation only.
+# Refresh with
 # `docker buildx imagetools inspect <image>:<tag> --format '{{json .Manifest.Digest}}'`.
 ARG RUST_BUILDER_IMAGE=rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97
 
@@ -33,8 +32,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # ---- workspace image ---------------------------------------------------------
 FROM ${BASE_IMAGE}
 ARG RUST_TOOLCHAIN
-# Every download below is pinned by version *and* verified against a committed sha256
-# (BUILD-SPEC §10 item 6). Refresh a pin by downloading the new asset once and recording
+# Direct binary downloads are pinned by version and verified against a committed sha256.
+# Refresh a pin by downloading the new asset once and recording
 # `sha256sum` (go.dev publishes its sums at https://go.dev/dl/?mode=json&include=all,
 # rust-lang next to each rustup-init at static.rust-lang.org/rustup/archive/<ver>/…).
 ARG RUSTUP_VERSION=1.29.1
@@ -142,8 +141,6 @@ RUN chmod 0755 /usr/local/lib/zedspaces
 # 5. users, paths, git. Nothing above wrote under /vercel; hand the tree back to ubuntu anyway.
 RUN mkdir -p /workspaces && chown ubuntu:ubuntu /workspaces \
  && chown -R ubuntu:ubuntu /vercel \
- && git config --system credential.helper '!zs-agent credential' \
- && git config --system credential.useHttpPath true \
  && git config --system safe.directory '*' \
  && git config --system init.defaultBranch main
 

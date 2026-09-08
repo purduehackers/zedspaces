@@ -36,16 +36,15 @@ export function assertUserPort(raw: string): number {
 
 /**
  * Resolves the shared viewer and workspace. `control` enforces the abuse flag
- * on mutations and VM access; it does not imply private ownership. The cookie
- * option is retained for the existing editor protocol.
+ * on mutations and VM access; it does not imply private ownership.
  */
 export async function requireWorkspaceParam(
   ctx: RouteCtx<WorkspaceParams>,
-  opts?: { allowEditorCookie?: boolean; allowStates?: WorkspaceState[]; control?: boolean },
+  opts?: { allowStates?: WorkspaceState[]; control?: boolean },
 ): Promise<{ viewer: Viewer; workspace: Workspace }> {
   const { id } = await ctx.params;
   const workspaceId = assertWorkspaceId(id);
-  const viewer = await requireViewer({ workspaceId, allowEditorCookie: opts?.allowEditorCookie ?? false });
+  const viewer = await requireViewer();
   if (opts?.control) assertNotFlagged(viewer);
   const workspace = await requireWorkspaceAccess(viewer, workspaceId, {
     allowStates: opts?.allowStates,

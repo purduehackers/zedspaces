@@ -1,6 +1,6 @@
 import { sameRelease, type EditorRelease } from "@/lib/builds";
 import type { ZsUpdateAction } from "@/lib/zed-web";
-import { apiErrorBody, type ApiDeps } from "./api-client";
+import { apiErrorBody } from "./api-client";
 import { waitForRunning } from "./connect-client";
 import { bundleUrl, type EditorRuntime } from "./loader";
 
@@ -53,11 +53,9 @@ export class EditorUpdater {
   private installing = false;
   private interactive = false;
   private timer: ReturnType<typeof setInterval>;
-  private readonly doFetch: typeof fetch;
 
   constructor(private readonly workspaceId: string, private readonly runtime: EditorRuntime,
-    private readonly reload: () => void, private readonly deps: ApiDeps) {
-    this.doFetch = deps.fetch ?? fetch.bind(globalThis);
+    private readonly reload: () => void) {
     this.timer = setInterval(() => void this.check(), 60_000);
   }
 
@@ -81,7 +79,7 @@ export class EditorUpdater {
     this.pending = controller;
     if (manual) this.runtime.setUpdateStatus({ phase: "checking" });
     try {
-      const res = await this.doFetch(`/api/workspaces/${this.workspaceId}/update`, { cache: "no-store", signal: controller.signal });
+      const res = await fetch(`/api/workspaces/${this.workspaceId}/update`, { cache: "no-store", signal: controller.signal });
       if (!res.ok) throw new Error(`Could not check for updates (${res.status})`);
       const { release, available } = await res.json() as { release: EditorRelease; available: boolean };
       if (!available) { this.prepared = null; this.runtime.setUpdateStatus({ phase: "idle" }); return; }
@@ -108,11 +106,11 @@ export class EditorUpdater {
     this.runtime.setUpdateStatus({ phase: "installing", build: release.clientBuild });
     try {
       await this.runtime.flushClientState();
-      const res = await this.doFetch(`/api/workspaces/${this.workspaceId}/update`, {
+      const res = await fetch(`/api/workspaces/${this.workspaceId}/update`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(release),
       });
       if (!res.ok && res.status !== 423) throw new Error((await apiErrorBody(res)).message);
-      if (res.status !== 200) await waitForRunning({ workspaceId: this.workspaceId }, this.deps);
+      if (res.status !== 200) await waitForRunning({ workspaceId: this.workspaceId });
       this.reload();
     } catch (error) {
       this.prepared = null;

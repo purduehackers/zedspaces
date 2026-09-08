@@ -11,14 +11,14 @@ const updateInput = z.object({ imageRef: z.string(), serverBuild: z.string(), cl
 
 /** Discovery never starts or rebuilds a sandbox. */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
-  const { workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { workspace } = await requireWorkspaceParam(ctx);
   const release = currentRelease();
   return json({ release, available: !sameRelease(workspace, release) });
 });
 
 /** Apply exactly the release the user finished downloading and chose to install. */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true, allowEditorCookie: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   const target = await parseBody(req, updateInput);
   const release = currentRelease();
   if (!sameRelease(target, release)) throw new ApiError(409, "release_changed", "A newer update is available; download it before restarting.");

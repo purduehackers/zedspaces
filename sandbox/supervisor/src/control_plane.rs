@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_core::Stream;
-use secrecy::{ExposeSecret as _, SecretString};
+use secrecy::ExposeSecret as _;
 
 use crate::config::Config;
 use crate::logs::LogBatch;
@@ -81,41 +81,6 @@ pub enum ControlPlaneError {
     Decode(String),
 }
 
-/// `POST …/git-token` body (b9 §4.2): `host` must be `github.com` (404 `host_unsupported`), `path`
-/// must name the workspace's repository when present (403 `repo_not_allowed`).
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitTokenRequest<'a> {
-    /// Git host, e.g. `github.com`.
-    pub host: &'a str,
-    /// Git protocol, always `https` here.
-    pub protocol: &'a str,
-    /// Repository path as git passes it with `credential.useHttpPath`, e.g. `acme/api.git`.
-    pub path: Option<&'a str>,
-}
-
-/// `POST …/git-token` response.
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitTokenResponse {
-    /// `x-access-token` for GitHub App installation tokens.
-    pub username: String,
-    /// The token; exposed only by the credential helper.
-    pub token: SecretString,
-    /// Expiry: b9 emits unix seconds; an RFC 3339 string is tolerated.
-    pub expires_at: ExpiresAt,
-}
-
-/// `expiresAt` in either wire form.
-#[derive(Debug, serde::Deserialize)]
-#[serde(untagged)]
-pub enum ExpiresAt {
-    /// Unix seconds.
-    UnixSeconds(u64),
-    /// RFC 3339 (`toISOString()` output); parsed by `credential::parse_rfc3339_utc`.
-    Iso(String),
-}
-
 /// `POST …/ports` body.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -162,7 +127,7 @@ pub struct ActivityReport<'a> {
     /// `/proc/stat` busy percentage since the previous ping; `None` on the first ping only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_busy_pct: Option<f32>,
-    /// A lifecycle command or the warm-up is running (D13).
+    /// A lifecycle command is running.
     pub busy: bool,
     /// Boot phase (D13).
     pub phase: Phase,
@@ -190,7 +155,7 @@ pub struct ListeningPortWire {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivityDirective {
-    /// Unix ms; `null` for prebuilds.
+    /// Unix ms; `null` when there is no idle deadline.
     pub idle_stop_at: Option<u64>,
     /// Unix ms.
     pub session_cap_at: Option<u64>,
@@ -277,20 +242,6 @@ impl ControlPlane {
             .call(MAX_TRIES, || self.request(reqwest::Method::GET, "manifest"))
             .await?;
         Manifest::parse(&bytes).map_err(|error| ControlPlaneError::Decode(error.to_string()))
-    }
-
-    /// `POST {api}/sandboxes/{name}/git-token`. A `404 host_unsupported` / `403 repo_not_allowed`
-    /// surfaces as [`ControlPlaneError::Status`] so the helper can fall through (§3.13).
-    pub async fn git_token(
-        &self,
-        req: GitTokenRequest<'_>,
-    ) -> Result<GitTokenResponse, ControlPlaneError> {
-        let bytes = self
-            .call(MAX_TRIES, || {
-                self.request(reqwest::Method::POST, "git-token").json(&req)
-            })
-            .await?;
-        decode(&bytes)
     }
 
     /// `POST {api}/sandboxes/{name}/ports`; a 4xx (no free slot, bad port) surfaces as

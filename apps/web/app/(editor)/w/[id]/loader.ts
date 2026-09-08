@@ -12,12 +12,11 @@ export function bundleUrl(build: string, file: string): string {
   return `/editor/${encodeURIComponent(build)}/${file}`;
 }
 
-/** The bundle is absent (a deployment without `pnpm prebuild`) or is the development stub. */
+/** The requested editor bundle could not be loaded. */
 export class BundleError extends Error {
-  /** `bundle_missing` (nothing served) or `bundle_not_built` (the placeholder stub). */
-  readonly code: "bundle_missing" | "bundle_not_built";
+  readonly code: "bundle_missing";
 
-  constructor(code: "bundle_missing" | "bundle_not_built", message: string) {
+  constructor(code: "bundle_missing", message: string) {
     super(message);
     this.name = "BundleError";
     this.code = code;
@@ -52,7 +51,7 @@ export interface BootInput {
   onStage?: (stage: ZsBootStage, detail: string) => void;
 }
 
-/** The seam the shell and its tests swap out. */
+/** Starts the editor from the browser shell. */
 export type BootRunner = (input: BootInput) => Promise<BootedEditor>;
 
 interface LoaderGlobals {
@@ -82,9 +81,6 @@ export async function loadZedWeb(build: string): Promise<ZedWebModule> {
       "bundle_missing",
       `The editor bundle ${url} could not be loaded (${err instanceof Error ? err.message : String(err)}).`,
     );
-  }
-  if (mod.zsStub === true) {
-    throw new BundleError("bundle_not_built", `${url} is the placeholder stub: no editor bundle was built for ${build}.`);
   }
   if (typeof mod.default !== "function" || typeof mod.start !== "function") {
     throw new BundleError("bundle_missing", `${url} does not export the wasm loader contract.`);

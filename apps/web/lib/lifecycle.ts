@@ -45,7 +45,7 @@ const WORKFLOWS: Record<LifecycleWorkflowName, AnyWorkflow> = {
   gc: gc as AnyWorkflow,
 };
 
-/** Starts a workflow that is not bound to one workspace (`prebuild`, `gc`). */
+/** Starts a workflow that is not bound to one workspace, such as garbage collection. */
 export async function startRun(name: LifecycleWorkflowName, args: unknown): Promise<{ runId: string }> {
   const run = await start(WORKFLOWS[name] as (...a: unknown[]) => Promise<unknown>, [args]);
   return { runId: run.runId };

@@ -1,22 +1,16 @@
-# Build context for sandbox/image/Dockerfile is the repository root (sandbox/image/build.sh).
-# Only sandbox/supervisor/ and sandbox/image/dist/ are needed; everything else is noise.
-.git
-.gitignore
-.env*
-**/.env*
-.github
-.zs-logs
-.vercel
-apps
-docs
-infra
-zed
-*.md
-**/node_modules
-**/.next
-**/.turbo
-**/target
-sandbox/image/test
-# Fixtures written by sandbox/image/test/run-local.sh; the image only needs dist/zed-remote-server.
-sandbox/image/dist/test
-sandbox/image/dist/image.json
+# Only supervisor sources and runtime assets belong in the image build context.
+**
+!sandbox
+!sandbox/supervisor
+!sandbox/supervisor/Cargo.toml
+!sandbox/supervisor/Cargo.lock
+!sandbox/supervisor/src
+!sandbox/supervisor/src/**
+!sandbox/image
+!sandbox/image/Dockerfile
+!sandbox/image/dist
+!sandbox/image/dist/zed-remote-server
+!sandbox/image/export-project.py
+!sandbox/image/kernel.py
+!sandbox/image/patch-astro.mjs
+!sandbox/image/repl-requirements.txt

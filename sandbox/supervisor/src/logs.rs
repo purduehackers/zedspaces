@@ -63,8 +63,7 @@ pub struct LogEntry {
     pub ts: u64,
     /// `"error" | "warn" | "info" | "debug" | "trace"`.
     pub level: &'static str,
-    /// `"server" | "agent" | "post_create" | "post_start" | "post_attach" | "dotfiles" | "proxy" |
-    /// "prebuild" | "warm"`, or `"server:<module_path>"` when the server line carries one.
+    /// Log source, or `"server:<module_path>"` when the server line carries a module.
     pub source: String,
     /// ≤ [`MAX_MSG_BYTES`] after [`scrub`].
     pub msg: String,
@@ -106,10 +105,6 @@ pub enum LogSource {
     Dotfiles,
     /// Private-port proxy events.
     Proxy,
-    /// Prebuild steps.
-    Prebuild,
-    /// LSP warm-up client.
-    Warm,
     /// The manifest's optional services (`dockerd`; b10 §3.16, CONTRACTS §7.6).
     Services,
 }
@@ -125,8 +120,6 @@ impl LogSource {
             LogSource::PostAttach => "post_attach",
             LogSource::Dotfiles => "dotfiles",
             LogSource::Proxy => "proxy",
-            LogSource::Prebuild => "prebuild",
-            LogSource::Warm => "warm",
             LogSource::Services => "services",
         }
     }

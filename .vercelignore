@@ -1,8 +1,6 @@
 # CLI deployment starts at this repository root; editor assets are fetched in prebuild.
 zed
 sandbox
-docs
-infra
 .github
 .agents
 skills-lock.json
@@ -12,15 +10,10 @@ apps/web/.env*
 apps/web/.zs-dev
 apps/web/.next*
 apps/web/node_modules
-apps/web/test-results
-apps/web/playwright-report
-apps/web/coverage
 apps/web/.workflow-data
-apps/web/.workflow-vitest
 apps/web/.swc
 apps/web/app/.well-known/workflow
 apps/web/public/editor
-apps/web/tests
 apps/web/*.tsbuildinfo
 apps/web/release-record.json
 deployment-url.txt

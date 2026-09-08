@@ -49,8 +49,6 @@ pub enum Phase {
     PostCreate,
     /// Running `postStartCommand`.
     PostStart,
-    /// Prebuild only: LSP warm-up.
-    Warm,
     /// Steady state.
     Ready,
 }
@@ -88,7 +86,7 @@ pub struct AgentStateInner {
     pub server_health: Option<ServerHealth>,
     /// First `session_active == true` observed this boot (drives postAttach).
     pub session_seen: bool,
-    /// Number of lifecycle commands / warm-ups running right now (D13 `busy = count > 0`);
+    /// Number of lifecycle commands running right now (`busy = count > 0`);
     /// postAttach can overlap postCreate/postStart, so a bool that either could clear was
     /// wrong.
     pub busy_count: usize,
@@ -176,7 +174,7 @@ pub struct HealthReport {
     pub region: Option<String>,
     /// Resumed boot.
     pub resumed: bool,
-    /// Lifecycle command or warm-up running.
+    /// Lifecycle command running.
     pub busy: bool,
     /// Agent uptime.
     pub uptime_secs: u64,
@@ -314,7 +312,7 @@ impl AgentState {
         }
     }
 
-    /// D13: a lifecycle command or the warm-up is running.
+    /// Whether a lifecycle command is running.
     pub fn busy(&self) -> bool {
         self.inner.read().busy_count > 0
     }

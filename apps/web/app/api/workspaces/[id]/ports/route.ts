@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 /** Current forwards, discovered listeners and remaining preview capacity. */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
-  const { workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { workspace } = await requireWorkspaceParam(ctx);
   const ports = await forwardViews(workspace.id);
   const used = ports.filter((forward) => forward.slot !== null).length;
   return json({
@@ -23,7 +23,7 @@ export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
 
 /** Explicitly forward a port or change its visibility. */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true, control: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   const input = await parseBody(req, createForwardInput);
   const forward = await createForward(workspace, input);
 
@@ -44,7 +44,7 @@ export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
  * its proxy slot. Removing a port that is not forwarded is a no-op.
  */
 export const DELETE = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true, control: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   const raw = new URL(req.url).searchParams.get("port");
   const port = Number(raw);
   if (!raw || !Number.isInteger(port) || port < 1 || port > 65535) {

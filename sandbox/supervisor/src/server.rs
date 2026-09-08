@@ -64,7 +64,7 @@ pub struct ServerSpec {
     pub bin: PathBuf,
     /// `--listen` (default `0.0.0.0:8443`).
     pub listen: SocketAddr,
-    /// `manifest.jwt.publicKeys` materialised (§3.14), plus the prebuild warm-up key (§3.16a).
+    /// Materialized `manifest.jwt.publicKeys`.
     pub jwt_key_files: Vec<PathBuf>,
     /// `--workspace-id`.
     pub workspace_id: String,

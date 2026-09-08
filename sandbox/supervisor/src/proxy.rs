@@ -7,11 +7,10 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{Context as _, anyhow};
+use anyhow::Context as _;
 use bytes::Bytes;
 use http_body_util::{BodyExt as _, Full};
 use hyper::body::Incoming;
@@ -27,13 +26,10 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::PROXY_SLOTS;
 use crate::logs::{LogEntry, LogShipper, LogSource, now_ms, scrub};
-use crate::manifest::{Forward, Visibility};
 use crate::port_auth::{
     AuthError, BOOTSTRAP_MAX_AGE_SECS, BOOTSTRAP_PARAM, COOKIE_NAME, COOKIE_TTL_SECS, PortSession,
-    PortTokenCodec, clear_cookie_header, cookie_from_header, decode_secret, safe_next,
-    set_cookie_header,
+    PortTokenCodec, clear_cookie_header, cookie_from_header, safe_next, set_cookie_header,
 };
 use crate::ports::{ListeningState, is_infra_port};
 use crate::state::{AgentState, ForwardsState, SlotError};
@@ -125,29 +121,6 @@ impl SessionGuard {
 
 fn prune(map: &mut HashMap<String, u64>, now: u64) {
     map.retain(|_, exp| *exp > now);
-}
-
-/// `zs-agent proxy` arguments (brief §3.17): run only the proxy slots, without a manifest.
-#[derive(clap::Args, Debug, Clone)]
-pub struct ProxyArgs {
-    /// Bind address for every slot.
-    #[arg(long, default_value = "0.0.0.0")]
-    pub bind_ip: IpAddr,
-    /// Subset of the proxy slots to run (default: all of `8444,8445,8446,8447`).
-    #[arg(long)]
-    pub slot: Vec<u16>,
-    /// File holding the base64 `portSessionSecret` (bootstrap key).
-    #[arg(long, required = true)]
-    pub secret_file: PathBuf,
-    /// Expected `ws` claim.
-    #[arg(long)]
-    pub workspace_id: String,
-    /// Initial `<slot>=<port>` bindings (tests).
-    #[arg(long)]
-    pub bind: Vec<String>,
-    /// Omit `Secure` on cookies (plain http tests).
-    #[arg(long)]
-    pub insecure_cookies: bool,
 }
 
 /// Everything one slot's connection tasks share.
@@ -280,117 +253,6 @@ pub async fn serve(
         });
     }
     tracing::info!(slot, "proxy slot stopped");
-}
-
-/// `zs-agent proxy`: builds one [`ProxyConfig`] per requested slot from [`ProxyArgs`] and runs
-/// them until `SIGTERM`/`SIGINT`. Used by the image smoke test and by operators; it reads no
-/// manifest, so `--bind` seeds the forward list the control plane would otherwise supply.
-pub async fn run_standalone(args: ProxyArgs) -> anyhow::Result<()> {
-    let secret_text = std::fs::read_to_string(&args.secret_file)
-        .with_context(|| format!("reading {}", args.secret_file.display()))?;
-    let key = decode_secret(&secret_text)
-        .map_err(|error| anyhow!("{}: {error}", args.secret_file.display()))?;
-    let slots = if args.slot.is_empty() {
-        PROXY_SLOTS.to_vec()
-    } else {
-        args.slot.clone()
-    };
-    let forwards = ForwardsState::with_slots(&slots);
-    for spec in &args.bind {
-        let (slot, port) = parse_bind(spec)?;
-        if !slots.contains(&slot) {
-            return Err(anyhow!("--bind {spec}: {slot} is not one of the slots"));
-        }
-        if is_infra_port(port) || port == 0 {
-            return Err(anyhow!("--bind {spec}: {port} is not a forwardable port"));
-        }
-        forwards.insert(Forward {
-            port,
-            visibility: Visibility::Private,
-            label: None,
-            url: None,
-            slot: Some(slot),
-        });
-    }
-
-    let bootstrap = Arc::new(PortTokenCodec::new(key));
-    let cookies = Arc::new(PortTokenCodec::random());
-    let listening = ListeningState::default();
-    let sessions = Arc::new(SessionGuard::default());
-    let configs: Vec<ProxyConfig> = slots
-        .iter()
-        .map(|slot| ProxyConfig {
-            slot: *slot,
-            listen: SocketAddr::new(args.bind_ip, *slot),
-            bootstrap: bootstrap.clone(),
-            cookies: cookies.clone(),
-            workspace_id: args.workspace_id.clone(),
-            secure_cookies: !args.insecure_cookies,
-            forwards: forwards.clone(),
-            listening: listening.clone(),
-            sessions: sessions.clone(),
-        })
-        .collect();
-
-    let build = std::env::var("ZS_BUILD_ID").unwrap_or_else(|_| "dev".to_string());
-    let state = AgentState::new(build, None);
-    let shutdown = CancellationToken::new();
-    spawn_signal_handler(shutdown.clone());
-
-    let mut bound = Vec::with_capacity(configs.len());
-    for config in configs {
-        let listener = bind(&config)
-            .await
-            .with_context(|| format!("binding proxy slot {} on {}", config.slot, config.listen))?;
-        bound.push((listener, config));
-    }
-    state.update(|inner| inner.proxy_running = true);
-    let mut tasks = Vec::with_capacity(bound.len());
-    for (listener, config) in bound {
-        tasks.push(tokio::spawn(serve(
-            listener,
-            config,
-            None,
-            shutdown.clone(),
-        )));
-    }
-    for task in tasks {
-        let _ = task.await;
-    }
-    Ok(())
-}
-
-/// `SIGTERM`/`SIGINT` → cancel, for the standalone proxy (the full agent installs its own).
-fn spawn_signal_handler(shutdown: CancellationToken) {
-    tokio::spawn(async move {
-        use tokio::signal::unix::{SignalKind, signal};
-        let (Ok(mut term), Ok(mut interrupt)) = (
-            signal(SignalKind::terminate()),
-            signal(SignalKind::interrupt()),
-        ) else {
-            return;
-        };
-        tokio::select! {
-            _ = term.recv() => {}
-            _ = interrupt.recv() => {}
-        }
-        shutdown.cancel();
-    });
-}
-
-/// `"<slot>=<port>"`.
-fn parse_bind(spec: &str) -> anyhow::Result<(u16, u16)> {
-    let (slot, port) = spec
-        .split_once('=')
-        .ok_or_else(|| anyhow!("--bind {spec}: expected <slot>=<port>"))?;
-    Ok((
-        slot.trim()
-            .parse()
-            .with_context(|| format!("--bind {spec}: slot"))?,
-        port.trim()
-            .parse()
-            .with_context(|| format!("--bind {spec}: port"))?,
-    ))
 }
 
 /// Request flow (§3.11): `/__zs/auth` bootstrap → cookie → forward (origin-form URI, hop-by-hop

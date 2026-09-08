@@ -15,7 +15,7 @@
  *   4. removes bundle directories that are neither kept nor local (`dev-*`).
  *
  * Without a source or a build id the script exits 0 and leaves
- * `public/editor/` alone (local development with the `dev-0` stub).
+ * `public/editor/` alone (locally compiled bundles).
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

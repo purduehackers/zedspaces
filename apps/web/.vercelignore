@@ -4,16 +4,11 @@
 .zs-dev
 .next*
 node_modules
-test-results
-playwright-report
-coverage
 .workflow-data
-.workflow-vitest
 .swc
 app/.well-known/workflow
 public/editor/*
 !public/editor/.gitkeep
-tests
 *.tsbuildinfo
 !.pnpmfile.cjs
 release-record.json

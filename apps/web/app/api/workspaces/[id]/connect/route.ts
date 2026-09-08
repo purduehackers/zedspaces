@@ -50,7 +50,7 @@ function sleep(ms: number): Promise<void> {
  */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
   // Connecting attaches to the VM (terminals, files, secrets): owner or org admin only.
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true, control: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   await limit("user.connect", viewer.userId);
   const input = await parseBody(req, connectInput);
 

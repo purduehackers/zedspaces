@@ -203,7 +203,6 @@ export const bootPhaseSchema = z.enum([
   "dotfiles",
   "post_create",
   "post_start",
-  "warm",
   "ready",
 ]);
 export type BootPhase = z.infer<typeof bootPhaseSchema>;
@@ -256,21 +255,6 @@ export interface ActivityDirective {
   serverTime: number;
 }
 
-/** `POST /api/sandboxes/{name}/git-token` body (an empty body means "the workspace repository"). */
-export const gitTokenInput = z.object({
-  host: z.string().optional(),
-  protocol: z.string().optional(),
-  path: z.string().optional(),
-});
-
-/** `POST /api/sandboxes/{name}/git-token` response. */
-export interface GitTokenResponse {
-  username: "x-access-token" | "";
-  token: string;
-  /** RFC 3339 (`Date.toISOString()`). */
-  expiresAt: string;
-}
-
 /** `POST /api/sandboxes/{name}/ports` body. */
 export const sandboxPortInput = z.object({
   port: userPortSchema,
@@ -316,7 +300,7 @@ export const installedExtensions = z.object({
   installed: z.array(z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)).max(200),
 });
 
-/** Log sources a workspace or prebuild supervisor may report (CONTRACTS §7.6 plus `services`, b10 §3.16). */
+/** Log sources a workspace supervisor may report. */
 export const SUPERVISOR_LOG_SOURCES = [
   "server",
   "agent",
@@ -325,8 +309,6 @@ export const SUPERVISOR_LOG_SOURCES = [
   "post_attach",
   "dotfiles",
   "proxy",
-  "prebuild",
-  "warm",
   "services",
 ] as const;
 
@@ -412,7 +394,6 @@ export const sandboxManifestSchema = z
     activity: z.object({ intervalSecs: z.literal(30) }),
     allowedOrigins: z.array(z.string().url()),
     extensions: z.array(z.string()),
-    prebuild: z.object({ id: z.string(), branch: z.string(), commit: z.string() }).nullable().optional(),
   })
   .passthrough();
 

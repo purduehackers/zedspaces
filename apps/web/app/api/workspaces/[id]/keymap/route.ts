@@ -11,13 +11,13 @@ export const runtime = "nodejs";
  * editor shell; accepts the `zs_editor` cookie like its `settings` sibling.
  */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
-  const { viewer } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { viewer } = await requireWorkspaceParam(ctx);
   return json(await readDoc(viewer.userId, "keymap"));
 });
 
 /** `PUT /api/workspaces/{id}/keymap` – b7's `saveDocument("keymap", …)` target; `409 version_conflict` on a stale version. */
 export const PUT = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const { viewer } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { viewer } = await requireWorkspaceParam(ctx);
   await ensureUser(viewer);
   const input = await parseBody(req, putSettingsDocInput, { maxBytes: MAX_DOC_BYTES + 4096 });
   return json(await writeDoc(viewer.userId, "keymap", input.content, input.version));

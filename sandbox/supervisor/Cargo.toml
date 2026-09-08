@@ -9,7 +9,6 @@ edition = "2024"
 rust-version = "1.85"
 publish = false
 description = "In-sandbox supervisor for Zed Codespaces workspaces"
-build = "build.rs"
 
 [lib]
 name = "zs_agent"
@@ -34,9 +33,7 @@ hyper = { version = "1.7", features = ["http1", "server", "client"] }
 hyper-util = { version = "0.1.17", features = ["tokio"] }
 jsonwebtoken = { version = "10.3", default-features = false, features = ["use_pem", "rust_crypto"] }
 nix = { version = "0.29", features = ["signal", "process", "user"] }   # `user`: User::from_uid for the USER fill (b10 §3.16)
-p256 = "0.13.2"   # ephemeral prebuild warm-up key: PKCS#8/SPKI PEM for jsonwebtoken (§3.16a)
 parking_lot = "0.12"
-prost = "0.14"
 rand = "0.9"
 regex = "1.11"
 reqwest = { version = "0.12.24", default-features = false, features = ["rustls-tls-native-roots", "json", "stream"] }
@@ -52,10 +49,6 @@ tokio-tungstenite = { version = "0.21", default-features = false, features = ["h
 tokio-util = { version = "0.7.18", features = ["io", "codec"] }
 tracing = "0.1.43"
 tracing-subscriber = { version = "0.3.22", features = ["json", "env-filter"] }
-
-[build-dependencies]
-prost-build = "0.14"
-protox = "0.9"
 
 [profile.release]
 opt-level = "z"

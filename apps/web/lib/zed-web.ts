@@ -143,7 +143,6 @@ export interface ZedWebModule {
   build_id(): string;
   set_update_status(statusJson: string): void;
   /** Present only in the development stub of §"bundle not built" (public/editor/README.md). */
-  zsStub?: boolean;
 }
 
 /** The wasm instance wasm-bindgen's init resolves to. */

@@ -62,7 +62,6 @@ const TERMINAL_BOOT_CODES: ReadonlySet<string> = new Set([
   "settings",
   "database",
   "window",
-  "bundle_not_built",
   "bundle_missing",
 ]);
 
@@ -79,7 +78,6 @@ const BOOT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   reconnect_exhausted: "Lost the connection to your workspace.",
   boot_timeout: "The editor took too long to start.",
   cancelled: "The editor start was cancelled.",
-  bundle_not_built: "The editor bundle has not been built for this deployment.",
   bundle_missing: "The editor bundle is missing from this deployment.",
 };
 

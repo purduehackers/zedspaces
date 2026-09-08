@@ -108,7 +108,7 @@ export interface CreateSandboxInput {
   ports: number[];
   timeoutMs: number;
   image?: string;
-  /** A prebuild snapshot. A git source is never used: the supervisor clones (D19). */
+  /** A saved workspace snapshot. The supervisor handles Git cloning. */
   source?: { type: "snapshot"; snapshotId: string };
   env: Record<string, string>;
   networkPolicy: "allow-all" | { allow: string[] };

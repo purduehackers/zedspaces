@@ -423,7 +423,7 @@ pub struct ReportSnapshot {
     pub status: HealthStatus,
     /// Boot phase.
     pub phase: Phase,
-    /// A lifecycle command or the warm-up is running.
+    /// A lifecycle command is running.
     pub busy: bool,
     /// Seconds since the agent started.
     pub agent_uptime_secs: u64,

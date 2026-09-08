@@ -186,7 +186,6 @@ const BOOT_PHASES = new Set([
   "dotfiles",
   "post_create",
   "post_start",
-  "warm",
   "ready",
 ]);
 

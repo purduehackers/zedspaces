@@ -1,5 +1,4 @@
-//! Orchestration for `start` (create **and** resume – `resume` is `start --resumed`) and
-//! `prebuild` (brief §3.16; D14). Exit codes are in [`BootError`].
+//! Workspace start/resume orchestration. Exit codes are in [`BootError`].
 //!
 //! `start` sequence: pid/run dir + control secret → SIGTERM handlers → listeners 8448 + 8450 and
 //! the log shipper up **first** → manifest (fatal exit 3 after a 60 s grace) → JWT keys,
@@ -34,13 +33,12 @@ use crate::server::{
     self, LOG_FLUSH_DEADLINE, LifecycleBody, ServerControl, ServerSpec, Supervisor,
 };
 use crate::state::{AgentState, ForwardsState, HealthStatus, Phase};
-use crate::warm;
 
 /// Exit code: success.
 pub const EXIT_OK: u8 = 0;
 /// Exit code: generic failure.
 pub const EXIT_GENERIC: u8 = 1;
-/// Exit code: configuration error (incl. `start` under `ZS_PREBUILD=1`).
+/// Exit code: configuration error.
 pub const EXIT_CONFIG: u8 = 2;
 /// Exit code: manifest unavailable.
 pub const EXIT_MANIFEST: u8 = 3;
@@ -50,7 +48,7 @@ pub const EXIT_REPO: u8 = 4;
 /// How long both listeners stay up after a fatal manifest failure before the process exits 3.
 /// Under D21 the public `8448` body is minimal, so the reason is readable only on the loopback
 /// API (`runCommand curl 127.0.0.1:8450/health` → `lastError`); b9's `waitUntilReady` keys the
-/// fast-fail on the supervisor command's exit code (`docs/contracts/sandbox-api.md`).
+/// fast-fail on the supervisor command's exit code.
 pub const MANIFEST_FAILURE_GRACE: Duration = Duration::from_secs(60);
 /// Readiness budget for the freshly spawned server; missing it is `degraded`, not fatal.
 pub const SERVER_READY_TIMEOUT: Duration = Duration::from_secs(60);
@@ -69,9 +67,6 @@ pub const LIFECYCLE_CANCEL_GRACE: Duration = Duration::from_secs(1);
 /// How long a previous `zs-agent` (a live pid-file holder) gets to leave after `SIGTERM` before
 /// this boot goes on and binds the listeners regardless.
 pub const PREVIOUS_AGENT_GRACE: Duration = Duration::from_secs(3);
-/// File name of the prebuild warm-up public key inside `jwt/` (§3.16a; CONTRACTS §6.2).
-pub const WARM_KEY_FILE: &str = "key-warm.pem";
-
 /// `zs-agent start` arguments.
 #[derive(clap::Args, Debug, Clone, Default)]
 pub struct StartArgs {
@@ -110,14 +105,8 @@ impl BootError {
     }
 }
 
-/// `zs-agent start` / `zs-agent resume`: refuses to run under `ZS_PREBUILD=1` (exit 2), then the
-/// boot sequence described in the module docs.
+/// Runs the start/resume boot sequence.
 pub async fn run(args: StartArgs, config: Config) -> anyhow::Result<()> {
-    if config.prebuild {
-        return Err(
-            BootError::Config("ZS_PREBUILD=1 is set; use `zs-agent prebuild`".to_string()).into(),
-        );
-    }
     let config = Arc::new(config);
     let boot = Boot::start(config, args.resumed).await?;
     boot.run().await
@@ -337,7 +326,7 @@ impl Boot {
         }
 
         // Step 4: the server, the proxy slots and the port watcher.
-        let supervisor = self.spawn_server(&manifest, &child_env, None).await?;
+        let supervisor = self.spawn_server(&manifest, &child_env).await?;
         if self.shutdown.is_cancelled() {
             // SIGTERM (or `stop: true`) arrived while the server was coming up: go straight to
             // the stop sequence instead of starting more work.
@@ -497,23 +486,15 @@ impl Boot {
 
     /// §3.16 step 4: clear a leftover server, spawn ours and wait for its `/health`. The
     /// readiness wait races the shutdown token so a `SIGTERM` during a slow start is honoured at
-    /// once (b9 waits ≤ 25 s on the stop). `warm_key_pem` (prebuild only) is written as
-    /// [`WARM_KEY_FILE`] and passed as one extra `--jwt-public-key`.
+    /// once.
     async fn spawn_server(
         &mut self,
         manifest: &Arc<Manifest>,
         child_env: &BTreeMap<String, String>,
-        warm_key_pem: Option<&str>,
     ) -> anyhow::Result<Option<Arc<Supervisor>>> {
         self.state.set_phase(Phase::ServerStarting);
         let jwt_dir = self.config.jwt_dir();
-        let mut jwt_keys = write_jwt_keys(&manifest.jwt.public_keys, &jwt_dir)?;
-        if let Some(pem) = warm_key_pem {
-            jwt_keys.push(bootstrap::write_pem_file(
-                &jwt_dir.join(WARM_KEY_FILE),
-                pem,
-            )?);
-        }
+        let jwt_keys = write_jwt_keys(&manifest.jwt.public_keys, &jwt_dir)?;
         let spec = ServerSpec {
             bin: self.config.server_bin.clone(),
             listen: self.config.rpc_listen,
@@ -804,7 +785,7 @@ impl Boot {
     ///
     /// The shutdown token is cancelled **before** the child is stopped: `Supervisor::run` reads
     /// it when the child exits to tell a deliberate stop from a crash, so cancelling it later
-    /// (the prebuild's normal exit, a `postCreateCommand` failure) would ship a bogus
+    /// (for example, after a `postCreateCommand` failure) would ship a bogus
     /// `server_crash` report, bump `restarts` and race a respawn against the task abort.
     async fn finish(mut self, supervisor: Option<Arc<Supervisor>>) {
         self.state.set_status(HealthStatus::Stopping);
@@ -1002,248 +983,6 @@ fn install_signal_handlers(shutdown: CancellationToken) {
         }
         shutdown.cancel();
     });
-}
-
-/// `zs-agent prebuild` (D14): requires `ZS_PREBUILD=1`; manifest, clone, server with the
-/// ephemeral warm-up key, `POST /control/extensions`, `postCreateCommand`, `warm::run` with
-/// `min(15 min, 48 min − elapsed)`, optional `ZS_PREBUILD_WARM_CMD`, `stop_child`, log flush,
-/// exit 0 (non-zero on manifest/clone/postCreate failure; warm-up failures are logged only).
-pub async fn run_prebuild(config: Config) -> anyhow::Result<()> {
-    if !config.prebuild {
-        return Err(BootError::Config("prebuild requires ZS_PREBUILD=1".to_string()).into());
-    }
-    let config = Arc::new(config);
-    let boot = Boot::start(config, false).await?;
-    boot.run_prebuild().await
-}
-
-/// Whole-prebuild budget the warm-up must fit inside; the control plane gives up at 50 min
-/// (b9 §4.8), so everything after `postCreateCommand` is capped at 48 min from boot.
-pub const PREBUILD_TOTAL_BUDGET: Duration = Duration::from_secs(48 * 60);
-/// Shell command run after the language-server warm-up (`repos.prebuild_warm_command`).
-pub const PREBUILD_WARM_CMD_VAR: &str = "ZS_PREBUILD_WARM_CMD";
-
-impl Boot {
-    /// The prebuild boot (§3.16 "prebuild sequence"; D14). Steps 1-3 are the same as `start`
-    /// minus the dotfiles and the activity relay (`idleStopAt` is null for prebuilds and nothing
-    /// consumes the pings); then the server comes up trusting one extra, ephemeral warm-up key,
-    /// the extension install list and `postCreateCommand` populate the disk, the headless warm-up
-    /// starts (and downloads) every language server into `languages_dir()`, the optional
-    /// `ZS_PREBUILD_WARM_CMD` runs with whatever budget is left, and the process exits 0 so the
-    /// control plane can snapshot. Warm-up failures are logged, never fatal.
-    async fn run_prebuild(mut self) -> anyhow::Result<()> {
-        let started = std::time::Instant::now();
-        let manifest = match self.fetch_manifest().await {
-            Ok(manifest) => Arc::new(manifest),
-            Err(error) => {
-                self.shutdown_tasks().await;
-                return Err(error);
-            }
-        };
-        tracing::info!(
-            prebuild = ?manifest.prebuild.as_ref().map(|spec| &spec.id),
-            "prebuild boot"
-        );
-
-        // Step 3: the checkout, the settings and the devcontainer.
-        self.state.set_phase(if manifest.restore.is_some() {
-            Phase::Restore
-        } else {
-            Phase::Clone
-        });
-        let materialized = bootstrap::materialize_repo(
-            &manifest,
-            &self.config,
-            &self.control,
-            &self.logs,
-            &self.shutdown,
-        )
-        .await;
-        if let Err(error) = materialized {
-            if error.downcast_ref::<Cancelled>().is_some() {
-                self.finish(None).await;
-                return Ok(());
-            }
-            self.state.set_error(format!("repo: {error}"));
-            self.state.set_status(HealthStatus::Degraded);
-            self.shutdown_tasks().await;
-            return Err(BootError::Repo(error.to_string()).into());
-        }
-        let (devcontainer, devcontainer_marker) =
-            match bootstrap::effective_devcontainer(&manifest, &manifest.workspace_dir) {
-                Ok(Some((config, marker))) => (Some(config), Some(marker)),
-                Ok(None) => (None, None),
-                Err(error) => {
-                    tracing::warn!(error = %error, "devcontainer.json could not be parsed");
-                    self.state.set_error(format!("devcontainer: {error}"));
-                    (None, None)
-                }
-            };
-        let overlay = devcontainer
-            .as_ref()
-            .and_then(|config| config.settings_overlay().cloned());
-        if let Some(docs) = &manifest.settings
-            && let Err(error) =
-                bootstrap::write_settings(docs, overlay.as_ref(), &self.config.home, &self.markers)
-        {
-            tracing::warn!(error = %error, "could not write the workspace settings");
-        }
-        let remote_env = devcontainer
-            .as_ref()
-            .map(|config| config.expand_remote_env(&manifest.env))
-            .unwrap_or_default();
-        let child_env = self.config.child_env(&manifest.env, &remote_env);
-
-        // Step 4: the server, trusting the manifest's keys **plus** the warm-up's ephemeral key
-        // (`jwt/key-warm.pem`, one extra `--jwt-public-key`); the private half never leaves this
-        // process.
-        let warm_key = warm::generate_warm_key()?;
-        let supervisor = self
-            .spawn_server(&manifest, &child_env, Some(&warm_key.public_pem))
-            .await?;
-        if self.shutdown.is_cancelled() {
-            self.finish(supervisor).await;
-            return Ok(());
-        }
-
-        // Step 5: the extensions land in the snapshot (b4 §3.15 item 7), so this is awaited
-        // rather than spawned.
-        let install = extension_install_list(&manifest, devcontainer.as_ref());
-        if !install.is_empty() {
-            match self.server_control.post_extensions(&install).await {
-                Ok(()) => tracing::info!(count = install.len(), "extensions requested"),
-                Err(error) => tracing::warn!(error = %error, "extension hand-off failed"),
-            }
-        }
-
-        // Step 6: the post-create sequence (D37), once per devcontainer hash. A failure fails the prebuild.
-        if !self.shutdown.is_cancelled() {
-            let marker = devcontainer_marker
-                .clone()
-                .unwrap_or_else(|| post_create_marker(None));
-            if self.markers.needs_post_create(&marker) {
-                self.state.set_phase(Phase::PostCreate);
-                let stages = devcontainer
-                    .as_ref()
-                    .map(bootstrap::post_create_stages)
-                    .unwrap_or_default();
-                if !stages.is_empty() {
-                    if let Err(error) = bootstrap::run_lifecycle_sequence(
-                        stages,
-                        &manifest.workspace_dir,
-                        &child_env,
-                        bootstrap::POST_CREATE_TIMEOUT,
-                        LogSource::PostCreate,
-                        &self.logs,
-                        &self.state,
-                        &self.shutdown,
-                    )
-                    .await
-                    {
-                        tracing::error!(error = %error, "postCreateCommand failed");
-                        self.state.set_error(format!("post_create: {error}"));
-                        self.state.set_status(HealthStatus::Degraded);
-                        self.finish(supervisor).await;
-                        return Err(anyhow!("postCreateCommand failed: {error}"));
-                    }
-                }
-                if let Err(error) = self.markers.set_post_create_done(&marker) {
-                    tracing::warn!(error = %error, "could not write the post-create marker");
-                }
-            }
-        }
-
-        // Step 7: the headless warm-up, then the optional warm command, inside what is left of
-        // the 48 min budget (D14; §3.16a).
-        if !self.shutdown.is_cancelled() {
-            let budget = prebuild_remaining(started).min(warm::WARM_BUDGET_MAX);
-            if budget.is_zero() {
-                tracing::warn!("no budget left for the language-server warm-up");
-            } else {
-                match warm::run(
-                    &self.config,
-                    &manifest,
-                    &warm_key,
-                    budget,
-                    &self.logs,
-                    &self.state,
-                    &self.shutdown,
-                )
-                .await
-                {
-                    Ok(outcome) => tracing::info!(
-                        files = outcome.files_opened,
-                        servers = outcome.servers_seen.len(),
-                        settled = outcome.settled,
-                        secs = outcome.elapsed.as_secs(),
-                        "language-server warm-up finished"
-                    ),
-                    // A warm-up that cannot connect costs a colder snapshot, not the prebuild.
-                    Err(error) => {
-                        tracing::warn!(error = %error, "language-server warm-up failed");
-                        self.state.set_error(format!("warm: {error}"));
-                    }
-                }
-            }
-        }
-        // `ZS_PREBUILD_WARM_CMD`, falling back to `customizations.zed.prebuild.command` (b10 §3.16;
-        // the control plane already resolves this server-side, the fallback keeps an older one working).
-        let warm_command = std::env::var(PREBUILD_WARM_CMD_VAR)
-            .ok()
-            .filter(|command| !command.trim().is_empty())
-            .or_else(|| {
-                manifest
-                    .devcontainer
-                    .as_ref()
-                    .and_then(|spec| spec.zed.prebuild.as_ref())
-                    .and_then(|hints| hints.command.clone())
-                    .filter(|command| !command.trim().is_empty())
-            });
-        if !self.shutdown.is_cancelled()
-            && let Some(command) = warm_command
-        {
-            let remaining = prebuild_remaining(started);
-            if remaining.is_zero() {
-                tracing::warn!("no budget left for {PREBUILD_WARM_CMD_VAR}");
-            } else {
-                let specs = bootstrap::lifecycle_specs(
-                    &crate::manifest::LifecycleCommand::Shell(command),
-                    "prebuild_warm",
-                );
-                if let Err(error) = bootstrap::run_lifecycle(
-                    specs,
-                    &manifest.workspace_dir,
-                    &child_env,
-                    remaining,
-                    LogSource::Prebuild,
-                    &self.logs,
-                    &self.state,
-                    &self.shutdown,
-                )
-                .await
-                {
-                    tracing::warn!(error = %error, "{PREBUILD_WARM_CMD_VAR} failed");
-                    self.state.set_error(format!("prebuild_warm: {error}"));
-                }
-            }
-        }
-
-        // Step 8: the warm-up key is per boot; nothing of it may reach the snapshot.
-        let warm_key_file = self.config.jwt_dir().join(WARM_KEY_FILE);
-        if let Err(error) = std::fs::remove_file(&warm_key_file)
-            && error.kind() != std::io::ErrorKind::NotFound
-        {
-            tracing::warn!(error = %error, path = %warm_key_file.display(), "could not remove the warm-up key");
-        }
-        self.state.set_phase(Phase::Ready);
-        self.finish(supervisor).await;
-        Ok(())
-    }
-}
-
-/// Time left of [`PREBUILD_TOTAL_BUDGET`] since the boot started.
-fn prebuild_remaining(started: std::time::Instant) -> Duration {
-    PREBUILD_TOTAL_BUDGET.saturating_sub(started.elapsed())
 }
 
 /// `zs-agent stop`: `SIGTERM` the pid-file process and wait ≤ `timeout` for it to exit.

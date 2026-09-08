@@ -1,6 +1,4 @@
-//! Serde types for the `SandboxManifest` (brief §3.4, §4.1; b9 §4.7; schema
-//! `docs/contracts/sandbox-manifest.v1.json`
-//! per D19) and the supported `devcontainer.json` subset (BUILD-SPEC §6.3).
+//! Workspace manifest and supported devcontainer configuration types.
 //!
 //! Unknown manifest fields are ignored for forward compatibility (b9 also emits
 //! `sandboxGeneration`, `proxySlots` and `jwt.portAudience`, none of which the supervisor reads:
@@ -22,11 +20,11 @@ pub const MANIFEST_VERSION: u32 = 1;
 pub struct Manifest {
     /// Must be [`MANIFEST_VERSION`].
     pub version: u32,
-    /// `== ZS_WORKSPACE_ID` (the prebuild id for `pb-` principals).
+    /// Must match `ZS_WORKSPACE_ID`.
     pub workspace_id: String,
     /// `== ZS_SANDBOX_NAME`.
     pub sandbox_name: String,
-    /// Owner; `"system"` for prebuilds (logs only).
+    /// Shared-space user ID (logs only).
     pub user_id: String,
     /// `workspaces.server_build`; `!= ZS_BUILD_ID` → health `degraded`, not fatal.
     pub build: String,
@@ -84,9 +82,6 @@ pub struct Manifest {
     /// → `POST /control/extensions {"install": …}` after the server is up (D5; BUILD-SPEC §9).
     #[serde(default)]
     pub extensions: Vec<String>,
-    /// `{ id, branch, commit }` for `pb-` principals.
-    #[serde(default)]
-    pub prebuild: Option<PrebuildSpec>,
 }
 
 /// `manifest.repo`.
@@ -97,7 +92,7 @@ pub struct RepoSpec {
     pub owner: String,
     /// Repository name (also the workspace directory name).
     pub name: String,
-    /// HTTPS clone URL; auth comes from the credential helper.
+    /// Public HTTPS clone URL.
     pub clone_url: String,
     /// Default branch.
     pub default_branch: String,
@@ -235,7 +230,7 @@ pub struct DevcontainerSpec {
     /// Services to start beside the server (`dockerd`).
     #[serde(default)]
     pub services: Vec<Service>,
-    /// Allowlisted Feature names present (`node`, `go`, …): the warm-up's implied probes.
+    /// Enabled devcontainer feature names.
     #[serde(default)]
     pub features: Vec<String>,
 }
@@ -335,18 +330,6 @@ impl From<ManifestLifecycleCommand> for LifecycleCommand {
     }
 }
 
-/// `customizations.zed.prebuild`: steering for the warm-up (b10 §3.15).
-#[derive(Clone, Debug, Default, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PrebuildHints {
-    /// Repo-relative probe files opened first.
-    #[serde(default)]
-    pub files: Vec<String>,
-    /// Default for `ZS_PREBUILD_WARM_CMD` when the repo row has none.
-    #[serde(default)]
-    pub command: Option<String>,
-}
-
 /// A service the supervisor starts beside the server (b10 §3.16; D40 resolves b8 §7 item 24).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -405,18 +388,6 @@ impl Default for ActivitySpec {
             interval_secs: d_interval(),
         }
     }
-}
-
-/// `manifest.prebuild` for `pb-` principals.
-#[derive(Clone, Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PrebuildSpec {
-    /// Prebuild id.
-    pub id: String,
-    /// Branch being prebuilt.
-    pub branch: String,
-    /// Commit being prebuilt (`repo.revision` equals it).
-    pub commit: String,
 }
 
 fn d_flush() -> u64 {
@@ -768,9 +739,6 @@ pub struct ZedCustomizations {
     /// The presentation-only settings overlay (already allowlisted by the control plane).
     #[serde(default)]
     pub settings: Option<serde_json::Value>,
-    /// Warm-up steering (b10 §3.15).
-    #[serde(default)]
-    pub prebuild: Option<PrebuildHints>,
     /// Explicit service opt-in besides the `docker-in-docker` Feature.
     #[serde(default)]
     pub services: Vec<Service>,
@@ -841,17 +809,6 @@ impl DevcontainerConfig {
         self.zed()
             .and_then(|zed| zed.settings.as_ref())
             .filter(|value| value.is_object())
-    }
-
-    /// Allowlisted Feature names (`node`, `go`, …) for the warm-up's implied probes.
-    pub fn feature_names(&self) -> Vec<String> {
-        self.features
-            .keys()
-            .map(|id| {
-                let name = id.rsplit('/').next().unwrap_or(id);
-                name.split([':', '@']).next().unwrap_or(name).to_string()
-            })
-            .collect()
     }
 }
 

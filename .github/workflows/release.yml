@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: Publish the verified image/assets and deploy code.purduehackers.com
+        description: Publish matching image/assets and deploy the configured Vercel project
         type: boolean
         default: false
 
@@ -18,10 +18,11 @@ concurrency:
 
 env:
   CARGO_BUILD_JOBS: "2"
-  VERCEL_ORG_ID: team_kOQWJUQYzGW4blWthdK71Y8A
-  VERCEL_PROJECT_ID: prj_jDWaIkR311zy9BgsGQQps51w8LCh
-  VERCEL_TEAM_SLUG: purdue-hackers
-  VERCEL_PROJECT_SLUG: zedspaces
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+  VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+  VERCEL_PROJECT_SLUG: ${{ vars.VERCEL_PROJECT_SLUG }}
+  ZS_BASE_IMAGE: ${{ vars.ZS_BASE_IMAGE }}
 
 jobs:
   web:
@@ -92,7 +93,7 @@ jobs:
     timeout-minutes: 90
     environment:
       name: production
-      url: https://code.purduehackers.com
+      url: ${{ vars.ZS_PUBLIC_URL }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       EDITOR_ASSETS_READ_WRITE_TOKEN: ${{ secrets.EDITOR_ASSETS_READ_WRITE_TOKEN }}
@@ -115,6 +116,11 @@ jobs:
         run: |
           test -n "$VERCEL_TOKEN"
           test -n "$EDITOR_ASSETS_READ_WRITE_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+          test -n "$VERCEL_TEAM_SLUG"
+          test -n "$VERCEL_PROJECT_SLUG"
+          test -n "$ZS_BASE_IMAGE"
           npm install -g vercel@59.11.1
           vercel link --yes --project "$VERCEL_PROJECT_SLUG" --scope "$VERCEL_TEAM_SLUG"
       - name: Pull release configuration without exposing it as an artifact
@@ -122,11 +128,13 @@ jobs:
           vercel env pull .env.production.local --environment=production --scope "$VERCEL_TEAM_SLUG"
           chmod 600 .env.production.local
           # shellcheck disable=SC2016
-          node --env-file=.env.production.local -e 'const ref=process.env.ZS_IMAGE_REF; if (!/^vcr\.vercel\.com\/purdue-hackers\/zedspaces\/zs-workspace@sha256:[a-f0-9]{64}$/.test(ref ?? "")) process.exit(1); console.log(`PREVIOUS_IMAGE=${ref}`)' >> "$GITHUB_ENV"
+          node --env-file=.env.production.local -e 'const ref=process.env.ZS_IMAGE_REF; if (!ref) process.exit(0); const prefix=`vcr.vercel.com/${process.env.VERCEL_TEAM_SLUG}/${process.env.VERCEL_PROJECT_SLUG}/zs-workspace@`; if (!ref.startsWith(prefix) || !/^sha256:[a-f0-9]{64}$/.test(ref.slice(prefix.length))) process.exit(1); console.log(`PREVIOUS_IMAGE=${ref}`)' >> "$GITHUB_ENV"
       - name: Build and publish the immutable image
         run: |
           chmod 0755 sandbox/image/dist/zed-remote-server
-          sandbox/image/build.sh --engine docker --push -- --cache-to type=inline --cache-from "type=registry,ref=$PREVIOUS_IMAGE"
+          cache=(--cache-to type=inline)
+          if [ -n "${PREVIOUS_IMAGE:-}" ]; then cache+=(--cache-from "type=registry,ref=$PREVIOUS_IMAGE"); fi
+          sandbox/image/build.sh --engine docker --push -- "${cache[@]}"
       - name: Migrate Turso and publish editor assets
         working-directory: apps/web
         run: |

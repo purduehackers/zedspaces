@@ -7,15 +7,12 @@ import { githubInstallations, repos, users, workspaces, type User, type Workspac
 
 export interface Viewer {
   userId: string;
-  orgIds: string[];
-  via: "open" | "editor-cookie";
   flaggedAt: Date | null;
 }
 
 // One shared space, deliberately without login. The legacy installation row
 // is a local foreign-key anchor, not a GitHub App installation.
-export async function requireViewer(_opts?: { workspaceId?: string; allowEditorCookie?: boolean }): Promise<Viewer> {
-  void _opts;
+export async function requireViewer(): Promise<Viewer> {
   const db = await dbReady();
   await db.insert(users).values({ id: PUBLIC_USER_ID, email: null, plan: "pro" }).onConflictDoNothing();
   await db.insert(githubInstallations).values({
@@ -25,7 +22,7 @@ export async function requireViewer(_opts?: { workspaceId?: string; allowEditorC
   if (localBackendEnabled()) await ensureLocalInstallation(PUBLIC_USER_ID);
   const [account] = await db.select().from(users).where(eq(users.id, PUBLIC_USER_ID)).limit(1);
   if (account.deletedAt) throw new ApiError(403, "account_deleted", "The shared space is disabled");
-  return { userId: PUBLIC_USER_ID, orgIds: [], via: "open", flaggedAt: account.flaggedAt };
+  return { userId: PUBLIC_USER_ID, flaggedAt: account.flaggedAt };
 }
 
 export function assertNotFlagged(viewer: Viewer): void {

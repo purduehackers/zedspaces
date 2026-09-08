@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * as activity (b9 §3.25, §4.10).
  */
 export const POST = handler<Request, WorkspaceParams>(async (_req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true, control: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
   await limit("user.keepalive", viewer.userId);
 
   const now = Date.now();

@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
 import { handler, noContent } from "@/lib/api";
 import { dbReady } from "@/lib/db";
-import { EDITOR_COOKIE, editorCookieAttributes, mintEditorCookie, verifyEditorCookie } from "@/lib/editor-cookie";
+import { EDITOR_COOKIE, editorCookieAttributes, mintEditorCookie } from "@/lib/editor-cookie";
 import { requireWorkspaceParam, type WorkspaceParams } from "@/lib/route-context";
 import { users } from "@/lib/schema";
 
@@ -29,17 +28,15 @@ function setCookieHeader(workspaceId: string, value: string, expires: Date): str
  * This internal cookie does not restrict access to the shared public space.
  */
 export const POST = handler<Request, WorkspaceParams>(async (_req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx);
   const db = await dbReady();
   const [user] = await db
     .select({ authEpoch: users.authEpoch })
     .from(users)
     .where(eq(users.id, viewer.userId))
     .limit(1);
-  const current = viewer.via === "editor-cookie" ? await verifyEditorCookie(await cookies(), workspace.id) : null;
   const cookie = await mintEditorCookie(viewer.userId, workspace.id, {
     epoch: user?.authEpoch ?? 0,
-    ...(current ? { originIat: current.oi } : {}),
   });
   const headers = new Headers();
   headers.append("set-cookie", setCookieHeader(workspace.id, cookie.value, cookie.expires));

@@ -86,16 +86,14 @@ pub struct Config {
     pub bypass_secret: Option<SecretString>,
     /// `ZS_SANDBOX_TOKEN` (`zsb_…`), the bearer for every control-plane call.
     pub sandbox_token: SecretString,
-    /// `ZS_SANDBOX_NAME` (`sb-…` workspace, `pb-…` prebuild).
+    /// `ZS_SANDBOX_NAME`.
     pub sandbox_name: String,
-    /// `ZS_WORKSPACE_ID`; cross-checked against `manifest.workspaceId` (the prebuild id for `pb-` principals).
+    /// `ZS_WORKSPACE_ID`; cross-checked against `manifest.workspaceId`.
     pub workspace_id: String,
     /// `ZS_REGION`; informational (logged, echoed in health).
     pub region: Option<String>,
     /// `ZS_BUILD_ID` (baked into the image); `"dev"` when absent so local runs still boot.
     pub build_id: String,
-    /// `ZS_PREBUILD=1`: `start` refuses to run when set, `prebuild` requires it (D14).
-    pub prebuild: bool,
     /// `ZS_WORKSPACES_DIR`, default `/workspaces`.
     pub workspaces_dir: PathBuf,
     /// `ZS_STATE_DIR`, default `$HOME/.zs`.
@@ -180,7 +178,6 @@ impl Config {
         let workspace_id = get("ZS_WORKSPACE_ID").ok_or(ConfigError::Missing("ZS_WORKSPACE_ID"))?;
         let region = get("ZS_REGION");
         let build_id = get("ZS_BUILD_ID").unwrap_or_else(|| "dev".to_string());
-        let prebuild = get("ZS_PREBUILD").is_some_and(|value| matches!(value.trim(), "1" | "true"));
         let home = PathBuf::from(get("HOME").ok_or(ConfigError::Missing("HOME"))?);
         let workspaces_dir = get("ZS_WORKSPACES_DIR")
             .map(PathBuf::from)
@@ -273,7 +270,6 @@ impl Config {
             workspace_id,
             region,
             build_id,
-            prebuild,
             workspaces_dir,
             state_dir,
             data_dir,

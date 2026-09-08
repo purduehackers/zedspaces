@@ -28,7 +28,7 @@ export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
     throw new ApiError(403, "cross_origin", "Start downloads from this workspace.");
   }
   const { workspace, viewer } = await requireWorkspaceParam(ctx, {
-    allowEditorCookie: true, control: true, allowStates: ["running"],
+    control: true, allowStates: ["running"],
   });
   await limit("user.export", viewer.userId);
   const input = await parseBody(req, requestSchema, { maxBytes: 8192 });

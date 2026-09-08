@@ -7,7 +7,7 @@ import type {
   ZsLifecycleKind,
   ZsUpdateAction,
 } from "@/lib/zed-web";
-import { connectDebugAdapter, connectKernel, putSettingsDocument, reportClientError, type ApiDeps } from "./api-client";
+import { connectDebugAdapter, connectKernel, putSettingsDocument, reportClientError } from "./api-client";
 import { ConnectError } from "./connect-client";
 import { downloadProject } from "./download-project";
 
@@ -40,8 +40,6 @@ export interface ShellController {
   documentVersion(kind: ZsDocumentKind): number | null;
   /** Records the version returned by a successful write. */
   setDocumentVersion(kind: ZsDocumentKind, version: number | null): void;
-  /** Test seam for the document and telemetry requests. */
-  deps?: ApiDeps;
 }
 
 /** A rejection the wasm side understands (b7 §3.21 maps `code` to `RefreshError`). */
@@ -98,7 +96,6 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
         const saved = await putSettingsDocument(
           shell.documentUrl(kind),
           { content: json, version: shell.documentVersion(kind) },
-          shell.deps,
         );
         shell.setDocumentVersion(kind, saved.version);
       };
@@ -114,7 +111,7 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
     },
 
     reportError(kind, message, stack) {
-      void reportClientError(shell.workspaceId, shell.build, { kind, message, stack }, shell.deps);
+      void reportClientError(shell.workspaceId, shell.build, { kind, message, stack });
     },
 
     onLifecycle(kind, seconds) {
@@ -126,15 +123,15 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
     },
 
     downloadProject(path, includeIgnored) {
-      return downloadProject(shell.workspaceId, path, includeIgnored, shell.deps);
+      return downloadProject(shell.workspaceId, path, includeIgnored);
     },
 
     connectDebugAdapter(launch) {
-      return connectDebugAdapter(shell.workspaceId, launch, shell.deps);
+      return connectDebugAdapter(shell.workspaceId, launch);
     },
 
     connectKernel(python, cwd) {
-      return connectKernel(shell.workspaceId, python, cwd, shell.deps);
+      return connectKernel(shell.workspaceId, python, cwd);
     },
 
     onClosed(info) {
@@ -142,7 +139,6 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
         shell.workspaceId,
         shell.build,
         { kind: "close", message: `close ${info.code}: ${info.reason || "(no reason)"}` },
-        shell.deps,
       );
     },
   };

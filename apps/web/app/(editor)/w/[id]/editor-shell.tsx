@@ -11,10 +11,9 @@ import {
   refreshEditorSession,
   reportClientError,
   sessionReloadUrl,
-  type ApiDeps,
 } from "./api-client";
 import { ConnectError, connectWorkspace, waitForRunning, type ConnectReason } from "./connect-client";
-import { bootEditor, BundleError, type BootRunner, type EditorRuntime } from "./loader";
+import { bootEditor, BundleError, type EditorRuntime } from "./loader";
 import "./editor-shell.css";
 import {
   transitionForBootFailure,
@@ -49,20 +48,6 @@ export interface NextBoot {
   resume?: boolean;
 }
 
-/** Test and dev-harness seams; the page passes none of them. */
-export interface ShellOverrides {
-  /** Replaces the wasm boot. */
-  boot?: BootRunner;
-  /** Replaces `fetch` for every control-plane call. */
-  fetch?: typeof fetch;
-  /** Overrides the `crossOriginIsolated` check. */
-  crossOriginIsolated?: boolean;
-  /** Replaces `location.reload()` / `location.assign()`. */
-  navigation?: { reload: () => void; assign: (url: string) => void };
-  /** Forces the service-worker registration on or off; by default it happens in production builds only. */
-  registerServiceWorker?: boolean;
-}
-
 /** Props of {@link EditorShell}; assembled by the server component. */
 export interface EditorShellProps {
   workspaceId: string;
@@ -73,7 +58,6 @@ export interface EditorShellProps {
   paths: string[];
   settingsUrl: string;
   keymapUrl: string;
-  overrides?: ShellOverrides;
 }
 
 interface KeyboardLockApi {
@@ -198,12 +182,10 @@ export function EditorShell({
   paths,
   settingsUrl,
   keymapUrl,
-  overrides,
 }: EditorShellProps) {
   const [phase, setPhase] = useState<ShellPhase>({ kind: "booting", stage: "booting" });
   const [toasts, setToasts] = useState<ShellToast[]>([]);
 
-  const deps = useMemo<ApiDeps>(() => ({ fetch: overrides?.fetch }), [overrides?.fetch]);
   const runtimeRef = useRef<EditorRuntime | null>(null);
   const [runtime, setRuntime] = useState<EditorRuntime | null>(null);
   const updaterRef = useRef<EditorUpdater | null>(null);
@@ -212,22 +194,13 @@ export function EditorShell({
   const stopReasonRef = useRef<StopReason>("unknown");
   const versionsRef = useRef<Record<ZsDocumentKind, number | null>>({ settings: null, keymap: null });
 
-  const navigation = useMemo(
-    () =>
-      overrides?.navigation ?? {
-        reload: () => globalThis.location?.reload(),
-        assign: (url: string) => globalThis.location?.assign(url),
-      },
-    [overrides?.navigation],
-  );
-
   /** `reconnect()` of D2/D30: stash the intent, then boot from scratch. */
   const reconnect = useCallback(
     (next: NextBoot = {}) => {
       writeSessionValue(NEXT_BOOT_KEY, JSON.stringify(next));
-      navigation.reload();
+      globalThis.location.reload();
     },
-    [navigation],
+    [],
   );
 
   const applyTransition = useCallback(
@@ -238,26 +211,26 @@ export function EditorShell({
         flushAllowedRef.current = false;
       }
       if (transition.effect === "reload") {
-        navigation.reload();
+        globalThis.location.reload();
       } else if (transition.effect === "reauthenticate") {
-        void refreshEditorSession(workspaceId, deps).then((ok) => {
-          if (!ok) navigation.assign(sessionReloadUrl(`/w/${workspaceId}`));
+        void refreshEditorSession(workspaceId).then((ok) => {
+          if (!ok) globalThis.location.assign(sessionReloadUrl(`/w/${workspaceId}`));
         });
       }
     },
-    [deps, navigation, workspaceId],
+    [workspaceId],
   );
 
   const onKeepAlive = useCallback(() => {
-    void keepAlive(workspaceId, deps)
+    void keepAlive(workspaceId)
       .then(() => setToasts((current) => current.filter((toast) => toast.id !== "idle")))
       .catch((err: unknown) => {
         void reportClientError(workspaceId, build, {
           kind: "error",
           message: `keepalive failed: ${err instanceof Error ? err.message : String(err)}`,
-        }, deps);
+        });
       });
-  }, [build, deps, workspaceId]);
+  }, [build, workspaceId]);
 
   const lifecycle = useCallback(
     (kind: ZsLifecycleKind, seconds: number) => {
@@ -273,9 +246,9 @@ export function EditorShell({
           workspaceId,
           afterStopping: true,
           onProgress: (detail) => setPhase({ kind: "booting", stage: "connecting", detail }),
-        }, deps).then(() => {
+        }).then(() => {
           flushAllowedRef.current = false;
-          navigation.reload();
+          globalThis.location.reload();
         }).catch((err: unknown) => {
           if (err instanceof ConnectError && err.code === "stopped") {
             setPhase({ kind: "stopped", reason: stopReasonRef.current });
@@ -303,7 +276,7 @@ export function EditorShell({
         setPhase({ kind: "restarting", secondsLeft: seconds });
       }
     },
-    [applyTransition, deps, navigation, onKeepAlive, workspaceId],
+    [applyTransition, onKeepAlive, workspaceId],
   );
 
   /** One `connect()` call, with the overlay wired to its progress. */
@@ -317,7 +290,6 @@ export function EditorShell({
           reason,
           onProgress: (detail) => setPhase({ kind: "booting", stage: "connecting", detail }),
         },
-        deps,
       );
       return {
         wsUrl: info.wsUrl,
@@ -327,7 +299,7 @@ export function EditorShell({
         sessionExpiresAt: info.sessionExpiresAt,
       };
     },
-    [build, deps, workspaceId],
+    [build, workspaceId],
   );
 
   const controller = useMemo<ShellController>(
@@ -352,27 +324,25 @@ export function EditorShell({
       setDocumentVersion: (kind: ZsDocumentKind, version: number | null) => {
         versionsRef.current[kind] = version;
       },
-      deps,
     }),
-    [applyTransition, build, connect, deps, keymapUrl, lifecycle, settingsUrl, workspaceId],
+    [applyTransition, build, connect, keymapUrl, lifecycle, settingsUrl, workspaceId],
   );
 
   const boot = useCallback(async () => {
-    const isolated = overrides?.crossOriginIsolated ?? globalThis.crossOriginIsolated === true;
+    const isolated = globalThis.crossOriginIsolated === true;
     if (!isolated) {
       setPhase({ kind: "unsupported-browser" });
       return;
     }
 
     const next = takeNextBoot();
-    const runner: BootRunner = overrides?.boot ?? bootEditor;
 
     try {
       setPhase({ kind: "booting", stage: "connecting" });
       const [connectInfo, settingsDoc, keymapDoc] = await Promise.all([
         connect(next?.resume ? "resume" : "open"),
-        fetchSettingsDocument(settingsUrl, deps),
-        fetchSettingsDocument(keymapUrl, deps),
+        fetchSettingsDocument(settingsUrl),
+        fetchSettingsDocument(keymapUrl),
       ]);
       versionsRef.current = { settings: settingsDoc.version, keymap: keymapDoc.version };
 
@@ -386,7 +356,7 @@ export function EditorShell({
       };
 
       const host = createHost(controller);
-      const booted = await runner({
+      const booted = await bootEditor({
         build,
         config,
         host,
@@ -397,7 +367,7 @@ export function EditorShell({
       booted.started.catch((err: unknown) => {
         const failure = asBootFailure(err);
         applyTransition(transitionForBootFailure(failure.code, { stopReason: stopReasonRef.current }));
-        void reportClientError(workspaceId, build, { kind: "boot", message: failure.message }, deps);
+        void reportClientError(workspaceId, build, { kind: "boot", message: failure.message });
       });
     } catch (err) {
       applyTransition(transitionForConnectError(err));
@@ -406,10 +376,9 @@ export function EditorShell({
         workspaceId,
         build,
         { kind: "boot", message: err instanceof Error ? err.message : String(err) },
-        deps,
       );
     }
-  }, [applyTransition, build, connect, controller, deps, keymapUrl, overrides, paths, settingsUrl, workspaceId]);
+  }, [applyTransition, build, connect, controller, keymapUrl, paths, settingsUrl, workspaceId]);
 
   useEffect(() => {
     if (bootedRef.current) return;
@@ -423,19 +392,19 @@ export function EditorShell({
     if (!runtime) return;
     const updater = new EditorUpdater(workspaceId, runtime, () => {
       flushAllowedRef.current = false;
-      navigation.reload();
-    }, deps);
+      globalThis.location.reload();
+    });
     updaterRef.current = updater;
     return () => { updater.dispose(); updaterRef.current = null; };
-  }, [deps, navigation, runtime, workspaceId]);
+  }, [runtime, workspaceId]);
 
   useEffect(() => {
     const updater = updaterRef.current;
     updater?.setInteractive(phase.kind === "ready");
-    if (phase.kind === "ready" && (overrides?.registerServiceWorker ?? process.env.NODE_ENV === "production")) {
+    if (phase.kind === "ready" && process.env.NODE_ENV === "production") {
       void navigator.serviceWorker?.register("/sw.js", { scope: "/w/" }).catch(() => undefined);
     }
-  }, [phase.kind, runtime, overrides?.registerServiceWorker]);
+  }, [phase.kind, runtime]);
 
   // Visibility, unload and fullscreen wiring (b9 §3.26 bullet 6).
   useEffect(() => {
@@ -474,9 +443,9 @@ export function EditorShell({
 
   // Keep the editor cookie fresh (b9 §3.26 bullet 8).
   useEffect(() => {
-    const timer = setInterval(() => void refreshEditorSession(workspaceId, deps), SESSION_REFRESH_MS);
+    const timer = setInterval(() => void refreshEditorSession(workspaceId), SESSION_REFRESH_MS);
     return () => clearInterval(timer);
-  }, [deps, workspaceId]);
+  }, [workspaceId]);
 
   const actions = useMemo<ShellActions>(
     () => ({

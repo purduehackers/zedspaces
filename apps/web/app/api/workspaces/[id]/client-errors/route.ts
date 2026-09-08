@@ -18,7 +18,7 @@ const MAX_BODY_BYTES = 128 * 1024;
  * platform log instead. Delivery is best effort and never fails the request.
  */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx);
   await limit("user.client-errors", viewer.userId);
   const input = await parseBody(req, clientErrorInput, { maxBytes: MAX_BODY_BYTES });
 

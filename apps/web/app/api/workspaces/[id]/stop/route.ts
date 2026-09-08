@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * so the shell's Stop button is idempotent.
  */
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const { viewer, workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true, control: true });
+  const { viewer, workspace } = await requireWorkspaceParam(ctx, { control: true });
 
   if (workspace.state === "stopped" && !(await isRunActive(workspace.workflowRunId))) {
     return json({ state: "stopped" });

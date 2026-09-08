@@ -1,8 +1,8 @@
-import { apiErrorBody, type ApiDeps } from "./api-client";
+import { apiErrorBody } from "./api-client";
 
 /** The sandbox produces the archive; browser download delivery stays out of Zed. */
-export async function downloadProject(workspaceId: string, path: string, includeIgnored: boolean, deps?: ApiDeps): Promise<string> {
-  const response = await (deps?.fetch ?? fetch)(`/api/workspaces/${workspaceId}/export`, {
+export async function downloadProject(workspaceId: string, path: string, includeIgnored: boolean): Promise<string> {
+  const response = await fetch(`/api/workspaces/${workspaceId}/export`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ path, includeIgnored }), cache: "no-store",
     signal: AbortSignal.timeout(280_000),

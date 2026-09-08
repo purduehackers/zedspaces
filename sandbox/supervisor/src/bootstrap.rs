@@ -187,8 +187,7 @@ fn is_sha(revision: &str) -> bool {
 /// Repository materialisation into `manifest.workspace_dir` (decision table in §3.14): nothing
 /// when `dir/.git` exists and `clone_done`; a truncated attempt is removed; `manifest.restore`
 /// → [`restore_tarball`]; otherwise `git init <dir>.partial`, `git fetch [--depth N] origin
-/// <refspec>` ([`fetch_plan`]), checkout, `mv <dir>.partial <dir>`, `set_clone_done`. Auth comes
-/// from the credential helper, so the loopback API must already be listening.
+/// <refspec>` ([`fetch_plan`]), checkout, `mv <dir>.partial <dir>`, `set_clone_done`.
 pub async fn materialize_repo(
     manifest: &Manifest,
     config: &Config,
@@ -593,7 +592,7 @@ pub async fn install_dotfiles(
         .install_command
         .clone()
         .or_else(|| pick_dotfiles_installer(&dir).map(|script| format!("./{script}")));
-    let result = match installer {
+    match installer {
         Some(command) => {
             let argv = vec!["bash".to_string(), "-lc".to_string(), command];
             run_command(
@@ -612,57 +611,7 @@ pub async fn install_dotfiles(
             tracing::info!(linked, "dotfiles linked (no installer script)");
             Ok(())
         }
-    };
-    warn_about_storing_credential_helpers(&config.home, &env).await;
-    result
-}
-
-/// Credential helpers that persist what git hands them (`credential.helper = store` writes
-/// `~/.git-credentials`; the keychain/secret-service ones persist too). `cache` keeps tokens in
-/// memory only and is fine.
-pub const STORING_CREDENTIAL_HELPERS: [&str; 5] =
-    ["store", "osxkeychain", "libsecret", "manager", "wincred"];
-
-/// The platform helper never writes a token to disk, but git calls *every* configured helper's
-/// `store`, so a user-level storing helper from the dotfiles would persist the one-hour `ghs_`
-/// token inside the snapshotted `$HOME` (BUILD-SPEC §10.4). The user's choice is not overridden;
-/// it is logged so the limitation is visible in the workspace logs.
-pub async fn warn_about_storing_credential_helpers(home: &Path, env: &BTreeMap<String, String>) {
-    let output = tokio::process::Command::new("git")
-        .args(["config", "--global", "--get-all", "credential.helper"])
-        .current_dir(home)
-        .env_clear()
-        .envs(env)
-        .stdin(std::process::Stdio::null())
-        .output()
-        .await;
-    let Ok(output) = output else {
-        return;
-    };
-    let helpers = String::from_utf8_lossy(&output.stdout);
-    for helper in storing_helpers(&helpers) {
-        tracing::warn!(
-            helper,
-            "the dotfiles configure a credential helper that persists tokens; GitHub tokens \
-             minted by the platform will be written to $HOME by it"
-        );
     }
-}
-
-/// The storing helpers among `git config --get-all credential.helper` output lines.
-pub fn storing_helpers(config_output: &str) -> Vec<String> {
-    config_output
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .filter(|line| {
-            let name = line.split_whitespace().next().unwrap_or_default();
-            let name = name.rsplit('/').next().unwrap_or(name);
-            let name = name.strip_prefix("git-credential-").unwrap_or(name);
-            STORING_CREDENTIAL_HELPERS.contains(&name)
-        })
-        .map(str::to_string)
-        .collect()
 }
 
 /// The first [`DOTFILES_INSTALLERS`] entry that exists in the checkout.
@@ -842,8 +791,7 @@ pub fn write_jwt_keys(pems: &[String], jwt_dir: &Path) -> std::io::Result<Vec<Pa
     Ok(paths)
 }
 
-/// Writes one PEM block to `path` (0600, newline-terminated) and returns the path; used for the
-/// manifest keys and for the prebuild warm-up key (`key-warm.pem`, §3.16a).
+/// Writes one manifest PEM key (0600, newline-terminated) and returns its path.
 pub fn write_pem_file(path: &Path, pem: &str) -> std::io::Result<PathBuf> {
     let mut file = std::fs::OpenOptions::new()
         .write(true)

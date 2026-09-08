@@ -15,7 +15,7 @@ export const runtime = "nodejs";
  * the editor cookie is accepted here as well as a Clerk session.
  */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
-  const { workspace } = await requireWorkspaceParam(ctx, { allowEditorCookie: true });
+  const { workspace } = await requireWorkspaceParam(ctx);
   return json({ workspace: await workspaceView(workspace) });
 });
 

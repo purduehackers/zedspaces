@@ -1,225 +1,138 @@
 # Zedspaces
 
-GitHub Codespaces, with Zed in your browser.
+[Zed in your browser](https://code.purduehackers.com), backed by Vercel Sandboxes.
+Paste a public GitHub repository, get a workspace, and share its URL to edit together.
 
-Live at **[code.purduehackers.com](https://code.purduehackers.com)**.
+Zed's Rust UI runs as WebAssembly in the tab. The sandbox runs the remote server,
+Git, terminals, language servers, debugger adapters, and Python kernels.
+The Next.js control plane uses Drizzle ORM with SQLite/libSQL on Turso.
 
-Zed's Rust UI is compiled to WebAssembly and runs in the tab. A Vercel Sandbox
-runs the repository, terminal, language servers, and patched Zed remote server.
-The browser connects directly to that VM over an authenticated WebSocket.
+## Before you host it
 
-Paste a **public GitHub repository** into the dashboard, or open
-`/new/owner/repo?branch=main`. No login, GitHub App, or GitHub token is needed.
-Public cloning works; authenticated GitHub pushes and private repositories are
-not part of this version.
-Vim mode is enabled by default: press `i` to enter insert mode.
+**There is no login or workspace ownership boundary.** Anyone who can reach the
+app can read, edit, stop, or delete any workspace and change shared settings.
+Automatically exposed preview ports are public. Never put secrets or sensitive
+repositories here. Set provider spending limits before sharing a deployment.
+Internal VM tokens, signed connections, and cron authentication still apply.
 
-## What's included
+Public GitHub cloning, multiplayer cursors, stop/resume, file-preserving upgrades,
+port previews, extensions, clipboard, uploads, ZIP export, debugging, and the
+inline Python REPL are supported. Calls, screen sharing, AI assistants, private
+GitHub repositories, and desktop integration are not included.
+Accessibility and notebook support are still in progress.
 
-- The real Zed editor: file tree, terminals, language tooling, saved settings,
-  and persistent editor layout.
-- Workspace creation, stop/resume, file-preserving rebuild, deletion, and port
-  forwarding. Idle VMs stop automatically.
-- A Next.js control plane targeting Vercel, durable Vercel Workflows, and
-  **Drizzle ORM with SQLite/libSQL**, deployed to **Turso**. The same database
-  holds state, locks, and rate limits; no Postgres or Redis service.
-- One base workspace image. No billing system, organization administration,
-  stored provider keys, AI proxy, or custom-image/prebuild service.
+Existing workspaces open their matching editor while updates download in the
+background. Zed's **Restart to Update** replaces the VM and browser together.
+Files and editor state survive; terminal commands must be restarted.
 
-This is deliberately **one shared space**: anyone who can reach it can read,
-edit, stop, or delete any workspace and change shared settings. Proxy forwards
-are shared too. Do not put secrets or sensitive work here. Internal VM tokens,
-signed session tokens, origin checks, and cron authentication still apply.
-Creation is rate-limited and defaults to five active/admitted workspaces.
+## Repository
 
-Existing workspaces open their matching editor immediately. Once interactive, the
-next editor bundle downloads in the background; Zed's **Restart to Update** button
-applies it when you're ready, or dismiss it to keep working. **Auto Update: Check**
-in the command palette brings it back. Restarting preserves files and editor state,
-replaces the VM and browser together, and reconnects everyone; terminal commands
-need restarting. Failed upgrades keep the old generation and backup for retry.
-Builds predating this update UI need one initial upgrade. Idle workspaces stay stopped.
+- **apps/web** — dashboard, browser host, API, database, and workspace workflows.
+- **sandbox** — Rust supervisor and workspace image.
+- **zed** — pinned [Zed fork](https://github.com/purduehackers/zed) submodule.
 
-## Browser defaults
+Keep the Zed fork close to upstream. Prefer browser-platform bridges, settings,
+and sandbox services over changes to shared Zed UI or editor behavior.
 
-The editor fills the tab, without a second workspace status bar. It bundles
-**Kintsugi Dark Flared**, **Ioskeley Mono** for UI and
-**IoskeleyMono Nerd Font** for buffers and terminals, including icon glyphs.
-No local font install is needed; user settings still override these defaults.
-
-Use **F1** or **Alt/Option+Shift+P** for the command palette,
-**Alt/Option+P** for files, and **Ctrl+`** for the terminal. These supplement
-the native shortcuts when the browser reserves them; F1 follows the
-[Codespaces convention](https://docs.github.com/en/codespaces/reference/using-the-vs-code-command-palette-in-codespaces).
-
-On macOS, Option shortcuts use the browser's keyboard-layout map where available,
-with observed key legends as a fallback. Browsers without that API cannot reliably
-resolve a never-observed non-US Option key; F1 remains available. Shifted punctuation
-is not guessed from an unshifted layout map; unbound Option characters stay intact.
-
-Dockerfile, HTML, TOML and Astro highlighting are bundled alongside the existing
-languages, with language servers pinned in the workspace image. Astro includes
-embedded TypeScript/CSS highlighting, TypeScript integration and formatting;
-install your project's dependencies for its types and imports to resolve. TOML
-uses Taplo for diagnostics and formatting. Zed's native **Extensions** view also
-installs marketplace languages, themes, icons and snippets. Extension code and
-language servers run in the sandbox; declarative assets and bounded downloaded
-syntax grammars load in the browser. **Install Dev Extension** uploads a local
-source folder for sandbox compilation; **Rebuild** asks for a fresh folder snapshot.
-Installed extensions and development revisions survive workspace upgrades.
-
-New clones fetch the selected branch's full history. An older shallow checkout
-can fetch its missing history with `git fetch --unshallow origin`.
-
-Clipboard Copy/Cut/Paste uses the browser clipboard, including image paste into
-Markdown. Browser permissions still apply; denied reads show an error rather than
-pasting stale text. **Web: Toggle Screen Reader Mode** exposes full editor text and
-lets Tab leave the editor. Accessibility support is in progress; this is not yet
-a claim of complete VoiceOver/NVDA or mobile-input compatibility.
-
-**Web: Download Project Zip** exports saved working files, including uncommitted
-changes. Folder context menus also offer **Download ZIP…**. Choose whether to
-include ignored files, and save dirty project buffers first when prompted. Git
-metadata, links and special files are excluded; untitled buffers are not exported.
-The limit is 256 MiB of source data and 20,000 paths per export. Files are read
-while the workspace stays live, so concurrent writes are not an atomic snapshot.
-
-Local files can be dropped onto a folder in the project tree. **Web: Upload Files**
-and **Web: Upload Folder** use the browser picker and Zed's existing import/replace
-prompts, targeting the selected tree entry (or project root). Nested folders and
-empty dropped folders are preserved. Limits: 8 MiB per file, 64 MiB and 10,000
-entries per selection, 128 MiB of imported copies per tab. Remote Open/Save still
-use Zed's sandbox path picker. Browser-local save destinations use a file handle
-where supported, otherwise a download; imported originals are never overwritten.
-
-Zed's existing debugger UI connects to adapters
-inside the sandbox through a one-use, workspace-scoped WebSocket capability.
-Node, TypeScript and Python launch, breakpoints, stack/variables, stepping and stopping have
-been verified in the deployed browser editor.
-Adapters download through the remote server, using normal `.zed/debug.json`
-configurations. Debug-managed ports are excluded from automatic public previews;
-use an explicit private preview for an HTTP server launched under the debugger.
-There is no desktop debugger process or local port forwarding.
-For compiled TypeScript, enable source maps and point `program`/`outFiles` at the
-built JavaScript. Very short programs may need
-`"runtimeSourcemapPausePatterns": ["$ZED_WORKTREE_ROOT/dist/**/*.js"]`
-(adjust to your output directory) so source breakpoints bind before execution.
-For Node process attachment, use `"type": "node"`, `"request": "attach"`,
-`"processId": "$ZED_PICK_PID"` and `"address": "127.0.0.1"` with the JavaScript
-adapter. The native process picker lists sandbox processes. The explicit address
-matches an IPv4 inspector; `localhost` may resolve to IPv6 instead.
-Further live attachment checks exposed a browser-main-thread channel-lock crash.
-Its dependency-level fix is pushed and passes isolated contention probes in all
-three browser engines, but is not yet deployed; see [current status](docs/status/browser-gaps.md).
-
-The inline Python REPL uses Zed's existing output UI and a private Jupyter kernel
-in the sandbox. Select **Python (sandbox)** to use the bundled environment, or a
-project interpreter with `ipykernel` installed. Use **REPL: Run**, **Interrupt**,
-**Restart**, and **Shutdown** from the command palette. Notebook editing and
-interactive widgets are not enabled. Unicode, persistent values, rich output,
-errors, input, Interrupt, Restart and Shutdown have been verified live, including
-preserving variables after interruption and clearing them on restart.
-
-## Multiplayer
-
-Anonymous multiplayer is live: share a workspace's `/w/<id>`
-URL to edit together with live cursors and round avatars. Zed's existing
-CRDT and project protocol run through the sandbox's WebSockets; there is no
-hosted Zed account or second collaboration database.
-Files and language servers are shared; terminals and saved layouts belong to
-each tab. Closing the first tab does not end the project.
-
-Avatars sit at the far right, using Zed's person-icon fallback style. Names such as
-“Anonymous Owl” appear on hover and beside cursors; no external avatar requests are made.
-
-Multiplayer is collaborative editing only. Calls and screen sharing are not included.
-
-This is a breaking replacement for single-editor sessions, not an optional mode.
-There is no takeover UI or old-editor compatibility path. The matching client/server release is deployed at
-[code.purduehackers.com](https://code.purduehackers.com); see
-[implementation and limits](docs/briefs/multiplayer.md).
-
-## Development
-
-The modified Zed fork at `zed/` is a pinned submodule of
-[purduehackers/zed](https://github.com/purduehackers/zed), on its default
-`zedspaces` branch.
-Keep this fork close to upstream: only browser/runtime integration and explicitly
-approved UI changes belong there. Product behavior, sandbox configuration and
-deployment belong in this repository; prefer settings, assets and host integration
-over edits to shared Zed components. Shell prompts stay unchanged.
-The app, supervisor, and documentation live here on `main`. Clone with
-submodules (repository access is required while the repository is private):
-
-```sh
+~~~sh
 git clone --recurse-submodules https://github.com/purduehackers/zedspaces.git
 cd zedspaces
-```
+~~~
 
-For an existing clone, run `git submodule sync --recursive`, then
-`git submodule update --init --recursive`. Compiled editor assets are not in
-Git; the local stack builds them when needed.
+When updating an existing clone, run `git submodule update --init --recursive`.
+Editor bundles and server binaries are build artifacts, not committed source.
 
-Requires Node 24, pnpm 11.20.0, and the fork's pinned Rust 1.97.1 toolchain.
-Read [HANDOFF.md](HANDOFF.md) before rebuilding WASM or changing an existing VM.
+## Local development
 
-```sh
+Requires Node 24, pnpm 11.20.0, the pinned Rust 1.97.1 toolchain, and the Zed
+build dependencies. The Linux toolchain setup is in
+[setup-zed](.github/actions/setup-zed/action.yml). The browser build additionally
+needs WASI SDK, wasm-bindgen, and Binaryen; use the versions pinned there.
+
+Build a real browser bundle first, then start the local stack:
+
+~~~sh
+zed/script/build-web --build-id dev-local --out-dir ../apps/web/public/editor
 cd apps/web
 pnpm install --frozen-lockfile
-pnpm dev:local
-```
+ZS_CLIENT_BUILD_ID=dev-local pnpm dev:local
+~~~
 
-The local adapter runs the supervisor and Zed server as processes, uses SQLite,
-and binds to `http://127.0.0.1:3100`. It does not need cloud credentials.
+The local launcher builds the native server and supervisor, generates development
+keys, and uses a dedicated SQLite file. It binds to http://127.0.0.1:3100.
+It does not need cloud credentials. Do not expose this local process backend
+to the internet. `ZS_SKIP_BUILD=1` reuses existing native binaries.
 
-```sh
-pnpm typecheck
+Use **F1** or **Alt/Option+Shift+P** for commands, **Alt/Option+P** for files,
+and **Ctrl+`** for the terminal. Vim mode is on by default; press **i** to type.
+The bundled theme and Nerd Fonts can be changed in Zed settings.
+
+~~~sh
+# apps/web
 pnpm lint
+pnpm typecheck
 pnpm build
-```
 
-This repository has no test suites. CI runs lint, type checking, and builds.
-Diagnose browser problems from console/network evidence. The local working tree has the diagnostic helper
-`apps/web/.zs-dev/netdiag.mjs` (ignored, not part of a fresh clone).
+# repository root
+cargo fmt --manifest-path sandbox/supervisor/Cargo.toml --check
+cargo clippy --locked --manifest-path sandbox/supervisor/Cargo.toml --lib --bins -- -D warnings
+cargo build --locked --release --manifest-path sandbox/supervisor/Cargo.toml
+~~~
 
-## Deploying to Vercel
+There are no test suites in this repository. CI runs lint, type checking, and
+builds. The Zed submodule retains upstream tests. Diagnose browser failures from
+console and network evidence.
 
-Use `apps/web` as the project root. Deployment needs Vercel Pro, Turso, private
-Vercel Blob storage for rebuilds, a published VCR workspace image, and hosted
-editor assets. The Linux server and production WASM bundle must share a build
-ID; Vercel downloads the prebuilt WASM instead of compiling Rust.
+## Deploy your fork
 
-Follow the [deployment checklist](docs/deploy-vercel.md) and
-[environment template](apps/web/.env.example). Run `pnpm deploy:check` and
-`pnpm deploy:check:db` before deploying. They validate configuration/assets and
-the live Turso database without provisioning or publishing anything.
+Deployment requires a Vercel project with **apps/web** as its root, Turso,
+a private Blob store for rebuild archives, and a public Blob store for editor
+assets. The configured sandbox duration and cron schedule require Vercel Pro.
+Use [the environment template](apps/web/.env.example) for production values.
+Generate signing material with `pnpm zs:keygen`; never commit it.
 
-The production deployment uses real Vercel Sandboxes and Turso. Public cloning,
-browser editing/saving, and stop/resume persistence were checked live; see the
-[deployment results](docs/status/deployment.md). Set provider spending controls
-before sharing this intentionally open, shared app.
+The **Release Zedspaces** workflow builds matching Linux and browser artifacts.
+Enable its **deploy** input to publish an image, upload assets, migrate the
+database, and deploy the app. Ordinary Git auto-deploy is disabled because the
+WASM client and sandbox server must be released with a matching build ID.
+App builds on Vercel fetch precompiled bundles; they do not compile Zed.
 
-The **Release Zedspaces** Actions workflow builds matching browser/server
-artifacts and can publish the image, assets, and Vercel app in one manual run.
-The [current production build passed](https://github.com/purduehackers/zedspaces/actions/runs/34127509100)
-and was published using the local Vercel login. Tests and their release gates
-are removed. Publishing from Actions still needs the `production` environment's
-`VERCEL_TOKEN`; its public Blob token is configured. Local CLI publication does not.
-See [CI setup and release checks](docs/deploy-vercel.md#ci-releases).
+Configure these GitHub Actions repository variables:
 
-## Source map
+| Variable | Value |
+| --- | --- |
+| VERCEL_ORG_ID | Your Vercel team ID |
+| VERCEL_PROJECT_ID | Your Vercel project ID |
+| VERCEL_TEAM_SLUG | Your team slug |
+| VERCEL_PROJECT_SLUG | Your project slug |
+| ZS_PUBLIC_URL | Your public HTTPS origin |
+| ZS_BASE_IMAGE | Your digest-pinned Sandbox base image |
+| ZS_BUILD_RUNNER | Optional runner label; defaults to ubuntu-24.04 |
 
-The cleanup reduced maintained web implementation from 30,289 to 14,640 lines
-(51.7%; nonblank lines fell 52.2%). Tests, migrations, generated code and assets
-are excluded from both counts. Run `node infra/source-metrics.mjs` to recount;
-see [validation and remaining gaps](docs/status/deslop.md).
+Set the **VERCEL_TOKEN** and **EDITOR_ASSETS_READ_WRITE_TOKEN** Actions secrets.
+The latter must belong to the public Blob store named by
+`ZS_EDITOR_BUNDLE_SOURCE`. Production database and runtime secrets live in
+Vercel environment settings, not GitHub artifacts.
 
-- `apps/web/` — dashboard, editor shell, API, database, and workflows.
-- `zed/` — modified Zed, WASM platform integration, and remote server.
-- `sandbox/supervisor/` — Rust VM supervisor.
-- `sandbox/image/` — Linux server and workspace-image builds.
-- `infra/` — build helpers and reproducible source-size metrics.
+For the first release, build your own base from the pinned public Vercel Sandbox
+source. This avoids depending on another team's private registry:
 
-Zed is an upstream project of [Zed Industries](https://github.com/zed-industries/zed).
-Zedspaces is an experimental integration, not an official Zed or GitHub product.
-Upstream component licenses still apply.
+~~~sh
+vercel vcr login docker
+docker buildx bake 'https://github.com/vercel/sandbox.git#8e471d48548c1d8f3287bc66f650f2e87d041445:images' universal \
+  --set 'universal.tags=vcr.vercel.com/TEAM/PROJECT/sandbox-base:vercel-8e471d48548c' \
+  --set 'universal.attest=type=provenance,disabled=true' --push
+docker buildx imagetools inspect vcr.vercel.com/TEAM/PROJECT/sandbox-base:vercel-8e471d48548c
+~~~
+
+Set `ZS_BASE_IMAGE` to that image with its reported `@sha256:…` digest.
+Configure the non-release values in the environment template first, including
+your public origin and both Blob stores. The release workflow fills in the
+matching image and editor build values. Keep Drizzle migrations: they support
+fresh databases and existing deployments.
+
+## Licensing
+
+The Zed submodule and its bundled assets retain their own licenses.
+A license for the Zedspaces app and supervisor has not yet been selected;
+public visibility alone does not grant an open-source license.

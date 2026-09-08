@@ -8,14 +8,13 @@
 #   --tag <repo:tag>          image name (default: zs-workspace:$ZS_BUILD_ID)
 #   --engine auto|vcr|docker  builder (default: auto — `vercel vcr build docker` when the Vercel
 #                             CLI is on PATH, plain `docker buildx build` otherwise)
-#   --update-base             resolve base.lock's ref to a digest and rewrite the file
 #   --attest                  build with BuildKit provenance (mode=max) and an SBOM attached to
 #                             the image index (default off: VCR's acceptance of OCI attestation
 #                             manifests is unverified; generate them out of band otherwise)
 #   --no-layer-check          skip the per-layer size guard on local builds
 #
-# A --push always requires a digest-pinned base.lock (BUILD-SPEC §10 item 6); there is no
-# escape hatch. Run --update-base once (after `vercel vcr login docker`) and commit the result.
+# ZS_BASE_IMAGE must name a digest-pinned Vercel Sandbox universal image.
+# See the root README for the pinned source and first-time build command.
 #
 # The build context is the repository root, because the Dockerfile copies both
 # sandbox/supervisor/ (zs-agent sources) and sandbox/image/dist/ (zed-remote-server). The root
@@ -34,7 +33,6 @@ fi
 push=""
 tag="zs-workspace:${build_id}"
 engine="auto"
-update_base=""
 attest=""
 layer_check="1"
 extra=()
@@ -44,7 +42,6 @@ while [ $# -gt 0 ]; do
     --push) push=1 ;;
     --tag) tag="${2:?--tag needs a value}"; shift ;;
     --engine) engine="${2:?--engine needs a value}"; shift ;;
-    --update-base) update_base=1 ;;
     --attest) attest=1 ;;
     --no-layer-check) layer_check="" ;;
     --) shift; extra=("$@"); break ;;
@@ -72,40 +69,17 @@ case "$engine" in
   *) echo "--engine must be 'auto', 'vcr' or 'docker'" >&2; exit 2 ;;
 esac
 
-base_ref="$(awk 'NF && $0 !~ /^[[:space:]]*#/ { gsub(/[[:space:]]/, "", $0); print; exit }' "$here/base.lock")"
-test -n "$base_ref" || { echo "sandbox/image/base.lock has no image ref" >&2; exit 1; }
+base_ref="${ZS_BASE_IMAGE:?ZS_BASE_IMAGE must name a digest-pinned Vercel Sandbox universal image}"
+if [[ ! "$base_ref" =~ @sha256:[a-f0-9]{64}$ ]]; then
+  echo "ZS_BASE_IMAGE must end with @sha256:<64 hex digits>" >&2
+  exit 2
+fi
 
 # Pulling (not only pushing) an image from vcr.vercel.com needs a team credential.
 case "$base_ref" in vcr.vercel.com/*) base_on_vcr=1 ;; *) base_on_vcr="" ;; esac
 if have_vercel && { [ -n "$push" ] || [ -n "$base_on_vcr" ]; }; then
   vercel vcr login docker
 fi
-
-if [ -n "$update_base" ]; then
-  base_tag="${ZS_BASE_IMAGE:-${base_ref%@*}}"
-  digest="$(docker buildx imagetools inspect "$base_tag" \
-    --format '{{json .Manifest.Digest}}' | tr -d '"')"
-  test -n "$digest" || { echo "could not resolve the universal base digest" >&2; exit 1; }
-  {
-    grep '^[[:space:]]*#' "$here/base.lock" || true
-    echo "${base_tag}@${digest}"
-  } > "$here/base.lock.new"
-  mv "$here/base.lock.new" "$here/base.lock"
-  base_ref="${base_tag}@${digest}"
-  echo "base.lock updated: $base_ref"
-fi
-
-case "$base_ref" in
-  *@sha256:*) ;;
-  *)
-    # BUILD-SPEC §10 item 6: a pushed image must come from a pinned base. Local builds only warn.
-    if [ -n "$push" ]; then
-      echo "base.lock is not digest-pinned ($base_ref); run 'sandbox/image/build.sh --update-base' (after 'vercel vcr login docker') and commit it" >&2
-      exit 1
-    fi
-    echo "warning: base.lock is not digest-pinned ($base_ref); run --update-base for a reproducible build" >&2
-    ;;
-esac
 
 build_args=(
   --build-arg "BASE_IMAGE=$base_ref"

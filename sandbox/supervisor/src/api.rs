@@ -6,7 +6,7 @@
 //! manifest is fetched (§3.16 step 1) so the control plane's probe sees `booting`/`manifest`.
 //!
 //! Routes on the `Local` listener (bearer = the control secret, constant-time compare):
-//! `POST /ports`, `DELETE /ports/{port}`, `POST /extensions`, `POST /git-token`,
+//! `POST /ports`, `DELETE /ports/{port}`, `POST /extensions`,
 //! `POST /lifecycle`, `GET /health`. Everything else 404; wrong method 405.
 
 use std::convert::Infallible;
@@ -26,9 +26,7 @@ use subtle::ConstantTimeEq as _;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use crate::control_plane::{
-    ControlPlane, ControlPlaneError, ExpiresAt, ForwardRequest, GitTokenRequest,
-};
+use crate::control_plane::{ControlPlane, ControlPlaneError, ForwardRequest};
 use crate::manifest::{Forward, Visibility};
 use crate::ports::{ListeningState, is_infra_port};
 use crate::proxy::{BoxBody, full_body, json_response};
@@ -46,7 +44,7 @@ pub struct ApiDeps {
     pub debugger: Arc<crate::debugger::DebugService>,
     /// Health state.
     pub state: Arc<AgentState>,
-    /// Control-plane client for `/ports`, `/extensions`, `/git-token`.
+    /// Control-plane client for ports and extensions.
     pub control: ControlPlane,
     /// Forward list.
     pub forwards: ForwardsState,
@@ -232,12 +230,11 @@ where
     let response = match (&method, path.as_str()) {
         (&Method::POST, "/ports") => forward_port(&deps, &body).await,
         (&Method::POST, "/extensions") => relay_extensions(&deps, &body).await,
-        (&Method::POST, "/git-token") => git_token(&deps, &body).await,
         (&Method::POST, "/lifecycle") => lifecycle(&deps, &body).await,
         (&Method::DELETE, path) if path.starts_with("/ports/") => {
             unforward_port(&deps, path.trim_start_matches("/ports/")).await
         }
-        (_, "/ports" | "/extensions" | "/git-token" | "/lifecycle") => json_response(
+        (_, "/ports" | "/extensions" | "/lifecycle") => json_response(
             StatusCode::METHOD_NOT_ALLOWED,
             serde_json::json!({ "error": "method_not_allowed" }),
         ),
@@ -333,7 +330,7 @@ async fn forward_port(deps: &ApiDeps, body: &[u8]) -> Response<BoxBody> {
                 serde_json::json!({ "url": forward.url, "visibility": forward.visibility }),
             )
         }
-        Err(error) => control_plane_error(error, Relay::Conflict),
+        Err(error) => control_plane_error(error),
     }
 }
 
@@ -348,7 +345,7 @@ async fn unforward_port(deps: &ApiDeps, raw_port: &str) -> Response<BoxBody> {
             deps.republish_ports().await;
             empty_response(StatusCode::NO_CONTENT)
         }
-        Err(error) => control_plane_error(error, Relay::Conflict),
+        Err(error) => control_plane_error(error),
     }
 }
 
@@ -373,42 +370,6 @@ async fn relay_extensions(deps: &ApiDeps, body: &[u8]) -> Response<BoxBody> {
         );
     }
     empty_response(StatusCode::NO_CONTENT)
-}
-
-/// `POST /git-token` – the credential helper's path to the control plane; the response is passed
-/// through verbatim with `expiresAt` normalised to unix seconds.
-async fn git_token(deps: &ApiDeps, body: &[u8]) -> Response<BoxBody> {
-    #[derive(serde::Deserialize)]
-    struct TokenBody {
-        host: String,
-        #[serde(default)]
-        protocol: Option<String>,
-        #[serde(default)]
-        path: Option<String>,
-    }
-    let request: TokenBody = match serde_json::from_slice(body) {
-        Ok(request) => request,
-        Err(error) => return bad_request(&error.to_string()),
-    };
-    let response = deps
-        .control
-        .git_token(GitTokenRequest {
-            host: &request.host,
-            protocol: request.protocol.as_deref().unwrap_or("https"),
-            path: request.path.as_deref(),
-        })
-        .await;
-    match response {
-        Ok(token) => json_response(
-            StatusCode::OK,
-            serde_json::json!({
-                "username": token.username,
-                "token": token.token.expose_secret(),
-                "expiresAt": expires_at_seconds(&token.expires_at),
-            }),
-        ),
-        Err(error) => control_plane_error(error, Relay::AsIs),
-    }
 }
 
 /// `POST /lifecycle` – forwards a notice to the server's control listener (tests and operators).
@@ -446,45 +407,12 @@ async fn lifecycle(deps: &ApiDeps, body: &[u8]) -> Response<BoxBody> {
     }
 }
 
-/// `expiresAt` in either wire form as unix seconds (`None` when an ISO string cannot be parsed).
-fn expires_at_seconds(expires_at: &ExpiresAt) -> Option<u64> {
-    match expires_at {
-        ExpiresAt::UnixSeconds(seconds) => Some(*seconds),
-        ExpiresAt::Iso(text) => crate::credential::parse_rfc3339_utc(text),
-    }
-}
-
-/// How a control-plane 4xx is surfaced to the caller of a local route.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Relay {
-    /// `/ports`: every 4xx (no free slot, port refused) becomes `409 {"error": <code>}`, the one
-    /// status b4 surfaces as the `ForwardPort` error (§3.12; CONTRACTS §7.7).
-    Conflict,
-    /// `/git-token`: `403 repo_not_allowed` / `404 host_unsupported` pass through so the
-    /// credential helper can fall through (§3.13).
-    AsIs,
-}
-
-/// Maps a control-plane failure onto the status the server (or the helper) should see: a 4xx is
-/// relayed per [`Relay`] with its error code, everything else becomes
-/// `502 control_plane_unavailable`.
-fn control_plane_error(error: ControlPlaneError, relay: Relay) -> Response<BoxBody> {
+fn control_plane_error(error: ControlPlaneError) -> Response<BoxBody> {
     match error {
         ControlPlaneError::Status { status, code, body } if (400..500).contains(&status) => {
             let code = code.unwrap_or_else(|| "control_plane_error".to_string());
-            let status = match relay {
-                Relay::Conflict => StatusCode::CONFLICT,
-                Relay::AsIs => {
-                    StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
-                }
-            };
-            tracing::warn!(
-                status = status.as_u16(),
-                code,
-                body,
-                "control plane refused"
-            );
-            json_response(status, serde_json::json!({ "error": code }))
+            tracing::warn!(status, code, body, "control plane refused");
+            json_response(StatusCode::CONFLICT, serde_json::json!({ "error": code }))
         }
         other => {
             tracing::warn!(error = %other, "control plane unavailable");

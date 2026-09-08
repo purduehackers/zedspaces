@@ -7,21 +7,11 @@ import type { ClientErrorInput } from "@/lib/types";
  * ever passes through this module.
  */
 
-/** Injection point for tests; defaults to the page's `fetch`. */
-export interface ApiDeps {
-  fetch?: typeof fetch;
-}
-
 /** The `{ error: { code, message } }` envelope every route returns on failure. */
 export interface ApiErrorBody {
   code: string;
   message: string;
   details?: unknown;
-}
-
-function fetchOf(deps?: ApiDeps): typeof fetch {
-  const impl = deps?.fetch ?? globalThis.fetch;
-  return (input, init) => impl(input, init);
 }
 
 /** Reads the error envelope of a failed response; never throws. */
@@ -40,8 +30,8 @@ export async function apiErrorBody(res: Response): Promise<ApiErrorBody> {
 }
 
 /** `POST /api/workspaces/{id}/{path}` with a JSON body and no caching. */
-async function post(workspaceId: string, path: string, body: unknown, deps?: ApiDeps): Promise<Response> {
-  return fetchOf(deps)(`/api/workspaces/${workspaceId}/${path}`, {
+async function post(workspaceId: string, path: string, body: unknown): Promise<Response> {
+  return fetch(`/api/workspaces/${workspaceId}/${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -56,15 +46,15 @@ export interface KeepAliveResult {
 }
 
 /** "Keep alive" on the idle-stop toast: pushes the idle clock forward (b9 §3.26 bullet 4). */
-export async function keepAlive(workspaceId: string, deps?: ApiDeps): Promise<KeepAliveResult> {
-  const res = await post(workspaceId, "keepalive", {}, deps);
+export async function keepAlive(workspaceId: string): Promise<KeepAliveResult> {
+  const res = await post(workspaceId, "keepalive", {});
   if (!res.ok) throw new Error((await apiErrorBody(res)).message);
   const body = (await res.json().catch(() => ({}))) as { keptAliveUntil?: unknown };
   return { keptAliveUntil: typeof body.keptAliveUntil === "string" ? body.keptAliveUntil : null };
 }
 
-async function connectProcess(workspaceId: string, kind: "debug" | "kernel", body: unknown, deps?: ApiDeps): Promise<{ launch: string; url: string; token: string }> {
-  const res = await fetchOf(deps)(`/api/workspaces/${workspaceId}/${kind}`, {
+async function connectProcess(workspaceId: string, kind: "debug" | "kernel", body: unknown): Promise<{ launch: string; url: string; token: string }> {
+  const res = await fetch(`/api/workspaces/${workspaceId}/${kind}`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(15_000),
   });
@@ -72,16 +62,16 @@ async function connectProcess(workspaceId: string, kind: "debug" | "kernel", bod
   return res.json();
 }
 
-export const connectDebugAdapter = (workspaceId: string, launch: string, deps?: ApiDeps) => connectProcess(workspaceId, "debug", launch, deps);
-export const connectKernel = (workspaceId: string, python: string | null, cwd: string, deps?: ApiDeps) => connectProcess(workspaceId, "kernel", { python, cwd }, deps);
+export const connectDebugAdapter = (workspaceId: string, launch: string) => connectProcess(workspaceId, "debug", launch);
+export const connectKernel = (workspaceId: string, python: string | null, cwd: string) => connectProcess(workspaceId, "kernel", { python, cwd });
 
 /**
  * Re-mints the `zs_editor` cookie (every 6 h and after any `401`,
  * b9 §3.26 bullet 8). Returns false when the caller must sign in again.
  */
-export async function refreshEditorSession(workspaceId: string, deps?: ApiDeps): Promise<boolean> {
+export async function refreshEditorSession(workspaceId: string): Promise<boolean> {
   try {
-    const res = await post(workspaceId, "session", {}, deps);
+    const res = await post(workspaceId, "session", {});
     return res.ok;
   } catch {
     return false;
@@ -96,10 +86,9 @@ export async function reportClientError(
   workspaceId: string,
   build: string,
   report: ClientErrorReport,
-  deps?: ApiDeps,
 ): Promise<void> {
   try {
-    await post(workspaceId, "client-errors", { ...report, build }, deps);
+    await post(workspaceId, "client-errors", { ...report, build });
   } catch {
     // Telemetry is best effort: a failed report must never break the editor.
   }
@@ -112,8 +101,8 @@ export interface SettingsDocument {
 }
 
 /** Reads one of the user's JSONC documents; a missing document reads as empty. */
-export async function fetchSettingsDocument(url: string, deps?: ApiDeps): Promise<SettingsDocument> {
-  const res = await fetchOf(deps)(url, { cache: "no-store" });
+export async function fetchSettingsDocument(url: string): Promise<SettingsDocument> {
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return { content: "", version: null };
   const body = (await res.json().catch(() => ({}))) as { content?: unknown; version?: unknown };
   return {
@@ -137,9 +126,8 @@ export class DocumentConflictError extends Error {
 export async function putSettingsDocument(
   url: string,
   doc: { content: string; version: number | null },
-  deps?: ApiDeps,
 ): Promise<SettingsDocument> {
-  const res = await fetchOf(deps)(url, {
+  const res = await fetch(url, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(doc.version === null ? { content: doc.content } : doc),
@@ -166,9 +154,4 @@ export function openExternal(url: string): void {
 /** Reloading the public editor document mints fresh internal session cookies; no login route. */
 export function sessionReloadUrl(returnTo: string): string {
   return returnTo.startsWith("/w/") && !returnTo.includes("\\") ? returnTo : "/";
-}
-
-/** The deep link that opens the same repository in desktop Zed (b9 §3.26 bullet 5). */
-export function desktopUrl(workspaceId: string): string {
-  return `zed://zs/w/${workspaceId}`;
 }

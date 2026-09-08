@@ -1,5 +1,5 @@
 import type { ConnectInfo, WorkspaceView } from "@/lib/types";
-import { apiErrorBody, refreshEditorSession, type ApiDeps } from "./api-client";
+import { apiErrorBody, refreshEditorSession } from "./api-client";
 
 /**
  * The shell's `connect()` (b9 §3.26 bullet 2): one `POST
@@ -58,12 +58,6 @@ export interface ConnectRequest {
   signal?: AbortSignal;
 }
 
-/** Injection points for the tests: `fetch`, the clock and the sleep. */
-export interface ConnectDeps extends ApiDeps {
-  sleep?: (ms: number) => Promise<void>;
-  now?: () => number;
-}
-
 /** Interval between `GET /api/workspaces/{id}` polls while a resume runs. */
 export const CONNECT_POLL_MS = 1_500;
 /** Covers the bounded rebuild: up to 20 minutes archiving and 35 minutes creating. */
@@ -82,14 +76,12 @@ function parseConnectInfo(body: unknown): ConnectInfo {
  * Resolves with a fresh {@link ConnectInfo} (a new `sessionId` on every call,
  * D1) and rejects with a {@link ConnectError}.
  */
-export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = {}): Promise<ConnectInfo> {
-  const doFetch = deps.fetch ?? globalThis.fetch;
-  const now = deps.now ?? (() => Date.now());
-  const deadline = now() + (req.deadlineMs ?? CONNECT_DEADLINE_MS);
+export async function connectWorkspace(req: ConnectRequest): Promise<ConnectInfo> {
+  const deadline = Date.now() + (req.deadlineMs ?? CONNECT_DEADLINE_MS);
   let remintedCookie = false;
 
   for (;;) {
-    const res = await doFetch(`/api/workspaces/${req.workspaceId}/connect`, {
+    const res = await fetch(`/api/workspaces/${req.workspaceId}/connect`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ clientBuild: req.build, reason: req.reason, tabId: req.tabId }),
@@ -102,7 +94,7 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
     if (res.status === 202) {
       const body = await res.json() as { status: string };
       req.onProgress?.(body.status === "upgrading" ? "Upgrading the editor; keeping your files and editor state…" : "boot:resuming");
-      await waitForRunning(req, deps, deadline);
+      await waitForRunning(req, deadline);
       // Refresh page props too: the local backend's workspace path changes with its generation.
       if (body.status === "upgrading") throw new ConnectError("build_mismatch", "The workspace was upgraded. Reloading…");
       continue;
@@ -113,7 +105,7 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
       case 401: {
         if (remintedCookie) throw new ConnectError("unauthorized", body.message, 401);
         remintedCookie = true;
-        if (!(await refreshEditorSession(req.workspaceId, deps))) {
+        if (!(await refreshEditorSession(req.workspaceId))) {
           throw new ConnectError("unauthorized", body.message, 401);
         }
         continue;
@@ -132,7 +124,7 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
         throw new ConnectError("unavailable", body.message, 409, body.details);
       case 423:
         req.onProgress?.("boot:starting");
-        await waitForRunning(req, deps, deadline);
+        await waitForRunning(req, deadline);
         // Another tab may have upgraded while this request waited for the lifecycle lock.
         throw new ConnectError("build_mismatch", "The workspace restarted. Reloading…");
       default:
@@ -142,14 +134,12 @@ export async function connectWorkspace(req: ConnectRequest, deps: ConnectDeps = 
 }
 
 async function waitOrGiveUp(
-  sleep: (ms: number) => Promise<void>,
-  now: () => number,
   deadline: number,
   message: string,
 ): Promise<void> {
-  if (now() >= deadline) throw new ConnectError("unavailable", message || "The workspace is still starting");
-  await sleep(CONNECT_POLL_MS);
-  if (now() > deadline) throw new ConnectError("unavailable", message || "The workspace is still starting");
+  if (Date.now() >= deadline) throw new ConnectError("unavailable", message || "The workspace is still starting");
+  await new Promise<void>(resolve => setTimeout(resolve, CONNECT_POLL_MS));
+  if (Date.now() > deadline) throw new ConnectError("unavailable", message || "The workspace is still starting");
 }
 
 /**
@@ -159,16 +149,12 @@ async function waitOrGiveUp(
  */
 export async function waitForRunning(
   req: Pick<ConnectRequest, "workspaceId" | "signal" | "onProgress"> & { afterStopping?: boolean },
-  deps: ConnectDeps = {},
   deadline = Date.now() + CONNECT_DEADLINE_MS,
 ): Promise<void> {
-  const doFetch = deps.fetch ?? globalThis.fetch;
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  const now = deps.now ?? (() => Date.now());
   let observedLifecycle = !req.afterStopping;
 
   for (;;) {
-    const res = await doFetch(`/api/workspaces/${req.workspaceId}`, { cache: "no-store", signal: req.signal });
+    const res = await fetch(`/api/workspaces/${req.workspaceId}`, { cache: "no-store", signal: req.signal });
     if (res.status === 404 || res.status === 410) throw new ConnectError("deleted", "This workspace was deleted", res.status);
     if (res.status === 401 || res.status === 403) {
       throw new ConnectError(res.status === 401 ? "unauthorized" : "forbidden", "Not allowed", res.status);
@@ -191,6 +177,6 @@ export async function waitForRunning(
         throw new ConnectError("unavailable", workspace.stateReason ?? "The workspace failed to start");
       }
     }
-    await waitOrGiveUp(sleep, now, deadline, "The workspace is still starting");
+    await waitOrGiveUp(deadline, "The workspace is still starting");
   }
 }

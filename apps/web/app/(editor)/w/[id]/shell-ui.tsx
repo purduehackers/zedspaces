@@ -171,10 +171,10 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
         >
           <p className="zs-card__body">{phase.message}</p>
           {phase.code ? <p className="zs-card__hint zs-code">{phase.code}</p> : null}
-          {phase.code === "bundle_not_built" || phase.code === "bundle_missing" ? (
+          {phase.code === "bundle_missing" ? (
             <p className="zs-card__hint">
               No editor bundle is present for build <span className="zs-code">{workspace.clientBuild}</span>. See{" "}
-              <span className="zs-code">public/editor/README.md</span>.
+              the repository README for build instructions.
             </p>
           ) : null}
         </Card>

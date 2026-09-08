@@ -189,7 +189,7 @@ export_env() {
   ZS_SERVE_BIN="$(serve_bin)"
   export ZS_SERVE_BIN
   export ZS_CONTROL_URL="$BASE_URL/api"
-  export ZS_CLIENT_BUILD_ID="${ZS_CLIENT_BUILD_ID:-dev-0}"
+  export ZS_CLIENT_BUILD_ID="${ZS_CLIENT_BUILD_ID:-dev-local}"
   export ZS_SERVER_BUILD_ID="${ZS_SERVER_BUILD_ID:-dev-0}"
   export ZS_IMAGE_REF="${ZS_IMAGE_REF:-zs-workspace:dev-0}"
   export ZS_CSP_UNSAFE_EVAL="${ZS_CSP_UNSAFE_EVAL:-1}"
@@ -495,6 +495,11 @@ case "$MODE" in
     clean_local_root
     ;;
   dev)
+    build="${ZS_CLIENT_BUILD_ID:-dev-local}"
+    [[ "$build" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] || die "invalid ZS_CLIENT_BUILD_ID"
+    [ -f "$WEB_DIR/public/editor/$build/zed_web.js" ] && \
+      [ -f "$WEB_DIR/public/editor/$build/zed_web_bg.wasm" ] || \
+      die "editor bundle $build missing; run zed/script/build-web --build-id $build --out-dir ../apps/web/public/editor from the repository root"
     build_all
     gen_keys
     resolve_dev_db

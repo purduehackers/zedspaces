@@ -14,7 +14,7 @@ import { bundleProblems } from "./deploy-preflight";
 
 const keys = ["ZS_IMAGE_REF", "ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID", "ZS_EDITOR_BUNDLES", "ZS_EDITOR_BUNDLES_KEEP", "ZS_EDITOR_UPDATE_BUILDS"] as const;
 type Values = Record<typeof keys[number], string>;
-interface RecordFile { build: string; values: Values; previous: Record<typeof keys[number], string | null>; assetSha256: string }
+interface RecordFile { build: string; origin: string; values: Values; previous: Record<typeof keys[number], string | null>; assetSha256: string }
 const recordPath = path.resolve("release-record.json");
 const required = (key: string): string => { const value = process.env[key]; assert.ok(value, `${key} is required`); return value; };
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -40,6 +40,9 @@ function api(endpoint: string, method = "GET", body?: unknown) {
 }
 
 async function publish(build: string, delivery: string) {
+  const control = new URL(required("ZS_CONTROL_URL"));
+  assert.ok(control.protocol === "https:" && !control.username && !control.password, "Public HTTPS control URL required");
+  const origin = control.origin;
   assert.deepEqual(bundleProblems(editorDir(), [build]), [], "Production bundle validation");
   const team = required("VERCEL_TEAM_SLUG");
   const repository = `vcr.vercel.com/${team}/${required("VERCEL_PROJECT_SLUG")}/zs-workspace`;
@@ -90,7 +93,7 @@ async function publish(build: string, delivery: string) {
   }
   assert.ok(visible, "New manifest must be visible before deployment");
   const previous = Object.fromEntries(keys.map(key => [key, process.env[key] ?? null]));
-  fs.writeFileSync(recordPath, JSON.stringify({ build, values, previous, assetSha256 }, null, 2) + "\n");
+  fs.writeFileSync(recordPath, JSON.stringify({ build, origin, values, previous, assetSha256 }, null, 2) + "\n");
   console.log(JSON.stringify({ build, image: values.ZS_IMAGE_REF, assetSha256, retained }));
 }
 
@@ -107,7 +110,7 @@ export function configure(record: RecordFile, restore: boolean, request = api) {
 }
 
 async function verify(record: RecordFile) {
-  const origin = "https://code.purduehackers.com";
+  const origin = new URL(record.origin).origin;
   assert.equal((await fetch(origin)).status, 200, "Public homepage must be reachable without login");
   for (const build of record.values.ZS_EDITOR_BUNDLES.split(",")) {
     const response = await fetch(`${origin}/editor/${build}/build.json`);
