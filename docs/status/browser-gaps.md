@@ -8,7 +8,10 @@ project-tree uploads, browser Save write-through, completion/code-action semanti
 and the sandbox-only Astro documentColor correction. CI/full WASM checking pass;
 isolated browser file probes pass Chromium, Firefox and WebKit. Real Chromium file
 selection/upload preserves Unicode/binary bytes. Remaining live checks are ongoing.
-Next source batch adds native adapter logs and accessible process-picker rows.
+Next source batch adds native adapter logs, accessible process-picker rows,
+completion input/selection association, and mouse-modality restoration for drops
+after keyboard input. That last case fails in the current production build unless
+the pointer moves first; native directory drops then preserve empty folders too.
 
 | Area | Current browser behavior | Source |
 |---|---|---|
