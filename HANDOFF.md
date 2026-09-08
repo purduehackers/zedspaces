@@ -1,15 +1,28 @@
 # Handoff: Zed Codespaces
 
+**Input/accessibility continuation (2026-09-08 UTC).** App `85aaa48`, fork
+`4d657e7c95`, matching build `4d657e7c9-34171767602.1` are deployed at
+code.purduehackers.com. Changes are confined to five `gpui_web` files: browser
+layout-aware Option shortcuts, Ctrl+Alt/AltGraph separation, paired key releases,
+and hidden/disabled semantic focus plus live/busy accessibility flags. No new Zed
+UI. CI, live desktop Chromium/Firefox/WebKit checks, and Linux-style modifier
+emulation pass. Isolated semantic-focus/live-state checks pass in all three engines.
+Touch emulation exposed a remaining Vim Normal-mode focus gap: tapping a file tab
+can leave keyboard focus on the page. Real VoiceOver/NVDA and physical keyboard,
+IME and mobile checks have not been run. Calls stay removed. Release evidence and
+scratch-workspace cleanup are recorded in `docs/status/deployment.md`.
+
 **Latest owner direction (2026-09-07): remove calling entirely.** Calls, screen
 sharing, their custom title-bar controls, host bridge, API, signaling, media CSP
 allowance and TURN configuration are removed and deployed; the unfinished device
 selectors are discarded. App `8bc7d90`, fork `9534a9d8fb`, matching build
-`9534a9d8f-34158944970.1` are live at code.purduehackers.com. CI passed. Live
+`9534a9d8f-34158944970.1` were deployed before the continuation above. CI passed. Live
 Chromium verified no call UI/bridge/media activity, API 404 and two-way editing/saving.
 An old-build workspace automatically upgraded with its exact uncommitted file and
 full Git history preserved. Collaborative editing and its approved avatars stay.
-Only the new build may defer upgrades: older bundles require the deleted host ABI
-and need a file-preserving bootstrap upgrade. Their pinned assets remain retained.
+The calls-removal build and current continuation may defer upgrades; older bundles
+require the deleted host ABI and need a file-preserving bootstrap upgrade. Their
+pinned assets remain retained.
 
 **Architecture constraint:** preserve Zed's native UI and functionality. Browser
 support belongs at the web-platform boundary, so native editor behavior runs through

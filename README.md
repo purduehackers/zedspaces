@@ -52,6 +52,11 @@ Use **F1** or **Alt/Option+Shift+P** for the command palette,
 the native shortcuts when the browser reserves them; F1 follows the
 [Codespaces convention](https://docs.github.com/en/codespaces/reference/using-the-vs-code-command-palette-in-codespaces).
 
+On macOS, Option shortcuts use the browser's keyboard-layout map where available,
+with observed key legends as a fallback. Browsers without that API cannot reliably
+resolve a never-observed non-US Option key; F1 remains available. Shifted punctuation
+is not guessed from an unshifted layout map; unbound Option characters stay intact.
+
 Dockerfile, HTML and TOML highlighting are bundled alongside the existing
 languages. Dockerfile and HTML use language servers already pinned in the
 workspace image; TOML currently has syntax support only. This is a curated

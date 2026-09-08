@@ -1,6 +1,38 @@
-# Production deployment — 2026-09-07
+# Production deployment — 2026-09-08 UTC
 
-Current production, verified 21:03 UTC: app `8bc7d90`, fork `9534a9d8fb`, matching
+Current production: app `85aaa48`, fork `4d657e7c95`, matching build
+`4d657e7c9-34171767602.1`, deployment `dpl_2hpfwWzgM5mshKwmvPwDhqmugC73`
+is READY and aliased to code.purduehackers.com. Five `gpui_web` files implement
+layout-aware shortcuts, input/key-release filtering and semantic accessibility
+focus/state fixes. No native Zed UI was added or replaced; calls remain removed.
+
+- [Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34171767602)
+  passed app/supervisor checks and matching browser/server builds. Local formatting,
+  full `zed_web` WASM checking and diff checks passed. No root tests added/run.
+- Authenticated local publication deployed the matching image/assets and Vercel app
+  after CI (`deploy=false`). Public release verification passed.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:f90b8c2b3613837fa3f72d00df1506597489ec2e1cada20f4a09a7d8ff29fad9`.
+- Editor archive SHA-256: `cca8895774f66ea0461e5018d7dc75dc13d35f82a508674a8f2d51d92b758b51`.
+- Live desktop Chromium, Firefox and WebKit passed layout/fallback, Unicode,
+  modifier, save and Tab checks; Chromium also passed IME and full-text AX checks.
+  Linux modifier emulation passed on macOS; this was not physical Linux testing.
+  Temporary isolated adapter probes passed hidden/disabled focus and live/busy
+  semantics across all three engines. These probes are not full-editor e2e tests.
+- Touch emulation failed: a file-tab tap in Vim Normal mode can leave focus on the
+  page. Mobile support remains unfinished. Real VoiceOver/NVDA and physical layouts,
+  IME and phones were not tested. Existing local-AI CSP warnings remain blocked.
+- The disposable workspace upgraded from `9534a9d8f-34158944970.1` with its exact
+  uncommitted Unicode fixture and full three-commit Git history preserved. Final
+  saved bytes matched the sandbox readback. Only current and calls-removal builds
+  may defer upgrades; older owner-workspace assets remain retained.
+
+Cleanup verified: scratch workspace `ws_PHGMMHMDH554XQ7PRY1R` returns 410 and
+its exact-prefix SDK sandbox inventory is empty. Only our `input.txt` fixture was
+untracked before deletion. Diagnostic browsers are closed; no owner workspace changed.
+
+## Previous calls-removal release — 2026-09-07 UTC
+
+Previous production, verified 21:03 UTC: app `8bc7d90`, fork `9534a9d8fb`, matching
 build `9534a9d8f-34158944970.1`, deployment `dpl_DGkFpHABt9RzAN8ed6ETsppsKusa`
 is READY and aliased to code.purduehackers.com. Calls and screen sharing are removed,
 including their custom Zed controls, host ABI, browser media, API/signaling, TURN
