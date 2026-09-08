@@ -1,14 +1,18 @@
 # Only supervisor sources and runtime assets belong in the image build context.
 **
 !sandbox
+sandbox/*
 !sandbox/supervisor
+sandbox/supervisor/*
 !sandbox/supervisor/Cargo.toml
 !sandbox/supervisor/Cargo.lock
 !sandbox/supervisor/src
 !sandbox/supervisor/src/**
 !sandbox/image
+sandbox/image/*
 !sandbox/image/Dockerfile
 !sandbox/image/dist
+sandbox/image/dist/*
 !sandbox/image/dist/zed-remote-server
 !sandbox/image/export-project.py
 !sandbox/image/kernel.py
