@@ -99,6 +99,11 @@ RUN GOBIN=/usr/local/bin GOFLAGS=-mod=mod go install golang.org/x/tools/gopls@${
 RUN npm install -g --no-fund --no-audit ${NPM_LS_PACKAGES} \
  && npm cache clean --force \
  && rm -rf /root/.npm
+# Astro uses the shared TypeScript SDK and plugin through Zed's native LSP options.
+RUN npm install -g --no-fund --no-audit @astrojs/language-server@2.16.16 @astrojs/ts-plugin@1.10.11 prettier-plugin-astro@0.14.1 \
+ && npm cache clean --force \
+ && rm -rf /root/.npm
+ENV ZS_NODE_MODULES_DIR=/usr/local/lib/node_modules
 RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install ruff==${RUFF_VERSION} \
  && chmod -R a+rX /opt/uv-tools
 RUN curl -fsSLo /tmp/taplo.gz \

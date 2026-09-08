@@ -57,10 +57,12 @@ with observed key legends as a fallback. Browsers without that API cannot reliab
 resolve a never-observed non-US Option key; F1 remains available. Shifted punctuation
 is not guessed from an unshifted layout map; unbound Option characters stay intact.
 
-Dockerfile, HTML and TOML highlighting are bundled alongside the existing
-languages. Dockerfile and HTML use language servers already pinned in the
-workspace image; TOML currently has syntax support only. This is a curated
-bundle, not general browser extension installation.
+Dockerfile, HTML, TOML and Astro highlighting are bundled alongside the existing
+languages, with language servers pinned in the workspace image. Astro includes
+embedded TypeScript/CSS highlighting, TypeScript integration and formatting;
+install your project's dependencies for its types and imports to resolve. TOML
+uses Taplo for diagnostics and formatting. This is a curated bundle, not general
+browser extension installation.
 
 New clones fetch the selected branch's full history. An older shallow checkout
 can fetch its missing history with `git fetch --unshallow origin`.
