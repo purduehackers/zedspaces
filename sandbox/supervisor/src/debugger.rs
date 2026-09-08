@@ -20,10 +20,10 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _},
+    io::{AsyncBufReadExt as _, AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _},
     net::TcpStream,
     process::{Child, Command},
-    sync::Semaphore,
+    sync::{Semaphore, mpsc},
 };
 use tokio_tungstenite::{
     WebSocketStream,
@@ -243,8 +243,15 @@ impl DebugService {
                 _ = service.shutdown.cancelled() => Ok(()),
                 _ = tokio::time::sleep(Duration::from_secs(3600)) => Err(anyhow::anyhow!("Debug session reached its one-hour limit")),
             };
-            if result.is_err() {
-                let _ = tokio::time::timeout(Duration::from_secs(2), socket.send(Message::Text("{\"error\":\"Debug adapter stopped or could not start. Check its configuration and debug console.\"}".into()))).await;
+            if let Err(error) = result {
+                let message =
+                    serde_json::json!({"error": format!("Debug adapter stopped: {error:#}")})
+                        .to_string();
+                let _ = tokio::time::timeout(
+                    Duration::from_secs(2),
+                    socket.send(Message::Text(message)),
+                )
+                .await;
             }
             let _ = tokio::time::timeout(Duration::from_secs(2), socket.close(None)).await;
         });
@@ -303,6 +310,7 @@ impl DebugService {
             .connection
             .as_ref()
             .map(|connection| PrivatePort::new(connection.port));
+        let (log_sender, mut logs) = mpsc::channel(32);
         let mut process = if let Some(program) = &launch.command {
             ensure!(!program.is_empty(), "No debug adapter program");
             let mut command = Command::new(program);
@@ -322,7 +330,7 @@ impl DebugService {
                 .stderr(Stdio::piped())
                 .process_group(0)
                 .kill_on_drop(true);
-            Some(Process::new(command.spawn()?))
+            Some(Process::new(command.spawn()?, log_sender))
         } else {
             None
         };
@@ -349,11 +357,29 @@ impl DebugService {
                     }
                 }
             };
-            let stream = tokio::time::timeout(
+            let connected = tokio::time::timeout(
                 Duration::from_millis(connection.timeout.unwrap_or(15_000).clamp(1_000, 20_000)),
                 connect,
             )
-            .await??;
+            .await
+            .context("Timed out connecting to the debug adapter")
+            .and_then(|result| result);
+            let stream = match connected {
+                Ok(stream) => stream,
+                Err(error) => {
+                    // Startup failed before the ready frame, so return the bounded
+                    // startup output with the error instead of silently losing it.
+                    let mut output = String::new();
+                    while let Ok(Message::Text(line)) = logs.try_recv() {
+                        if let Ok(line) = serde_json::from_str::<serde_json::Value>(&line)
+                            && let Some(text) = line["text"].as_str()
+                        {
+                            output.push_str(text);
+                        }
+                    }
+                    bail!("{error:#}\n{output}");
+                }
+            };
             stream.set_nodelay(true)?;
             let (read, write) = stream.into_split();
             (Box::new(write), Box::new(read))
@@ -369,7 +395,7 @@ impl DebugService {
         socket
             .send(Message::Text("{\"ready\":true}".into()))
             .await?;
-        tunnel(socket, input, output).await
+        tunnel(socket, input, output, logs).await
     }
 }
 
@@ -377,6 +403,7 @@ async fn tunnel<S>(
     socket: &mut WebSocketStream<S>,
     mut input: Box<dyn AsyncWrite + Unpin + Send>,
     mut output: Box<dyn AsyncRead + Unpin + Send>,
+    mut logs: mpsc::Receiver<Message>,
 ) -> Result<()>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -385,14 +412,27 @@ where
     let send = async {
         let mut buffer = vec![0; 64 * 1024];
         let mut heartbeat = tokio::time::interval(Duration::from_secs(15));
+        let mut logs_open = true;
         loop {
             tokio::select! {
                 read = output.read(&mut buffer) => {
                     let count = read?;
-                    if count == 0 { break; }
+                    if count == 0 {
+                        // Let the stderr reader deliver the last lines of an adapter
+                        // that failed. Never keep a finished session open for logging.
+                        let deadline = tokio::time::Instant::now() + Duration::from_millis(100);
+                        while let Ok(Some(line)) = tokio::time::timeout_at(deadline, logs.recv()).await {
+                            sink.send(line).await?;
+                        }
+                        break;
+                    }
                     sink.send(Message::Binary(buffer[..count].to_vec())).await?;
                 },
                 _ = heartbeat.tick() => sink.send(Message::Ping(Vec::new())).await?,
+                line = logs.recv(), if logs_open => match line {
+                    Some(line) => sink.send(line).await?,
+                    None => logs_open = false,
+                },
             }
         }
         Ok::<_, anyhow::Error>(())
@@ -415,33 +455,76 @@ struct Process {
     child: Child,
     group: u32,
     drains: Vec<tokio::task::JoinHandle<()>>,
+    logs: mpsc::Sender<Message>,
 }
 impl Process {
-    fn new(mut child: Child) -> Self {
+    fn new(mut child: Child, logs: mpsc::Sender<Message>) -> Self {
         let stderr = child.stderr.take().unwrap();
         let group = child.id().unwrap();
         Self {
             child,
             group,
-            drains: vec![tokio::spawn(async move {
-                let _ = tokio::io::copy(
-                    &mut tokio::io::BufReader::new(stderr),
-                    &mut tokio::io::sink(),
-                )
-                .await;
-            })],
+            drains: vec![tokio::spawn(forward_logs(stderr, "stderr", logs.clone()))],
+            logs,
         }
     }
     fn drain_stdout(&mut self) {
         if let Some(stdout) = self.child.stdout.take() {
-            self.drains.push(tokio::spawn(async move {
-                let _ = tokio::io::copy(
-                    &mut tokio::io::BufReader::new(stdout),
-                    &mut tokio::io::sink(),
-                )
-                .await;
-            }));
+            self.drains.push(tokio::spawn(forward_logs(
+                stdout,
+                "stdout",
+                self.logs.clone(),
+            )));
         }
+    }
+}
+
+async fn forward_logs(
+    reader: impl AsyncRead + Unpin,
+    stream: &'static str,
+    sender: mpsc::Sender<Message>,
+) {
+    let mut reader = tokio::io::BufReader::new(reader);
+    let mut line = Vec::new();
+    let mut dropped = 0_u64;
+    loop {
+        let capacity = 8192 - line.len();
+        let Ok(count) = (&mut reader)
+            .take(capacity as u64)
+            .read_until(b'\n', &mut line)
+            .await
+        else {
+            break;
+        };
+        if count == 0 && line.is_empty() {
+            break;
+        }
+        // Keep a partial UTF-8 character for the next bounded read. Adapters
+        // need not put a newline (or a character boundary) every 8 KiB.
+        let end = match std::str::from_utf8(&line) {
+            Err(error) if error.error_len().is_none() && count != 0 => error.valid_up_to(),
+            _ => line.len(),
+        };
+        if end == 0 {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&line[..end]);
+        let text = if dropped == 0 {
+            text.into_owned()
+        } else {
+            format!("[{dropped} adapter log chunks dropped]\n{text}")
+        };
+        match sender.try_send(Message::Text(
+            serde_json::json!({"log": stream, "text": text}).to_string(),
+        )) {
+            Ok(()) => dropped = 0,
+            Err(mpsc::error::TrySendError::Full(_)) => dropped += 1,
+            Err(mpsc::error::TrySendError::Closed(_)) => break,
+        }
+        line.drain(..end);
+    }
+    if dropped != 0 {
+        let _ = sender.send(Message::Text(serde_json::json!({"log": stream, "text": format!("[{dropped} adapter log chunks dropped]\n")}).to_string())).await;
     }
 }
 impl Drop for Process {

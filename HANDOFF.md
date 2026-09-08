@@ -1,5 +1,15 @@
 # Handoff: Zed Codespaces
 
+**File-platform continuation (2026-09-08 UTC).** App `6ad97fd`, fork `7b39240f7e`,
+build `7b39240f7-34200616408.1` are deployed. Browser file/folder pickers and drops
+feed native project imports; browser saves use real file handles or downloads.
+Completion/code-action semantics and a sandbox-only Astro documentColor correction
+are included. CI and full WASM checking pass; real browser uploads preserve Unicode
+and binary bytes. An old-build fixture upgraded with its uncommitted baseline and
+full Git history intact. Live validation continues; see deployment.md. Next source
+batch adds native debugger adapter logs and process-picker accessibility. Calls and
+desktop integrations remain excluded; AI/MCP remain disabled pending owner direction.
+
 **Language-tooling continuation (2026-09-08 UTC).** App `8db1569`, fork
 `cf857ded3c`, matching build `cf857ded3-34188201299.1` are pushed and deployed at
 code.purduehackers.com. Astro's upstream grammar/configs are bundled under the

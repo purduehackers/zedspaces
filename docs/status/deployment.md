@@ -1,6 +1,26 @@
 # Production deployment — 2026-09-08 UTC
 
-Current production: app `8db1569`, fork `cf857ded3c`, matching build
+Current production: app `6ad97fd`, fork `7b39240f7e`, build
+`7b39240f7-34200616408.1`, deployment `dpl_BVNdGaoh3mjkf8kPokEeyE6jgCSv`
+at code.purduehackers.com. Browser files/imports/save adapters, completion/action
+semantics and the sandbox-only Astro documentColor correction are deployed.
+
+- [CI](https://github.com/purduehackers/zedspaces/actions/runs/34200616408) and
+  matching-image/assets publication, Vercel deployment and public verification pass.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:f2a49089995cd3914d33153abc678a238a7bfde9959c9de9ffd670336ce30021`.
+- Editor archive SHA-256: `dfc248ac361f0498ec4ef58ad20e917d6b332bdd2aa2e0b8e59e27bb5fbe4e9a`.
+- Full WASM checking and isolated Chromium/Firefox/WebKit picker/download, nested
+  directory, size/path rejection and save completion/error probes pass. Real Astro
+  LSP documentColor returns an array for colored and colorless files after the patch.
+- Live Chromium loads the actual published bundle (no route override) and uploads
+  Unicode and binary files through its browser chooser; independent sandbox readback
+  matches. Scratch `ws_WMJ3FX55AZ0PC8MG84F8` upgraded with the original README,
+  uncommitted baseline and three Git commits preserved. Validation/cleanup ongoing.
+- Real Node PID attach and evaluation pass a production DAP probe. The failed
+  fixture lacked `type: node` and an IPv4 address; native process selection itself
+  already uses remote RPC. Next source batch exposes adapter logs and picker labels.
+
+Previous production: app `8db1569`, fork `cf857ded3c`, matching build
 `cf857ded3-34188201299.1`, deployment `dpl_8cbSMBc9KX6chA7X5NgvUWHdwkYf`
 is READY at code.purduehackers.com. Astro's upstream grammar/configs and installed
 language server are connected through the web-language adapter, including its

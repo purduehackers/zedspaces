@@ -100,6 +100,10 @@ For compiled TypeScript, enable source maps and point `program`/`outFiles` at th
 built JavaScript. Very short programs may need
 `"runtimeSourcemapPausePatterns": ["$ZED_WORKTREE_ROOT/dist/**/*.js"]`
 (adjust to your output directory) so source breakpoints bind before execution.
+For Node process attachment, use `"type": "node"`, `"request": "attach"`,
+`"processId": "$ZED_PICK_PID"` and `"address": "127.0.0.1"` with the JavaScript
+adapter. The native process picker lists sandbox processes. The explicit address
+matches an IPv4 inspector; `localhost` may resolve to IPv6 instead.
 
 The inline Python REPL uses Zed's existing output UI and a private Jupyter kernel
 in the sandbox. Select **Python (sandbox)** to use the bundled environment, or a
