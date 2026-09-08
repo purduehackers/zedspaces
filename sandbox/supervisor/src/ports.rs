@@ -576,7 +576,11 @@ pub async fn watch(
                     let diff = diff_ports(&previous.keys().copied().collect(), &current);
                     // Rebinding the same port can change the owner or IPv4/IPv6 address family.
                     let changed = previous != scanned;
-                    if changed || pending {
+                    let privacy_changed = listening
+                        .current()
+                        .iter()
+                        .any(|port| crate::debugger::is_debug_process(port.pid));
+                    if changed || pending || privacy_changed {
                         let unknown: Vec<u64> = scanned
                             .values()
                             .map(|socket| socket.inode)

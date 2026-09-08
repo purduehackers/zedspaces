@@ -39,6 +39,8 @@ const PROTOCOL: &str = "zs.dap.v1";
 const MAX_LAUNCH: usize = 64 * 1024;
 const MAX_FRAME: usize = 8 * 1024 * 1024;
 
+mod node_attach;
+
 pub struct DebugService {
     config: OnceLock<Config>,
     slots: Arc<Semaphore>,
@@ -282,6 +284,11 @@ impl DebugService {
             "Launch definition does not match token"
         );
         let launch: Launch = serde_json::from_slice(&raw)?;
+        let node_adapter = launch.arguments.iter().any(|arg| {
+            std::path::Path::new(arg)
+                .file_name()
+                .is_some_and(|name| name == "dapDebugServer.js")
+        });
         let config = self.config.get().context("Workspace is starting")?;
         let cwd = tokio::fs::canonicalize(launch.cwd.as_ref().unwrap_or(&config.root)).await?;
         ensure!(
@@ -395,7 +402,7 @@ impl DebugService {
         socket
             .send(Message::Text("{\"ready\":true}".into()))
             .await?;
-        tunnel(socket, input, output, logs).await
+        tunnel(socket, input, output, logs, node_adapter).await
     }
 }
 
@@ -404,6 +411,7 @@ async fn tunnel<S>(
     mut input: Box<dyn AsyncWrite + Unpin + Send>,
     mut output: Box<dyn AsyncRead + Unpin + Send>,
     mut logs: mpsc::Receiver<Message>,
+    node_adapter: bool,
 ) -> Result<()>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -438,8 +446,20 @@ where
         Ok::<_, anyhow::Error>(())
     };
     let receive = async {
+        let mut requests = node_attach::Requests::default();
         while let Some(message) = stream.next().await {
             match message? {
+                Message::Binary(bytes) if node_adapter => {
+                    requests.push(&bytes)?;
+                    while let Some(mut request) = requests.next()? {
+                        node_attach::prepare(&mut request).await?;
+                        let body = serde_json::to_vec(&request)?;
+                        input
+                            .write_all(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes())
+                            .await?;
+                        input.write_all(&body).await?;
+                    }
+                }
                 Message::Binary(bytes) => input.write_all(&bytes).await?,
                 Message::Close(_) => break,
                 Message::Ping(_) | Message::Pong(_) => {}
@@ -560,10 +580,13 @@ pub fn is_private_port(port: u16) -> bool {
 #[cfg(target_os = "linux")]
 pub fn is_debug_process(pid: u32) -> bool {
     pid != 0
-        && std::fs::read(format!("/proc/{pid}/environ")).is_ok_and(|env| {
-            env.split(|byte| *byte == 0)
-                .any(|entry| entry == b"ZS_PRIVATE_SERVICE=debug")
-        })
+        && (node_attach::is_attached(pid)
+            || std::fs::read(format!("/proc/{pid}/environ")).is_ok_and(|env| {
+                env.split(|byte| *byte == 0).any(|entry| {
+                    entry == b"ZS_PRIVATE_SERVICE=debug"
+                        || entry.starts_with(b"VSCODE_INSPECTOR_OPTIONS=")
+                })
+            }))
 }
 #[cfg(not(target_os = "linux"))]
 pub fn is_debug_process(_: u32) -> bool {
