@@ -61,8 +61,12 @@ Dockerfile, HTML, TOML and Astro highlighting are bundled alongside the existing
 languages, with language servers pinned in the workspace image. Astro includes
 embedded TypeScript/CSS highlighting, TypeScript integration and formatting;
 install your project's dependencies for its types and imports to resolve. TOML
-uses Taplo for diagnostics and formatting. This is a curated bundle, not general
-browser extension installation.
+uses Taplo for diagnostics and formatting. Zed's native **Extensions** view also
+installs marketplace languages, themes, icons and snippets. Extension code and
+language servers run in the sandbox; declarative assets and bounded downloaded
+syntax grammars load in the browser. **Install Dev Extension** uploads a local
+source folder for sandbox compilation; **Rebuild** asks for a fresh folder snapshot.
+Installed extensions and development revisions survive workspace upgrades.
 
 New clones fetch the selected branch's full history. An older shallow checkout
 can fetch its missing history with `git fetch --unshallow origin`.
@@ -104,12 +108,15 @@ For Node process attachment, use `"type": "node"`, `"request": "attach"`,
 `"processId": "$ZED_PICK_PID"` and `"address": "127.0.0.1"` with the JavaScript
 adapter. The native process picker lists sandbox processes. The explicit address
 matches an IPv4 inspector; `localhost` may resolve to IPv6 instead.
+Further live attachment checks exposed a browser-main-thread channel-lock crash.
+Its dependency-level fix is pushed and passes isolated contention probes in all
+three browser engines, but is not yet deployed; see [current status](docs/status/browser-gaps.md).
 
 The inline Python REPL uses Zed's existing output UI and a private Jupyter kernel
 in the sandbox. Select **Python (sandbox)** to use the bundled environment, or a
 project interpreter with `ipykernel` installed. Use **REPL: Run**, **Interrupt**,
 **Restart**, and **Shutdown** from the command palette. Notebook editing and
-interactive widgets are not included. Unicode, persistent values, rich output,
+interactive widgets are not enabled. Unicode, persistent values, rich output,
 errors, input, Interrupt, Restart and Shutdown have been verified live, including
 preserving variables after interruption and clearing them on restart.
 

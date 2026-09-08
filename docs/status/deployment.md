@@ -1,6 +1,34 @@
 # Production deployment — 2026-09-08 UTC
 
-Current production: app `11ee08a`, fork `f9f6d3a98e`, build
+Current production: release source app `9b07986`, fork `d266d7729e`, build
+`d266d7729-34229255469.1`, deployment `dpl_98KgireyBtRsPpUvW2LNd6LcE4HL`.
+
+- [CI](https://github.com/purduehackers/zedspaces/actions/runs/34229255469),
+  matching image/assets publication, Vercel deployment and public verification pass.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:cab3f3a80d0f611ca2a1e8e61d4f03dd8575032388475a316ce9b6cf0ddd7d24`.
+- Editor archive SHA-256: `3d3ccb3c922637b14cdecb6b7b79afbf2d8ddba53ddb0db95e77a2d9440da61d`.
+- Native Extensions installation, SQL/Svelte downloaded highlighting, Svelte
+  formatting and completion acceptance pass live Chromium. Dev revision 2 persists
+  through upgrade; same-version rebuild refreshes assets in two independent tabs.
+  Cargo dependency permalink resolves to the exact upstream commit/line. The
+  upgraded fixture retains exact README/uncommitted baseline and three Git commits.
+- Follow-up source: plain-text/clipped-bounds accessibility, browser channel-lock
+  fix, and opt-in upstream notebook kernel transport all pass WASM/native checks.
+  Channel/mutex forced contention passes Chromium, Firefox and WebKit; unpatched
+  futures-channel reproduces the actual forbidden main-thread atomic wait.
+  These follow-ups are not deployed or live-verified. Notebook flag remains off
+  because upstream serialization drops rich outputs.
+- Release run `34231984917` and diagnostic-symbol run `34232451201` were refused
+  before job steps by GitHub organization billing/spending limits. Owner notified;
+  do not describe these runs as passing or bypass matching client/server identities.
+
+Previous production: app `ef6b486`, fork `2cb0f67ede`, build
+`2cb0f67ed-34220092740.1`, deployment `dpl_8p7Q2w9nwPraNWaQcErDeT3vyBtS`.
+CI, image/assets publication and public verification passed. This shipped the
+extension host, bounded Wasmi grammars, dev rebuilds, Cargo permalink RPC and early
+DAP log buffering. Svelte completion needed the current release's adapter bridge.
+
+Previous production: app `11ee08a`, fork `f9f6d3a98e`, build
 `f9f6d3a98-34207705070.1`, deployment `dpl_5v6fv2WjpjSoJAS1iNzoSEi3Eg99`.
 
 - [CI](https://github.com/purduehackers/zedspaces/actions/runs/34207705070),

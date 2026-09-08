@@ -1,17 +1,30 @@
 # Handoff: Zed Codespaces
 
-**Current continuation (2026-09-08 UTC).** Build `2cb0f67ed-34220092740.1`
-(app `ef6b486`, fork `2cb0f67ede`) is deployed and publicly verified. Native
-Extensions installation, SQL/Svelte downloaded highlighting, Svelte formatting,
-development-folder upload/compilation, and command-palette physical typing pass
-live Chromium. Upgrade preserves the disposable workspace's README, uncommitted
-baseline and three Git commits. Extension LSP completion revealed a missing browser
-adapter registration despite a running sandbox server. Fork `d266d7729e` fixes that
-at the extension bridge, including revision-pinned completion/symbol label RPCs;
-full WASM and native server checks pass. This follow-up is not yet deployed.
-Continue live dev rebuild/multitab, Cargo permalink and early DAP-log checks in
-scratch `ws_WMJ3FX55AZ0PC8MG84F8`, then remove that scratch only. Owner workspace
-`ws_16XFMPW5J0WCZ9WRSYXQ` must remain untouched. Older paragraphs below are history.
+**Current continuation (2026-09-08 UTC).** Build `d266d7729-34229255469.1`
+(release source app `9b07986`, fork `d266d7729e`) is deployed and publicly verified.
+Native Extensions install SQL/Svelte grammars, Svelte formatting and completion
+acceptance pass live Chromium. Dev upload/compilation and same-version rebuild
+refresh both independent tabs; dev revision 2 survives upgrade with exact fixture
+README/baseline and three Git commits. Cargo dependency permalink also passes live.
+
+**Pushed, not deployed:** `3975ed248a` exposes plain UI text, theme-picker options
+and clipped accessibility bounds; `69a3d6eddb` fixes a real Node PID attach
+`Atomics.wait` crash in futures-channel sender bookkeeping and futures-util waiter
+locks. Full WASM/native checks pass; forced channel/mutex contention passes
+Chromium/Firefox/WebKit, with pristine upstream reproducing the exact crash.
+`b98f17db19` connects the existing notebook UI to sandbox kernels and browser clocks;
+WASM/native checks pass, but the upstream experimental flag stays off. Upstream
+notebook saves drop rich outputs; asked the owner whether that non-web-specific
+fix is authorized. No notebook live validation yet.
+
+**Release blocker:** GitHub Actions refused jobs in runs `34231984917` and
+`34232451201` because organization payments failed or the spending limit was
+reached. No build steps ran; this is not a compilation failure. Asked owner to
+resolve Billing & plans. Manual `browser-diagnostics.yml` builds symbols only;
+it never publishes. Resume matching release/publication, then live debugger
+attach/log, clipped AX/theme options and notebook checks as applicable. Scratch
+`ws_WMJ3FX55AZ0PC8MG84F8` is still under validation; remove only that scratch.
+Owner `ws_16XFMPW5J0WCZ9WRSYXQ` must remain untouched. Older paragraphs are history.
 
 **Extension-host continuation (2026-09-08 UTC).** Fork `2cb0f67ede` adds the
 unchanged native Extensions UI backed by sandbox registry/build operations and
