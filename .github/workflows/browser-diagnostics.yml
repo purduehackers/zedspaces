@@ -1,0 +1,41 @@
+name: Browser diagnostic symbols
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ${{ vars.ZS_BUILD_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 180
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: ./.github/actions/setup-zed
+        with:
+          cache-key: browser-symbols
+          wasm: "true"
+      - name: Build a symbolized browser bundle (never publish)
+        shell: bash
+        run: |
+          zed_sha=$(git ls-tree HEAD zed | awk '{print $3}')
+          build_id="${zed_sha:0:9}-${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}-names"
+          bash .github/scripts/build-metrics.sh zed/script/build-web --names --build-id "$build_id" --out-dir ../apps/web/public/editor
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-diagnostic-symbols
+          path: apps/web/public/editor
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: browser-diagnostic-resources
+          path: build-resources.log
+          if-no-files-found: warn
