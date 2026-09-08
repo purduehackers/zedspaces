@@ -3,6 +3,12 @@
 This separates unavailable features from real work delegated to the sandbox. It
 is a code audit, not a claim that each feature was exercised live.
 
+Next release is in source, not yet deployed: browser file/folder selection and
+project-tree uploads, browser Save write-through, completion/code-action semantics,
+and the sandbox-only Astro documentColor correction. Full WASM checking passes;
+isolated browser file probes pass Chromium, Firefox and WebKit. Actual-bundle
+production validation is still pending.
+
 | Area | Current browser behavior | Source |
 |---|---|---|
 | Extensions | Server installation RPCs exist, but the extension marketplace UI and browser extension-host integration are not initialized. Arbitrary downloaded syntax grammars cannot load; grammars must be linked into the browser build. | `zed/crates/zed_web/src/init.rs`, `zed/crates/project/src/remote_extension_store.rs`, `zed/crates/language/src/language_registry.rs` |

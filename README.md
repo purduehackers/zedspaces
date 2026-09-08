@@ -80,6 +80,14 @@ metadata, links and special files are excluded; untitled buffers are not exporte
 The limit is 256 MiB of source data and 20,000 paths per export. Files are read
 while the workspace stays live, so concurrent writes are not an atomic snapshot.
 
+Local files can be dropped onto a folder in the project tree. **Web: Upload Files**
+and **Web: Upload Folder** use the browser picker and Zed's existing import/replace
+prompts, targeting the selected tree entry (or project root). Nested folders and
+empty dropped folders are preserved. Limits: 8 MiB per file, 64 MiB and 10,000
+entries per selection, 128 MiB of imported copies per tab. Remote Open/Save still
+use Zed's sandbox path picker. Browser-local save destinations use a file handle
+where supported, otherwise a download; imported originals are never overwritten.
+
 Zed's existing debugger UI connects to adapters
 inside the sandbox through a one-use, workspace-scoped WebSocket capability.
 Node, TypeScript and Python launch, breakpoints, stack/variables, stepping and stopping have

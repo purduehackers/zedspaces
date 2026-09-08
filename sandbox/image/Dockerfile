@@ -104,6 +104,8 @@ RUN npm install -g --no-fund --no-audit @astrojs/language-server@2.16.16 @astroj
  && npm cache clean --force \
  && rm -rf /root/.npm
 ENV ZS_NODE_MODULES_DIR=/usr/local/lib/node_modules
+COPY sandbox/image/patch-astro.mjs /opt/zedspaces/patch-astro.mjs
+RUN node /opt/zedspaces/patch-astro.mjs /usr/local/lib/node_modules
 RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install ruff==${RUFF_VERSION} \
  && chmod -R a+rX /opt/uv-tools
 RUN curl -fsSLo /tmp/taplo.gz \
