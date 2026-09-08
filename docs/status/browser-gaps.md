@@ -3,15 +3,13 @@
 This separates unavailable features from real work delegated to the sandbox. It
 is a code audit, not a claim that each feature was exercised live.
 
-Build `7b39240f7-34200616408.1` is deployed: browser file/folder selection and
-project-tree uploads, browser Save write-through, completion/code-action semantics,
-and the sandbox-only Astro documentColor correction. CI/full WASM checking pass;
-isolated browser file probes pass Chromium, Firefox and WebKit. Real Chromium file
-selection/upload preserves Unicode/binary bytes. Remaining live checks are ongoing.
-Next source batch adds native adapter logs, accessible process-picker rows,
-completion input/selection association, and mouse-modality restoration for drops
-after keyboard input. That last case fails in the current production build unless
-the pointer moves first; native directory drops then preserve empty folders too.
+Build `f9f6d3a98-34207705070.1` is deployed, including browser file transfers,
+completion semantics/associations, native process-picker labels, picker query focus,
+and folder drops after keyboard input. These pass live Chromium. CI/full WASM checks
+pass; isolated file/semantic probes pass Chromium, Firefox and WebKit. Early adapter
+logs need the source buffering follow-up. Physical `space f` typing inside the
+command palette still triggers file finder. Extension marketplace, bounded downloaded
+grammars and dev uploads/rebuilds are implemented in source, not yet published.
 
 | Area | Current browser behavior | Source |
 |---|---|---|

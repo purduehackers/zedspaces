@@ -1,6 +1,21 @@
 # Production deployment — 2026-09-08 UTC
 
-Current production: app `6ad97fd`, fork `7b39240f7e`, build
+Current production: app `11ee08a`, fork `f9f6d3a98e`, build
+`f9f6d3a98-34207705070.1`, deployment `dpl_5v6fv2WjpjSoJAS1iNzoSEi3Eg99`.
+
+- [CI](https://github.com/purduehackers/zedspaces/actions/runs/34207705070),
+  matching image/assets publication, Vercel deployment and public verification pass.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:426ed9300764506b7abdb64310141edaeba533d6c2ea83d1c1a0f27204bc90c9`.
+- Editor archive SHA-256: `102be18576d74de044d6c0d3c94cdaf40dc1b8ad76e31688b0099298610908b0`.
+- Live Chromium: native Node PID picker/attach, completion controls/active selection,
+  ArrowDown/dismissal, picker query focus, and folder drops after keyboard input pass.
+  Scratch generation 3 retains exact README/baseline/uploads and three Git commits.
+- Source follow-up buffers early adapter logs (the native log view was empty).
+  Physical `space f` inside command-palette text still triggers file finder.
+  Extension marketplace/runtime source checks pass; publication and live checks pending.
+  No claim of real screen-reader/physical-device validation. Scratch cleanup pending.
+
+Previous production: app `6ad97fd`, fork `7b39240f7e`, build
 `7b39240f7-34200616408.1`, deployment `dpl_BVNdGaoh3mjkf8kPokEeyE6jgCSv`
 at code.purduehackers.com. Browser files/imports/save adapters, completion/action
 semantics and the sandbox-only Astro documentColor correction are deployed.
