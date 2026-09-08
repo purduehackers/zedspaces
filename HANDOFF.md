@@ -1,6 +1,6 @@
 # Handoff: Zed Codespaces
 
-**Extension-host continuation (2026-09-08 UTC).** Fork `6855d70bf6` adds the
+**Extension-host continuation (2026-09-08 UTC).** Fork `2cb0f67ede` adds the
 unchanged native Extensions UI backed by sandbox registry/build operations and
 browser declarative assets. Downloaded grammars use an isolated, bounded Wasmi
 runtime; extension executable code remains in the sandbox. Dev uploads/rebuilds,
@@ -12,6 +12,13 @@ The production build preflight also passes after removing the obsolete blanket
 extension-host ban (native Wasmtime/WASI remain prohibited). Duplicate picker
 focus registration caused `space f` in text to run Vim's file-finder chord; the
 browser-only duplicate is removed in source, full WASM check passes, live check pending.
+The follow-up also delegates Cargo dependency permalinks to the sandbox and validates
+downloaded asset revisions, including failed-install rollback. A malformed grammar
+signature exposed an adapter assertion; invalid signatures/non-function exports now
+return load errors in Chromium/Firefox/WebKit, with valid SQL/Svelte parsing and the
+fuel limit still passing. Full WASM/server and server test-target checks pass (tests
+not executed). Publication of run `34217675108` was stopped before any publish step;
+its artifacts lack these fixes. Dispatch a new release for the current fork pin.
 
 **Current production:** app `11ee08a`, fork `f9f6d3a98e`, build
 `f9f6d3a98-34207705070.1` is deployed. Native process labels, completion associations,
