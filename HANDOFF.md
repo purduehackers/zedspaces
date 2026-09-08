@@ -1,14 +1,25 @@
 # Handoff: Zed Codespaces
 
-**Input/accessibility continuation (2026-09-08 UTC).** App `85aaa48`, fork
+**Touch-focus follow-up (2026-09-08 UTC).** App `e01c4b7`, fork `446d547b19`,
+matching build `446d547b1-34183434009.1` are pushed and deployed at
+code.purduehackers.com. One `gpui_web` file restores the read-only keyboard target
+after non-text touch taps and enables IME text when hardware commands enter text
+mode. CI and full WASM checking pass. Actual-bundle touch emulation passes in
+Chromium/Firefox/WebKit with screen-reader mode on and off; Chromium also passes
+IME, pan/cancel and host-field focus checks. No native Zed UI changes. Physical
+phones/keyboards/IME and real VoiceOver/NVDA remain unverified. Desktop regression
+checks pass in all three engines, plus Linux-style modifier emulation on macOS.
+See `docs/status/deployment.md` for release evidence and scratch cleanup.
+
+**Previous input/accessibility continuation (2026-09-08 UTC).** App `85aaa48`, fork
 `4d657e7c95`, matching build `4d657e7c9-34171767602.1` are deployed at
 code.purduehackers.com. Changes are confined to five `gpui_web` files: browser
 layout-aware Option shortcuts, Ctrl+Alt/AltGraph separation, paired key releases,
 and hidden/disabled semantic focus plus live/busy accessibility flags. No new Zed
 UI. CI, live desktop Chromium/Firefox/WebKit checks, and Linux-style modifier
 emulation pass. Isolated semantic-focus/live-state checks pass in all three engines.
-Touch emulation exposed a remaining Vim Normal-mode focus gap: tapping a file tab
-can leave keyboard focus on the page. Real VoiceOver/NVDA and physical keyboard,
+Touch emulation exposed the Vim Normal-mode focus gap fixed above: tapping a file
+tab left keyboard focus on the page. Real VoiceOver/NVDA and physical keyboard,
 IME and mobile checks have not been run. Calls stay removed. Release evidence and
 scratch-workspace cleanup are recorded in `docs/status/deployment.md`.
 
@@ -20,9 +31,9 @@ selectors are discarded. App `8bc7d90`, fork `9534a9d8fb`, matching build
 Chromium verified no call UI/bridge/media activity, API 404 and two-way editing/saving.
 An old-build workspace automatically upgraded with its exact uncommitted file and
 full Git history preserved. Collaborative editing and its approved avatars stay.
-The calls-removal build and current continuation may defer upgrades; older bundles
-require the deleted host ABI and need a file-preserving bootstrap upgrade. Their
-pinned assets remain retained.
+The current and previous input-adapter builds may defer upgrades; older bundles
+need a file-preserving bootstrap upgrade. Existing workspace pins remain retained;
+the latest release record lists the exact allowed/retained builds.
 
 **Architecture constraint:** preserve Zed's native UI and functionality. Browser
 support belongs at the web-platform boundary, so native editor behavior runs through

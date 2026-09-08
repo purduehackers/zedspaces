@@ -1,6 +1,37 @@
 # Production deployment — 2026-09-08 UTC
 
-Current production: app `85aaa48`, fork `4d657e7c95`, matching build
+Current production: app `e01c4b7`, fork `446d547b19`, matching build
+`446d547b1-34183434009.1`, deployment `dpl_DK7tQQsYQj1vwAMNgnEM6ht9z4wY`
+is READY and aliased to code.purduehackers.com. One `gpui_web` file fixes keyboard
+focus after non-text touch taps and IME editability after hardware commands enter
+text mode. No native Zed UI changes; calls remain removed.
+
+- [Release CI](https://github.com/purduehackers/zedspaces/actions/runs/34183434009),
+  local full `zed_web` WASM checking, formatting and diff checks passed. Matching
+  image/assets were published locally after CI, then Vercel deployed and public
+  verification passed. No repository tests were added or run.
+- Image: `vcr.vercel.com/purdue-hackers/zedspaces/zs-workspace@sha256:d2f6970bf294285068cb9fb11ecf6791a9f43a1286fca26dac515c8d9a2d8e7e`.
+- Editor archive SHA-256: `13bc6958cfd0c1a08aa705f6a49192af033d2515d011555bcd2f2f8b49be9130`.
+- The old-build focus failure and its separate non-screen-reader IME failure were
+  reproduced. The deployed bundle passed touch emulation in Chromium/Firefox/WebKit
+  with screen-reader mode on and off: Normal tap, Insert, Unicode, Escape,
+  navigation and save. Chromium also passed browser IME composition, touch pan/cancel
+  and host-field focus isolation. Semantic Tab exit/touch return passed in all three.
+- Desktop checks passed in all three engines, plus Linux-style modifier emulation
+  on macOS. Temporary diagnostics used the actual new bundle, without focus shims.
+  Physical phones, keyboard layouts/IME and real VoiceOver/NVDA were not tested.
+- The scratch upgrade preserved the exact pre-upgrade file (verified after removing
+  only the known new diagnostic edit) and full Git history. Only the current and
+  previous `4d657e7c9-34171767602.1` builds may defer upgrades; live older pins remain
+  retained. All 47 Function traces pass; existing tracing/local-AI CSP warnings remain.
+
+Cleanup verified: `ws_M2FK7WCVHQ580K3F9XHW` returns 410 and its exact-prefix SDK
+sandbox inventory is empty. Before deletion, the final 7,470-byte file matched the
+browser's SHA-256 and only our `input.txt` was untracked. No owner workspace changed.
+
+## Previous input-adapter release — 2026-09-08 UTC
+
+Previous production: app `85aaa48`, fork `4d657e7c95`, matching build
 `4d657e7c9-34171767602.1`, deployment `dpl_2hpfwWzgM5mshKwmvPwDhqmugC73`
 is READY and aliased to code.purduehackers.com. Five `gpui_web` files implement
 layout-aware shortcuts, input/key-release filtering and semantic accessibility
