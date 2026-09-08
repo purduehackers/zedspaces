@@ -1,6 +1,6 @@
 # Handoff: Zed Codespaces
 
-**Extension-host continuation (2026-09-08 UTC).** Fork `5bf87f178d` adds the
+**Extension-host continuation (2026-09-08 UTC).** Fork `6855d70bf6` adds the
 unchanged native Extensions UI backed by sandbox registry/build operations and
 browser declarative assets. Downloaded grammars use an isolated, bounded Wasmi
 runtime; extension executable code remains in the sandbox. Dev uploads/rebuilds,
@@ -8,14 +8,19 @@ cross-tab revisions, persisted dev provenance, startup settings/updates and
 early debugger-log buffering are in source, not yet deployed. Full WASM/server
 checks and server test-target compilation pass (tests not executed). Isolated
 SQL/Svelte grammar probes pass Chromium/Firefox/WebKit; archive guards pass.
+The production build preflight also passes after removing the obsolete blanket
+extension-host ban (native Wasmtime/WASI remain prohibited). Duplicate picker
+focus registration caused `space f` in text to run Vim's file-finder chord; the
+browser-only duplicate is removed in source, full WASM check passes, live check pending.
 
 **Current production:** app `11ee08a`, fork `f9f6d3a98e`, build
 `f9f6d3a98-34207705070.1` is deployed. Native process labels, completion associations,
 picker query focus and drops immediately after keyboard input pass live Chromium.
 Upgrade preserves fixture files and three Git commits. Native Node PID attach
 succeeds. Early adapter logs still need the source buffering fix above. Physical
-`space f` typing in the command palette incorrectly opens the file finder;
-investigation continues. Scratch `ws_WMJ3FX55AZ0PC8MG84F8` is still in use.
+`space f` typing in the command palette incorrectly opens the file finder until
+the source fix ships. REPL Run/Interrupt/Restart/Shutdown regression passes live.
+Scratch `ws_WMJ3FX55AZ0PC8MG84F8` is still in use.
 
 **File-platform continuation (2026-09-08 UTC).** App `6ad97fd`, fork `7b39240f7e`,
 build `7b39240f7-34200616408.1` are deployed. Browser file/folder pickers and drops
