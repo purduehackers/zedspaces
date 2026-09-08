@@ -12,15 +12,20 @@ Current production: release source app `9b07986`, fork `d266d7729e`, build
   through upgrade; same-version rebuild refreshes assets in two independent tabs.
   Cargo dependency permalink resolves to the exact upstream commit/line. The
   upgraded fixture retains exact README/uncommitted baseline and three Git commits.
+  An intentionally failing dev rebuild returns 400 while retaining revision 2;
+  uninstall then removes the extension from both tabs and the sandbox registry.
 - Follow-up source: plain-text/clipped-bounds accessibility, browser channel-lock
   fix, and opt-in upstream notebook kernel transport all pass WASM/native checks.
   Channel/mutex forced contention passes Chromium, Firefox and WebKit; unpatched
   futures-channel reproduces the actual forbidden main-thread atomic wait.
   These follow-ups are not deployed or live-verified. Notebook flag remains off
   because upstream serialization drops rich outputs.
-- Release run `34231984917` and diagnostic-symbol run `34232451201` were refused
-  before job steps by GitHub organization billing/spending limits. Owner notified;
+- Release runs `34231984917`, `34235839470` and diagnostic-symbol run `34232451201`
+  were refused before job steps by GitHub organization billing/spending limits. Owner notified;
   do not describe these runs as passing or bypass matching client/server identities.
+- Cleanup verified: only scratch `ws_WMJ3FX55AZ0PC8MG84F8` was deleted; API returns
+  410 and its exact-prefix SDK inventory is empty. Diagnostic browsers are closed.
+  Owner workspace `ws_16XFMPW5J0WCZ9WRSYXQ` was not modified.
 
 Previous production: app `ef6b486`, fork `2cb0f67ede`, build
 `2cb0f67ed-34220092740.1`, deployment `dpl_8p7Q2w9nwPraNWaQcErDeT3vyBtS`.

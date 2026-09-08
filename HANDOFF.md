@@ -18,12 +18,17 @@ notebook saves drop rich outputs; asked the owner whether that non-web-specific
 fix is authorized. No notebook live validation yet.
 
 **Release blocker:** GitHub Actions refused jobs in runs `34231984917` and
-`34232451201` because organization payments failed or the spending limit was
-reached. No build steps ran; this is not a compilation failure. Asked owner to
+`34232451201`, and latest source run `34235839470` (app `173e9b4`), because
+organization payments failed or the spending limit was reached. No build steps
+ran; this is not a compilation failure. Asked owner to
 resolve Billing & plans. Manual `browser-diagnostics.yml` builds symbols only;
-it never publishes. Resume matching release/publication, then live debugger
+it never publishes. After billing is fixed, dispatch a fresh matching release
+(the temporary publication helper expects run attempt 1), then live debugger
 attach/log, clipped AX/theme options and notebook checks as applicable. Scratch
-`ws_WMJ3FX55AZ0PC8MG84F8` is still under validation; remove only that scratch.
+`ws_WMJ3FX55AZ0PC8MG84F8` passed invalid-dev-rebuild rollback (400 for the intentional
+compile error; dev revision 2 retained) and uninstall in both tabs. Deletion
+workflow `wrun_01M20ND6PJK56H93RKV7KSABVK` completed: API returns 410 and the
+exact-prefix SDK sandbox inventory is empty. Diagnostic browsers are closed.
 Owner `ws_16XFMPW5J0WCZ9WRSYXQ` must remain untouched. Older paragraphs are history.
 
 **Extension-host continuation (2026-09-08 UTC).** Fork `2cb0f67ede` adds the
