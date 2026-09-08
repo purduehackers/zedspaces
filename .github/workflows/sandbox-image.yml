@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["sandbox/**", "zed", ".github/workflows/sandbox-image.yml", ".github/actions/**"]
+    paths: ["sandbox/**", "zed", ".dockerignore", ".github/workflows/sandbox-image.yml", ".github/actions/**"]
   pull_request:
-    paths: ["sandbox/**", "zed", ".github/workflows/sandbox-image.yml", ".github/actions/**"]
+    paths: ["sandbox/**", "zed", ".dockerignore", ".github/workflows/sandbox-image.yml", ".github/actions/**"]
 
 permissions:
   contents: read
