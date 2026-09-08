@@ -1,5 +1,18 @@
 # Handoff: Zed Codespaces
 
+**Current continuation (2026-09-08 UTC).** Build `2cb0f67ed-34220092740.1`
+(app `ef6b486`, fork `2cb0f67ede`) is deployed and publicly verified. Native
+Extensions installation, SQL/Svelte downloaded highlighting, Svelte formatting,
+development-folder upload/compilation, and command-palette physical typing pass
+live Chromium. Upgrade preserves the disposable workspace's README, uncommitted
+baseline and three Git commits. Extension LSP completion revealed a missing browser
+adapter registration despite a running sandbox server. Fork `d266d7729e` fixes that
+at the extension bridge, including revision-pinned completion/symbol label RPCs;
+full WASM and native server checks pass. This follow-up is not yet deployed.
+Continue live dev rebuild/multitab, Cargo permalink and early DAP-log checks in
+scratch `ws_WMJ3FX55AZ0PC8MG84F8`, then remove that scratch only. Owner workspace
+`ws_16XFMPW5J0WCZ9WRSYXQ` must remain untouched. Older paragraphs below are history.
+
 **Extension-host continuation (2026-09-08 UTC).** Fork `2cb0f67ede` adds the
 unchanged native Extensions UI backed by sandbox registry/build operations and
 browser declarative assets. Downloaded grammars use an isolated, bounded Wasmi
