@@ -133,6 +133,6 @@ fresh databases and existing deployments.
 
 ## Licensing
 
-The Zed submodule and its bundled assets retain their own licenses.
-A license for the Zedspaces app and supervisor has not yet been selected;
-public visibility alone does not grant an open-source license.
+The Zedspaces app and supervisor are [MIT licensed](LICENSE).
+The Zed submodule, bundled assets, and third-party dependencies retain their
+respective licenses; the root license does not relicense them.
