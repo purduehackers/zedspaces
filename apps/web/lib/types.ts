@@ -170,22 +170,23 @@ export const putDotfilesInput = z.object({
 // Connect and health (b9 §3.18; D26).
 
 /** What `POST /api/workspaces/{id}/connect` returns on 200 (D26). */
-export interface ConnectInfo {
-  /** `wss://<host8443>/rpc` */
-  wsUrl: string;
-  token: string;
-  /** Fresh `con_…` on every call; equals the token's `sid` (D1). */
-  sessionId: string;
-  /** The stable identity the client persists under (D1, D26). */
-  workspaceId: string;
-  serverBuild: string;
-  clientBuild: string;
-  /** ISO 8601 = the token's `exp`. */
-  sessionExpiresAt: string;
-  /** ISO 8601 = session_started_at + ZS_SESSION_CAP_MS. */
-  sessionCapAt: string;
-  audience: string;
-}
+export const connectInfoSchema = z.object({
+  wsUrl: z.url().refine(value => {
+    try {
+      const url = new URL(value);
+      return ["ws:", "wss:"].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
+    } catch { return false; }
+  }),
+  token: z.string().min(1).max(16_384),
+  sessionId: z.string().min(1).max(128),
+  workspaceId: workspaceIdSchema,
+  serverBuild: z.string().min(1).max(128),
+  clientBuild: z.string().min(1).max(128),
+  sessionExpiresAt: z.iso.datetime({ offset: true }),
+  sessionCapAt: z.iso.datetime({ offset: true }),
+  audience: z.string().min(1).max(256),
+});
+export type ConnectInfo = z.infer<typeof connectInfoSchema>;
 
 /** `202` body of `/connect` while a resume runs. */
 export interface ConnectResuming {

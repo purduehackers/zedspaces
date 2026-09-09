@@ -1,4 +1,5 @@
-import type { ConnectInfo, WorkspaceView } from "@/lib/types";
+import { connectInfoSchema, type ConnectInfo, type WorkspaceView } from "@/lib/types";
+import { buildsCompatible } from "@/lib/builds";
 import { apiErrorBody, refreshEditorSession } from "./api-client";
 
 /**
@@ -63,12 +64,23 @@ export const CONNECT_POLL_MS = 1_500;
 /** Covers the bounded rebuild: up to 20 minutes archiving and 35 minutes creating. */
 export const CONNECT_DEADLINE_MS = 60 * 60_000;
 
-function parseConnectInfo(body: unknown): ConnectInfo {
-  const raw = (body ?? {}) as Partial<ConnectInfo>;
-  if (typeof raw.wsUrl !== "string" || typeof raw.token !== "string" || typeof raw.sessionId !== "string") {
+function parseConnectInfo(body: unknown, req: ConnectRequest): ConnectInfo {
+  const parsed = connectInfoSchema.safeParse(body);
+  if (!parsed.success || parsed.data.workspaceId !== req.workspaceId) {
     throw new ConnectError("unavailable", "The control plane returned an unusable connection");
   }
-  return raw as ConnectInfo;
+  const info = parsed.data;
+  if (info.clientBuild !== req.build || !buildsCompatible(info.serverBuild, req.build)) {
+    throw new ConnectError("build_mismatch", "The workspace and editor builds do not match");
+  }
+  return info;
+}
+
+function requestSignal(signal: AbortSignal | undefined, deadline: number, timeoutMs = 15_000): AbortSignal {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw new ConnectError("unavailable", "The workspace took too long to start");
+  const timeout = AbortSignal.timeout(Math.ceil(Math.min(timeoutMs, remaining)));
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
 /**
@@ -86,10 +98,11 @@ export async function connectWorkspace(req: ConnectRequest): Promise<ConnectInfo
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ clientBuild: req.build, reason: req.reason, tabId: req.tabId }),
       cache: "no-store",
-      signal: req.signal,
+      // The route can spend 45 seconds resuming a VM, within its 60-second budget.
+      signal: requestSignal(req.signal, deadline, 75_000),
     });
 
-    if (res.status === 200) return parseConnectInfo(await res.json());
+    if (res.status === 200) return parseConnectInfo(await res.json(), req);
 
     if (res.status === 202) {
       const body = await res.json() as { status: string };
@@ -136,9 +149,15 @@ export async function connectWorkspace(req: ConnectRequest): Promise<ConnectInfo
 async function waitOrGiveUp(
   deadline: number,
   message: string,
+  signal?: AbortSignal,
 ): Promise<void> {
+  signal?.throwIfAborted();
   if (Date.now() >= deadline) throw new ConnectError("unavailable", message || "The workspace is still starting");
-  await new Promise<void>(resolve => setTimeout(resolve, CONNECT_POLL_MS));
+  await new Promise<void>((resolve, reject) => {
+    const abort = () => { clearTimeout(timer); reject(signal?.reason); };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, Math.min(CONNECT_POLL_MS, deadline - Date.now()));
+    signal?.addEventListener("abort", abort, { once: true });
+  });
   if (Date.now() > deadline) throw new ConnectError("unavailable", message || "The workspace is still starting");
 }
 
@@ -154,7 +173,7 @@ export async function waitForRunning(
   let observedLifecycle = !req.afterStopping;
 
   for (;;) {
-    const res = await fetch(`/api/workspaces/${req.workspaceId}`, { cache: "no-store", signal: req.signal });
+    const res = await fetch(`/api/workspaces/${req.workspaceId}`, { cache: "no-store", signal: requestSignal(req.signal, deadline) });
     if (res.status === 404 || res.status === 410) throw new ConnectError("deleted", "This workspace was deleted", res.status);
     if (res.status === 401 || res.status === 403) {
       throw new ConnectError(res.status === 401 ? "unauthorized" : "forbidden", "Not allowed", res.status);
@@ -177,6 +196,6 @@ export async function waitForRunning(
         throw new ConnectError("unavailable", workspace.stateReason ?? "The workspace failed to start");
       }
     }
-    await waitOrGiveUp(deadline, "The workspace is still starting");
+    await waitOrGiveUp(deadline, "The workspace is still starting", req.signal);
   }
 }

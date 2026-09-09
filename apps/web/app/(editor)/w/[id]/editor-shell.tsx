@@ -25,6 +25,7 @@ import {
 import { LifecycleToasts, ShellOverlay, type ShellActions, type ShellToast } from "./shell-ui";
 import { createHost, type ShellController } from "./zs-host";
 import { EditorUpdater } from "./editor-updater";
+import { BrowserDiagnostics } from "./diagnostics";
 
 /**
  * The editor shell (b9 §3.26): it authenticates the page's connection, loads
@@ -193,6 +194,32 @@ export function EditorShell({
   const flushAllowedRef = useRef(true);
   const stopReasonRef = useRef<StopReason>("unknown");
   const versionsRef = useRef<Record<ZsDocumentKind, number | null>>({ settings: null, keymap: null });
+  const diagnosticsRef = useRef<BrowserDiagnostics | null>(null);
+  const crashedRef = useRef(false);
+  const connectionAbortRef = useRef<AbortController | null>(null);
+  const waitingForStopRef = useRef(false);
+
+  const runtimeFailed = useCallback(() => {
+    if (crashedRef.current) return;
+    crashedRef.current = true;
+    flushAllowedRef.current = false;
+    runtimeRef.current?.invalidate();
+    updaterRef.current?.dispose();
+    connectionAbortRef.current?.abort();
+    // Never re-enter GPUI from its panic hook; only update the browser shell.
+    setPhase({ kind: "error", code: "runtime_crashed", retryable: true,
+      message: "The editor crashed. Saved files remain in the sandbox, but unsaved edits may be lost on reload. Download diagnostics before reconnecting." });
+  }, []);
+
+  useEffect(() => {
+    const diagnostics = new BrowserDiagnostics(build, runtimeFailed);
+    diagnosticsRef.current = diagnostics;
+    return () => { diagnostics.dispose(); diagnosticsRef.current = null; };
+  }, [build, runtimeFailed]);
+
+  useEffect(() => {
+    diagnosticsRef.current?.stage(phase.kind === "booting" ? phase.stage : phase.kind);
+  }, [phase]);
 
   /** `reconnect()` of D2/D30: stash the intent, then boot from scratch. */
   const reconnect = useCallback(
@@ -205,6 +232,7 @@ export function EditorShell({
 
   const applyTransition = useCallback(
     (transition: ShellTransition) => {
+      if (crashedRef.current) return;
       setPhase(transition.phase);
       if (transition.phase.kind === "error" && transition.phase.code === "connection_replaced") {
         // A replaced copy of the same tab must not overwrite its successor's layout.
@@ -214,7 +242,7 @@ export function EditorShell({
         globalThis.location.reload();
       } else if (transition.effect === "reauthenticate") {
         void refreshEditorSession(workspaceId).then((ok) => {
-          if (!ok) globalThis.location.assign(sessionReloadUrl(`/w/${workspaceId}`));
+          if (!ok && !crashedRef.current) globalThis.location.assign(sessionReloadUrl(`/w/${workspaceId}`));
         });
       }
     },
@@ -225,6 +253,7 @@ export function EditorShell({
     void keepAlive(workspaceId)
       .then(() => setToasts((current) => current.filter((toast) => toast.id !== "idle")))
       .catch((err: unknown) => {
+        diagnosticsRef.current?.error("keepalive", err);
         void reportClientError(workspaceId, build, {
           kind: "error",
           message: `keepalive failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -234,10 +263,13 @@ export function EditorShell({
 
   const lifecycle = useCallback(
     (kind: ZsLifecycleKind, seconds: number) => {
+      if (crashedRef.current) return;
       if (kind === "idle_stop_in") stopReasonRef.current = "idle";
       if (kind === "session_cap_in") stopReasonRef.current = "cap";
 
       if (kind === "stopping") {
+        if (waitingForStopRef.current) return;
+        waitingForStopRef.current = true;
         setToasts([]);
         setPhase({ kind: "stopped", reason: stopReasonRef.current === "unknown" ? "user" : stopReasonRef.current });
         // STOPPING starts the Rust client's flush. Do not unload it until the server has
@@ -245,17 +277,22 @@ export function EditorShell({
         void waitForRunning({
           workspaceId,
           afterStopping: true,
-          onProgress: (detail) => setPhase({ kind: "booting", stage: "connecting", detail }),
+          signal: connectionAbortRef.current?.signal,
+          onProgress: (detail) => {
+            if (!crashedRef.current) setPhase({ kind: "booting", stage: "connecting", detail });
+          },
         }).then(() => {
+          if (crashedRef.current) return;
           flushAllowedRef.current = false;
           globalThis.location.reload();
         }).catch((err: unknown) => {
+          if (crashedRef.current) return;
           if (err instanceof ConnectError && err.code === "stopped") {
             setPhase({ kind: "stopped", reason: stopReasonRef.current });
           } else {
             applyTransition(transitionForConnectError(err));
           }
-        });
+        }).finally(() => { waitingForStopRef.current = false; });
         return;
       }
       if (kind === "resumed") {
@@ -282,15 +319,22 @@ export function EditorShell({
   /** One `connect()` call, with the overlay wired to its progress. */
   const connect = useCallback(
     async (reason: ConnectReason): Promise<ZsConnectInfo> => {
+      if (crashedRef.current) throw new ConnectError("unavailable", "The editor crashed; reload to reconnect");
+      connectionAbortRef.current ??= new AbortController();
+      diagnosticsRef.current?.record("connection", reason);
       const info = await connectWorkspace(
         {
           workspaceId,
           build,
           tabId: tabId(),
           reason,
-          onProgress: (detail) => setPhase({ kind: "booting", stage: "connecting", detail }),
+          signal: connectionAbortRef.current.signal,
+          onProgress: (detail) => {
+            if (!crashedRef.current) setPhase({ kind: "booting", stage: "connecting", detail });
+          },
         },
       );
+      diagnosticsRef.current?.record("connection", "connected");
       return {
         wsUrl: info.wsUrl,
         token: info.token,
@@ -307,6 +351,7 @@ export function EditorShell({
       workspaceId,
       build,
       bootProgress: (stage: ZsBootStage, detail: string) => {
+        diagnosticsRef.current?.record("boot", `${stage}${detail ? `: ${detail}` : ""}`);
         applyTransition(transitionForBootProgress(stage, detail, { stopReason: stopReasonRef.current }));
       },
       lifecycle,
@@ -324,8 +369,13 @@ export function EditorShell({
       setDocumentVersion: (kind: ZsDocumentKind, version: number | null) => {
         versionsRef.current[kind] = version;
       },
+      reportError: (kind, message, stack) => {
+        diagnosticsRef.current?.record(kind, `${message}${stack ? `\n${stack}` : ""}`);
+        if (kind === "panic") runtimeFailed();
+        void reportClientError(workspaceId, build, { kind, message, stack });
+      },
     }),
-    [applyTransition, build, connect, keymapUrl, lifecycle, settingsUrl, workspaceId],
+    [applyTransition, build, connect, keymapUrl, lifecycle, runtimeFailed, settingsUrl, workspaceId],
   );
 
   const boot = useCallback(async () => {
@@ -344,6 +394,7 @@ export function EditorShell({
         fetchSettingsDocument(settingsUrl),
         fetchSettingsDocument(keymapUrl),
       ]);
+      if (crashedRef.current) return;
       versionsRef.current = { settings: settingsDoc.version, keymap: keymapDoc.version };
 
       const config: ZsBootConfig = {
@@ -360,16 +411,26 @@ export function EditorShell({
         build,
         config,
         host,
-        onStage: (stage, detail) => setPhase({ kind: "booting", stage, detail: detail || undefined }),
+        signal: connectionAbortRef.current?.signal,
+        onStage: (stage, detail) => {
+          if (!crashedRef.current) setPhase({ kind: "booting", stage, detail: detail || undefined });
+        },
       });
       runtimeRef.current = booted.runtime;
-      setRuntime(booted.runtime);
+      if (crashedRef.current) booted.runtime.invalidate();
+      else setRuntime(booted.runtime);
       booted.started.catch((err: unknown) => {
+        diagnosticsRef.current?.error("boot", err);
+        if (err instanceof WebAssembly.RuntimeError) runtimeFailed();
         const failure = asBootFailure(err);
         applyTransition(transitionForBootFailure(failure.code, { stopReason: stopReasonRef.current }));
         void reportClientError(workspaceId, build, { kind: "boot", message: failure.message });
       });
     } catch (err) {
+      // A sibling preferences request may fail while /connect is still polling.
+      connectionAbortRef.current?.abort();
+      diagnosticsRef.current?.error("boot", err);
+      if (err instanceof WebAssembly.RuntimeError) runtimeFailed();
       applyTransition(transitionForConnectError(err));
       if (err instanceof ConnectError && err.code === "build_mismatch") return;
       void reportClientError(
@@ -378,7 +439,7 @@ export function EditorShell({
         { kind: "boot", message: err instanceof Error ? err.message : String(err) },
       );
     }
-  }, [applyTransition, build, connect, controller, keymapUrl, paths, settingsUrl, workspaceId]);
+  }, [applyTransition, build, connect, controller, keymapUrl, paths, runtimeFailed, settingsUrl, workspaceId]);
 
   useEffect(() => {
     if (bootedRef.current) return;
@@ -389,8 +450,9 @@ export function EditorShell({
   // Begin update work only after the old editor is interactive. The worker never
   // precaches at install time and never owns API requests or workspace lifecycle.
   useEffect(() => {
-    if (!runtime) return;
+    if (!runtime || crashedRef.current) return;
     const updater = new EditorUpdater(workspaceId, runtime, () => {
+      if (crashedRef.current) return;
       flushAllowedRef.current = false;
       globalThis.location.reload();
     });
@@ -410,17 +472,17 @@ export function EditorShell({
   useEffect(() => {
     const flush = () => {
       if (!flushAllowedRef.current) return;
-      void runtimeRef.current?.flushClientState().catch(() => undefined);
+      void runtimeRef.current?.flushClientState().catch(error => diagnosticsRef.current?.error("state-flush", error));
     };
     const onVisibility = () => {
       const runtime = runtimeRef.current;
-      if (!runtime) return;
+      if (!runtime || crashedRef.current) return;
       runtime.setHidden(document.hidden);
       if (document.hidden) flush();
     };
     const onPageHide = () => flush();
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (flushAllowedRef.current && runtimeRef.current?.hasUnsavedChanges()) event.preventDefault();
+      if (crashedRef.current || (flushAllowedRef.current && runtimeRef.current?.hasUnsavedChanges())) event.preventDefault();
     };
     const onFullscreenChange = () => {
       const keyboard = keyboardApi();
@@ -452,6 +514,7 @@ export function EditorShell({
       reconnect: () => reconnect(),
       resume: () => reconnect({ resume: true }),
       openExternal,
+      downloadDiagnostics: () => diagnosticsRef.current?.download(),
     }),
     [reconnect],
   );

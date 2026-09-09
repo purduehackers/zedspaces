@@ -63,6 +63,7 @@ const TERMINAL_BOOT_CODES: ReadonlySet<string> = new Set([
   "database",
   "window",
   "bundle_missing",
+  "bundle_invalid",
 ]);
 
 const BOOT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
@@ -79,6 +80,7 @@ const BOOT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   boot_timeout: "The editor took too long to start.",
   cancelled: "The editor start was cancelled.",
   bundle_missing: "The editor bundle is missing from this deployment.",
+  bundle_invalid: "This deployment contains an invalid or mismatched editor bundle.",
 };
 
 function errorPhase(code: string, fallback: string): ShellPhase {

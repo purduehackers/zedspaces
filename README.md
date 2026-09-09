@@ -92,6 +92,24 @@ There are no test suites in this repository. CI runs lint, type checking, and
 builds. The Zed submodule retains upstream tests. Diagnose browser failures from
 console and network evidence.
 
+### Browser diagnostics
+
+In browser DevTools, `zedspaces.snapshot()` returns a bounded record of boot
+stages, errors, resource timings, connection and page events.
+`zedspaces.download()` saves it as JSON; `zedspaces.clear()` clears the record.
+The browser shell also offers **Download diagnostics** when the editor fails.
+URL credentials, queries, fragments and known token formats are redacted, but
+error text and paths may contain project information: review before sharing.
+This record stays in the tab and is not uploaded. Existing automatic error
+reports remain separate and are capped per tab.
+
+Use `await zedspaces.profile(10)` for an opt-in, 10-second frame-pacing sample
+(1–30 seconds, visible tab only). For CPU stacks, memory, network inspection,
+and full profiling, use the browser's own DevTools. The Performance timeline
+includes `zedspaces:*` boot-phase timings. Long-task observations are included
+where the browser supports them. No editor contents or WebSocket payloads are
+read by this recorder.
+
 ## Deploy your fork
 
 Deployment requires a Vercel project with **apps/web** as its root, Turso,

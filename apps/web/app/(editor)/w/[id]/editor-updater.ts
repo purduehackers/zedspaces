@@ -52,6 +52,7 @@ export class EditorUpdater {
   private pending: AbortController | null = null;
   private installing = false;
   private interactive = false;
+  private lifetime = new AbortController();
   private timer: ReturnType<typeof setInterval>;
 
   constructor(private readonly workspaceId: string, private readonly runtime: EditorRuntime,
@@ -60,12 +61,18 @@ export class EditorUpdater {
   }
 
   setInteractive(value: boolean) {
+    if (this.lifetime.signal.aborted) return;
     this.interactive = value;
     if (!value) this.pending?.abort();
     else void this.check();
   }
 
-  dispose() { clearInterval(this.timer); this.pending?.abort(); this.interactive = false; }
+  dispose() {
+    clearInterval(this.timer);
+    this.pending?.abort();
+    this.lifetime.abort();
+    this.interactive = false;
+  }
 
   action(action: ZsUpdateAction) {
     if (!this.interactive) return;
@@ -76,12 +83,14 @@ export class EditorUpdater {
   private async check(manual = false) {
     if (!this.interactive || this.pending || this.installing) return;
     const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(180_000)]);
     this.pending = controller;
     if (manual) this.runtime.setUpdateStatus({ phase: "checking" });
     try {
-      const res = await fetch(`/api/workspaces/${this.workspaceId}/update`, { cache: "no-store", signal: controller.signal });
+      const res = await fetch(`/api/workspaces/${this.workspaceId}/update`, { cache: "no-store", signal });
       if (!res.ok) throw new Error(`Could not check for updates (${res.status})`);
       const { release, available } = await res.json() as { release: EditorRelease; available: boolean };
+      signal.throwIfAborted();
       if (!available) { this.prepared = null; this.runtime.setUpdateStatus({ phase: "idle" }); return; }
       if (this.prepared && sameRelease(this.prepared, release)) {
         if (manual) this.runtime.setUpdateStatus({ phase: "ready", build: release.clientBuild });
@@ -89,9 +98,9 @@ export class EditorUpdater {
       }
       this.prepared = null;
       this.runtime.setUpdateStatus({ phase: "downloading", build: release.clientBuild, progress: 0 });
-      await prepareBundle(release.clientBuild, controller.signal, progress =>
+      await prepareBundle(release.clientBuild, signal, progress =>
         this.runtime.setUpdateStatus({ phase: "downloading", build: release.clientBuild, progress }));
-      controller.signal.throwIfAborted();
+      signal.throwIfAborted();
       this.prepared = release;
       this.runtime.setUpdateStatus({ phase: "ready", build: release.clientBuild });
     } catch (error) {
@@ -106,15 +115,18 @@ export class EditorUpdater {
     this.runtime.setUpdateStatus({ phase: "installing", build: release.clientBuild });
     try {
       await this.runtime.flushClientState();
+      this.lifetime.signal.throwIfAborted();
       const res = await fetch(`/api/workspaces/${this.workspaceId}/update`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(release),
+        signal: AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(60_000)]),
       });
       if (!res.ok && res.status !== 423) throw new Error((await apiErrorBody(res)).message);
-      if (res.status !== 200) await waitForRunning({ workspaceId: this.workspaceId });
+      if (res.status !== 200) await waitForRunning({ workspaceId: this.workspaceId, signal: this.lifetime.signal });
+      this.lifetime.signal.throwIfAborted();
       this.reload();
     } catch (error) {
       this.prepared = null;
-      this.runtime.setUpdateStatus({ phase: "error", message: String(error) });
+      if (!this.lifetime.signal.aborted) this.runtime.setUpdateStatus({ phase: "error", message: String(error) });
     } finally { this.installing = false; }
   }
 }

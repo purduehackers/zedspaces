@@ -4,6 +4,7 @@
  * must never fail a sandbox's request.
  */
 import { env } from "./env";
+import { scrubSecrets } from "./redact";
 
 /** One record handed to the sink. */
 export interface SinkRecord {
@@ -14,29 +15,6 @@ export interface SinkRecord {
   /** Build the reporter claims to be (logged, never trusted). */
   build: string | null;
   payload: unknown;
-}
-
-/**
- * Token shapes that must never reach a log line (BUILD-SPEC §10 item 4):
- * sandbox bearers, GitHub tokens, JWTs, `user:password@` URL credentials, the
- * port bootstrap and session tokens, and bearer/bypass header values.
- */
-const SECRET_PATTERNS: ReadonlyArray<[RegExp, string]> = [
-  [/zsb_[A-Za-z0-9_-]{20,}/g, "zsb_[redacted]"],
-  [/\bgh[opsur]_[A-Za-z0-9]{20,}\b/g, "gh_[redacted]"],
-  [/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "github_pat_[redacted]"],
-  [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, "[jwt-redacted]"],
-  [/\bv1\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b/g, "v1.[redacted]"],
-  [/(:\/\/[^/@\s:]+):[^/@\s]+@/g, "$1:[redacted]@"],
-  [/(zs_port_(?:token|session)=)[^&;\s]+/gi, "$1[redacted]"],
-  [/((?:bearer|x-vercel-protection-bypass)[=:]\s*)[A-Za-z0-9._-]{8,}/gi, "$1[redacted]"],
-];
-
-/** Replaces every known token shape in `text` with a placeholder. */
-export function scrubSecrets(text: string): string {
-  let out = text;
-  for (const [pattern, replacement] of SECRET_PATTERNS) out = out.replace(pattern, replacement);
-  return out;
 }
 
 /** Applies {@link scrubSecrets} to every string inside a JSON-like value (keys included). */

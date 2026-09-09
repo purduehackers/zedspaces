@@ -29,6 +29,7 @@ export interface ShellActions {
   resume: () => void;
   /** Opens a control-plane page in a new tab. */
   openExternal: (url: string) => void;
+  downloadDiagnostics: () => void;
 }
 
 function stopReasonText(reason: string): string {
@@ -149,7 +150,9 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
 
     case "unsupported-browser":
       return (
-        <Card title="This browser cannot run the editor">
+        <Card title="This browser cannot run the editor" actions={
+          <button type="button" className="zs-button" onClick={actions.downloadDiagnostics}>Download diagnostics</button>
+        }>
           <p className="zs-card__body">
             The editor needs cross-origin isolation (SharedArrayBuffer). Use a current Chrome, Edge, Firefox or Safari
             and make sure the page is loaded over HTTPS.
@@ -162,11 +165,14 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
         <Card
           title="Something went wrong"
           actions={
-            phase.retryable ? (
-              <button type="button" className="zs-button zs-button--primary" onClick={actions.reconnect}>
-                Reconnect
-              </button>
-            ) : undefined
+            <>
+              {phase.retryable && (
+                <button type="button" className="zs-button zs-button--primary" onClick={actions.reconnect}>
+                  Reconnect
+                </button>
+              )}
+              <button type="button" className="zs-button" onClick={actions.downloadDiagnostics}>Download diagnostics</button>
+            </>
           }
         >
           <p className="zs-card__body">{phase.message}</p>

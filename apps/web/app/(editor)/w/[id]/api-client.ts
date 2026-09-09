@@ -1,4 +1,5 @@
 import type { ClientErrorInput } from "@/lib/types";
+import { diagnosticText } from "@/lib/redact";
 
 /**
  * Browser-side calls the editor shell makes against the control plane
@@ -36,6 +37,7 @@ async function post(workspaceId: string, path: string, body: unknown): Promise<R
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body ?? {}),
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
 }
 
@@ -79,6 +81,7 @@ export async function refreshEditorSession(workspaceId: string): Promise<boolean
 
 /** A client error report, without the build id the shell fills in. */
 export type ClientErrorReport = Omit<ClientErrorInput, "build">;
+let reportsSent = 0;
 
 /** `POST /api/workspaces/{id}/client-errors` — panics, boot failures and close-frame telemetry. */
 export async function reportClientError(
@@ -86,8 +89,14 @@ export async function reportClientError(
   build: string,
   report: ClientErrorReport,
 ): Promise<void> {
+  // Bound automatic reports even when a damaged WASM runtime emits an error storm.
+  if (reportsSent >= 20) return;
+  reportsSent++;
   try {
-    await post(workspaceId, "client-errors", { ...report, build });
+    await post(workspaceId, "client-errors", {
+      ...report, build, message: diagnosticText(report.message, 4096),
+      stack: report.stack === undefined ? undefined : diagnosticText(report.stack, 16_384),
+    });
   } catch {
     // Telemetry is best effort: a failed report must never break the editor.
   }
@@ -101,13 +110,15 @@ export interface SettingsDocument {
 
 /** Reads one of the user's JSONC documents; a missing document reads as empty. */
 export async function fetchSettingsDocument(url: string): Promise<SettingsDocument> {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return { content: "", version: null };
-  const body = (await res.json().catch(() => ({}))) as { content?: unknown; version?: unknown };
-  return {
-    content: typeof body.content === "string" ? body.content : "",
-    version: typeof body.version === "number" ? body.version : null,
-  };
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+  if (res.status === 404) return { content: "", version: null };
+  if (!res.ok) throw new Error(`Could not load editor preferences (${res.status})`);
+  const body: unknown = await res.json();
+  if (!body || typeof body !== "object" || !("content" in body) || typeof body.content !== "string"
+    || !("version" in body) || !(body.version === null || (typeof body.version === "number" && Number.isSafeInteger(body.version) && body.version >= 0))) {
+    throw new Error("Invalid editor preferences response");
+  }
+  return { content: body.content, version: body.version as number | null };
 }
 
 /** Raised when `PUT /api/workspaces/{id}/{settings,keymap}` answers `409 version_conflict`. */
@@ -131,6 +142,7 @@ export async function putSettingsDocument(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(doc.version === null ? { content: doc.content } : doc),
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   if (res.status === 409) throw new DocumentConflictError((await apiErrorBody(res)).message);
   if (!res.ok) throw new Error((await apiErrorBody(res)).message);
