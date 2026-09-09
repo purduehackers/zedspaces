@@ -17,9 +17,10 @@ Internal VM tokens, signed connections, and cron authentication still apply.
 
 Public GitHub cloning, multiplayer cursors, stop/resume, file-preserving upgrades,
 port previews, extensions, clipboard, uploads, ZIP export, debugging, and the
-inline Python REPL are supported. Calls, screen sharing, AI assistants, private
+inline Python REPL and Python notebooks are supported. Calls, screen sharing, AI assistants, private
 GitHub repositories, and desktop integration are not included.
-Accessibility and notebook support are still in progress.
+Notebooks use Zed's existing cell UI; widgets and non-Python kernels are not supported.
+Accessibility support is still in progress.
 
 Existing workspaces open their matching editor while updates download in the
 background. Zed's **Restart to Update** replaces the VM and browser together.
