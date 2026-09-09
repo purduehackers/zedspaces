@@ -446,29 +446,55 @@ where
         Ok::<_, anyhow::Error>(())
     };
     let receive = async {
-        let mut requests = node_attach::Requests::default();
-        while let Some(message) = stream.next().await {
-            match message? {
-                Message::Binary(bytes) if node_adapter => {
-                    requests.push(&bytes)?;
-                    while let Some(mut request) = requests.next()? {
-                        node_attach::prepare(&mut request).await?;
-                        let body = serde_json::to_vec(&request)?;
-                        input
-                            .write_all(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes())
-                            .await?;
-                        input.write_all(&body).await?;
+        let mut disconnecting = false;
+        let result = async {
+            let mut requests = node_attach::Requests::default();
+            while let Some(message) = stream.next().await {
+                match message? {
+                    Message::Binary(bytes) if node_adapter => {
+                        requests.push(&bytes)?;
+                        while let Some(mut request) = requests.next()? {
+                            node_attach::prepare(&mut request).await?;
+                            disconnecting |=
+                                request["type"] == "request" && request["command"] == "disconnect";
+                            let body = serde_json::to_vec(&request)?;
+                            input
+                                .write_all(
+                                    format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes(),
+                                )
+                                .await?;
+                            input.write_all(&body).await?;
+                        }
                     }
+                    Message::Binary(bytes) => input.write_all(&bytes).await?,
+                    Message::Close(_) => break,
+                    Message::Ping(_) | Message::Pong(_) => {}
+                    _ => bail!("Binary DAP messages required"),
                 }
-                Message::Binary(bytes) => input.write_all(&bytes).await?,
-                Message::Close(_) => break,
-                Message::Ping(_) | Message::Pong(_) => {}
-                _ => bail!("Binary DAP messages required"),
             }
+            Ok::<_, anyhow::Error>(())
         }
-        Ok::<_, anyhow::Error>(())
+        .await;
+        (result, disconnecting)
     };
-    tokio::select! { result = send => result, result = receive => result }
+    tokio::pin!(send);
+    tokio::select! {
+        result = &mut send => result,
+        (result, disconnecting) = receive => {
+            // js-debug may close while Zed is still sending parent-session
+            // teardown requests. Drain its final response/logs before closing
+            // the browser transport. Only a requested disconnect followed by
+            // clean adapter EOF is normal; other failures remain errors.
+            if disconnecting && result.as_ref().is_err_and(|error| {
+                error.downcast_ref::<std::io::Error>().is_some_and(|error| {
+                    matches!(error.kind(), std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::ConnectionReset)
+                })
+            }) && matches!(tokio::time::timeout(Duration::from_secs(1), &mut send).await, Ok(Ok(()))) {
+                return Ok(());
+            }
+            result
+        }
+    }
 }
 
 struct Process {
