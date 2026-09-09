@@ -72,6 +72,10 @@ async def main():
 
     async def send(message):
         message.pop("buffers", None)  # Inline rich output, not binary widget comms.
+        if message.get("header", {}).get("msg_type") == "kernel_info_reply":
+            # Some kernels (including Bash) omit this metadata. Zed requires a
+            # string; an empty version means unknown, not a fabricated version.
+            message["content"]["language_info"].setdefault("version", "")
         # Zed's typed protocol requires status on control replies; ipykernel
         # omits it on shutdown replies, and SIGINT replies are generated here.
         if message.get("header", {}).get("msg_type") in ("interrupt_reply", "shutdown_reply"):
