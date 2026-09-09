@@ -48,7 +48,8 @@ def list_kernels():
             continue
         if spec.get("metadata", {}).get("kernel_provisioner", {}).get("provisioner_name", "local-provisioner") != "local-provisioner":
             continue
-        kernels.append({"name": spec["display_name"], "language": spec["language"], "kernel": {"kind": "kernelspec", "name": name}})
+        # Like native Zed, use the registered identifier, also saved in notebook metadata.
+        kernels.append({"name": name, "language": spec["language"], "kernel": {"kind": "kernelspec", "name": name}})
     return kernels
 
 
