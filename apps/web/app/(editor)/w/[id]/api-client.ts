@@ -63,7 +63,7 @@ async function connectProcess(workspaceId: string, kind: "debug" | "kernel", bod
 }
 
 export const connectDebugAdapter = (workspaceId: string, launch: string) => connectProcess(workspaceId, "debug", launch);
-export const connectKernel = (workspaceId: string, python: string | null, cwd: string) => connectProcess(workspaceId, "kernel", { python, cwd });
+export const connectKernel = (workspaceId: string, kernel: string, cwd: string) => connectProcess(workspaceId, "kernel", { kernel: JSON.parse(kernel), cwd });
 
 /**
  * Re-mints the internal editor cookie. Returns false when renewal failed.

@@ -130,8 +130,8 @@ export function createHost(shell: ShellController): ZsHost & { onClosed(info: Zs
       return connectDebugAdapter(shell.workspaceId, launch);
     },
 
-    connectKernel(python, cwd) {
-      return connectKernel(shell.workspaceId, python, cwd);
+    connectKernel(kernel, cwd) {
+      return connectKernel(shell.workspaceId, kernel, cwd);
     },
 
     onClosed(info) {

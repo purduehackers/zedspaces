@@ -4,7 +4,7 @@
 Paste a public GitHub repository, get a workspace, and share its URL to edit together.
 
 Zed's Rust UI runs as WebAssembly in the tab. The sandbox runs the remote server,
-Git, terminals, language servers, debugger adapters, and Python kernels.
+Git, terminals, language servers, debugger adapters, and Jupyter kernels.
 The Next.js control plane uses Drizzle ORM with SQLite/libSQL on Turso.
 
 ## Before you host it
@@ -17,10 +17,12 @@ Internal VM tokens, signed connections, and cron authentication still apply.
 
 Public GitHub cloning, multiplayer cursors, stop/resume, file-preserving upgrades,
 port previews, extensions, clipboard, uploads, ZIP export, debugging, and the
-inline Python REPL are supported. Calls, screen sharing, AI assistants, private
+inline REPL are supported. Calls, screen sharing, AI assistants, private
 GitHub repositories, and desktop integration are not included.
-Python notebooks use Zed's existing cell UI with rich-output saving. Notebook input
-prompts, widgets, and non-Python kernels are not supported.
+Notebooks use Zed's existing cell UI with rich-output saving. Python is bundled;
+other locally installed Jupyter kernels appear in the native kernel picker.
+After installing a kernelspec with `--user`, run **repl: refresh kernelspecs**.
+Notebook input prompts, widgets, and external kernel provisioners are not supported.
 Accessibility support is still in progress.
 
 Existing workspaces open their matching editor while updates download in the
