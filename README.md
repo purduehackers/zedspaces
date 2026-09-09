@@ -22,6 +22,8 @@ GitHub repositories, and desktop integration are not included.
 Notebooks use Zed's existing cell UI with rich-output saving. Python is bundled;
 other locally installed Jupyter kernels appear in the native kernel picker.
 After installing a kernelspec with `--user`, run **repl: refresh kernelspecs**.
+User kernelspecs survive upgrades; keep their interpreters/environments under
+`/workspaces` so those survive too. System-wide package installs are not preserved.
 Notebook input prompts, widgets, and external kernel provisioners are not supported.
 Accessibility support is still in progress.
 

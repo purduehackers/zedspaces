@@ -465,6 +465,8 @@ fn apply_restore_layout(restore_dir: &Path, config: &Config) -> anyhow::Result<(
         vercel.join(".local"),
         vercel.join(".local/share"),
         vercel.join(".local/share/zed"),
+        vercel.join(".local/share/jupyter"),
+        vercel.join(".local/share/jupyter/kernels"),
         vercel.join(".config"),
         vercel.join(".config/zed"),
     ] {
@@ -490,6 +492,10 @@ fn apply_restore_layout(restore_dir: &Path, config: &Config) -> anyhow::Result<(
     let data = vercel.join(".local/share/zed");
     if data.exists() {
         move_path(&data, &config.data_dir)?;
+    }
+    let kernels = vercel.join(".local/share/jupyter/kernels");
+    if kernels.exists() {
+        move_path(&kernels, &config.home.join(".local/share/jupyter/kernels"))?;
     }
     let settings = vercel.join(".config/zed");
     if settings.exists() {

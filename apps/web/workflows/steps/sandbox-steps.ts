@@ -341,14 +341,14 @@ export async function stepDeleteSandbox(
   await handle.delete().catch(() => undefined);
 }
 
-/** The exact two paths D9 archives, relative to `/` because b8 extracts at `/`. */
+/** Required persistent paths, relative to the archive's `/` root. */
 export const ARCHIVE_PATHS = ["workspaces", "vercel/.local/share/zed"] as const;
 
 /** Where the tarball is written inside the sandbox before it is streamed out. */
 const ARCHIVE_TMP = "/tmp/zs-rebuild.tgz";
 
 /**
- * Starts the tar of D9's two paths inside the sandbox, detached. The caller
+ * Archives project/editor data and installed user kernelspecs, detached. The caller
  * polls {@link stepWaitForCommandExit} for it (a large workspace takes longer
  * than one step may run) and then calls {@link stepFinishArchive}.
  */
@@ -356,7 +356,10 @@ export async function stepStartArchive(sandboxName: string): Promise<{ cmdId: st
   "use step";
   const handle = await sandboxApi().get(sandboxName, { resume: true }).catch(fail);
   if (!handle) throw new FatalError(`sandbox_missing:${sandboxName}`);
-  return handle.runDetached({ cmd: "tar", args: ["czf", ARCHIVE_TMP, "-C", "/", ...ARCHIVE_PATHS] });
+  const kernels = "vercel/.local/share/jupyter/kernels";
+  const installed = await handle.run({ cmd: "test", args: ["-d", `/${kernels}`] });
+  if (installed.exitCode > 1) throw new FatalError("kernelspec_archive_check_failed");
+  return handle.runDetached({ cmd: "tar", args: ["czf", ARCHIVE_TMP, "-C", "/", ...ARCHIVE_PATHS, ...(installed.exitCode === 0 ? [kernels] : [])] });
 }
 
 /**
