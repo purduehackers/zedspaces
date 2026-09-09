@@ -186,6 +186,7 @@ export function EditorShell({
 }: EditorShellProps) {
   const [phase, setPhase] = useState<ShellPhase>({ kind: "booting", stage: "booting" });
   const [toasts, setToasts] = useState<ShellToast[]>([]);
+  const [graphics, setGraphics] = useState("ready");
 
   const runtimeRef = useRef<EditorRuntime | null>(null);
   const [runtime, setRuntime] = useState<EditorRuntime | null>(null);
@@ -220,6 +221,19 @@ export function EditorShell({
   useEffect(() => {
     diagnosticsRef.current?.stage(phase.kind === "booting" ? phase.stage : phase.kind);
   }, [phase]);
+
+  useEffect(() => {
+    const changed = () => {
+      const status = document.querySelector("canvas[data-gpui-graphics]")?.getAttribute("data-gpui-graphics");
+      if (status === "ready" || status === "recovering" || status === "failed") {
+        diagnosticsRef.current?.record("graphics", status);
+        setGraphics(status);
+      }
+    };
+    window.addEventListener("gpui-graphics-state", changed);
+    changed();
+    return () => window.removeEventListener("gpui-graphics-state", changed);
+  }, []);
 
   /** `reconnect()` of D2/D30: stash the intent, then boot from scratch. */
   const reconnect = useCallback(
@@ -462,11 +476,11 @@ export function EditorShell({
 
   useEffect(() => {
     const updater = updaterRef.current;
-    updater?.setInteractive(phase.kind === "ready");
+    updater?.setInteractive(phase.kind === "ready" && graphics === "ready");
     if (phase.kind === "ready" && process.env.NODE_ENV === "production") {
       void navigator.serviceWorker?.register("/sw.js", { scope: "/w/" }).catch(() => undefined);
     }
-  }, [phase.kind, runtime]);
+  }, [phase.kind, runtime, graphics]);
 
   // Visibility, unload and fullscreen wiring (b9 §3.26 bullet 6).
   useEffect(() => {
@@ -521,7 +535,7 @@ export function EditorShell({
 
   return (
     <div className="zs-shell" data-zs="shell">
-      <ShellOverlay phase={phase} workspace={initial} actions={actions} />
+      <ShellOverlay phase={phase.kind === "ready" && graphics !== "ready" ? { kind: "graphics", failed: graphics === "failed" } : phase} workspace={initial} actions={actions} />
       <LifecycleToasts toasts={toasts} />
     </div>
   );

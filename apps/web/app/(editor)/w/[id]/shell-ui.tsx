@@ -5,13 +5,8 @@ import type { ShellWorkspace } from "@/lib/types";
 import type { ZsBootStage } from "@/lib/zed-web";
 import { BOOT_STAGE_LABELS, bootProgressRatio, type ShellPhase } from "./shell-phase";
 
-/**
- * Presentational chrome of the editor shell (b9 §3.26 bullets 4, 5 and 9).
- * These components hold no state and perform no I/O, which is what the
- * component tests exercise. No component emits a `style` attribute: the CSP
- * has no `'unsafe-inline'` for styles, so the one dynamic value is written
- * through the CSSOM in an effect.
- */
+// Canvas overlays own browser focus while visible. Dynamic styles use the
+// CSSOM because the editor's CSP does not allow inline style attributes.
 
 /** A lifecycle toast (b9 §3.26 bullet 4). */
 export interface ShellToast {
@@ -63,7 +58,7 @@ function BootProgress({ stage }: { stage: ZsBootStage }): ReactNode {
 
 function Card({ title, children, actions }: { title: string; children: ReactNode; actions?: ReactNode }): ReactNode {
   return (
-    <div className="zs-card" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="zs-card" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
       <h1 className="zs-card__title">{title}</h1>
       <div className="zs-card__body">{children}</div>
       {actions ? <div className="zs-card__actions">{actions}</div> : null}
@@ -71,10 +66,7 @@ function Card({ title, children, actions }: { title: string; children: ReactNode
   );
 }
 
-/**
- * The overlay that covers the canvas in every phase except `ready`. The
- * `data-phase` attribute is the hook the end-to-end tests key on.
- */
+/** Covers and isolates the editor whenever it cannot accept input. */
 export function ShellOverlay({
   phase,
   workspace,
@@ -84,8 +76,50 @@ export function ShellOverlay({
   workspace: ShellWorkspace;
   actions: ShellActions;
 }): ReactNode {
+  const root = useRef<HTMLDivElement>(null);
+  const visible = phase.kind !== "ready";
+  useEffect(() => {
+    if (!visible || !root.current) return;
+    const overlay = root.current;
+    const previous = document.activeElement;
+    const owned = new Map<HTMLElement, boolean>();
+    const focus = () => overlay.querySelector<HTMLElement>("[role=dialog]")?.focus({ preventScroll: true });
+    const isolate = () => {
+      for (const element of document.querySelectorAll<HTMLElement>("body > canvas, body > [data-gpui-input], body > [data-gpui-a11y]")) {
+        if (!owned.has(element)) owned.set(element, element.inert);
+        element.inert = true;
+      }
+      if (!overlay.contains(document.activeElement)) focus();
+    };
+    isolate();
+    // The canvas and its input/accessibility bridges are created during boot.
+    const observer = new MutationObserver(isolate);
+    observer.observe(document.body, { childList: true });
+    const focusIn = (event: FocusEvent) => {
+      if (event.target instanceof Node && !overlay.contains(event.target)) focus();
+    };
+    document.addEventListener("focusin", focusIn);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("focusin", focusIn);
+      const restore = overlay.contains(document.activeElement) || document.activeElement === document.body;
+      for (const [element, inert] of owned) element.inert = inert;
+      if (restore) {
+        const target = previous instanceof HTMLElement && previous.isConnected && previous !== document.body
+          ? previous : document.querySelector<HTMLElement>("[data-gpui-input]");
+        target?.focus({ preventScroll: true });
+      }
+    };
+  }, [visible]);
   return (
-    <div className="zs-overlay" data-zs="overlay" data-phase={phase.kind} aria-live="polite">
+    <div ref={root} className="zs-overlay" data-zs="overlay" data-phase={phase.kind} aria-live="polite" onKeyDown={event => {
+      if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
+      const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+      const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next = event.shiftKey ? (index <= 0 ? buttons.length - 1 : index - 1) : (index + 1) % buttons.length;
+      buttons[next]?.focus();
+      event.preventDefault();
+    }}>
       {overlayCard(phase, workspace, actions)}
     </div>
   );
@@ -95,6 +129,18 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
   switch (phase.kind) {
     case "ready":
       return null;
+
+    case "graphics":
+      return (
+        <Card title={phase.failed ? "Browser graphics stopped" : "Recovering browser graphics"} actions={phase.failed ? <>
+          <button type="button" className="zs-button zs-button--primary" onClick={actions.reconnect}>Reconnect</button>
+          <button type="button" className="zs-button" onClick={actions.downloadDiagnostics}>Download diagnostics</button>
+        </> : undefined}>
+          {phase.failed
+            ? "The graphics device could not recover. The editor state is still in this tab. Download diagnostics before reconnecting; unsaved edits may be lost on reload."
+            : "Rebuilding graphics resources. Your files, unsaved edits, and workspace connection stay in place."}
+        </Card>
+      );
 
     case "booting":
       return (

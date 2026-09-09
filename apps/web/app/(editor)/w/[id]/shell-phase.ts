@@ -13,6 +13,7 @@ export type StopReason = "idle" | "user" | "cap" | "error" | "unknown";
 export type ShellPhase =
   | { kind: "booting"; stage: ZsBootStage; detail?: string }
   | { kind: "ready" }
+  | { kind: "graphics"; failed: boolean }
   | { kind: "reconnecting"; attempt: number }
   | { kind: "stopped"; reason: StopReason }
   | { kind: "restarting"; secondsLeft: number }

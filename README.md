@@ -31,6 +31,11 @@ Existing workspaces open their matching editor while updates download in the
 background. Zed's **Restart to Update** replaces the VM and browser together.
 Files and editor state survive; terminal commands must be restarted.
 
+Browser GPU/context loss rebuilds graphics resources in the existing tab,
+keeping the editor and connection alive. Recovery is bounded: repeated failures
+offer diagnostics and an explicit reconnect, never an automatic page reload.
+Download diagnostics before reconnecting if you have unsaved edits.
+
 ## Repository
 
 - **apps/web** — dashboard, browser host, API, database, and workspace workflows.
