@@ -1,5 +1,5 @@
 import { PublicRepoForm } from "../_components/public-repo-form";
-import { buttonClass, Card, EmptyState, PageHeader } from "../_components/ui";
+import { EmptyState, PageHeader } from "../_components/ui";
 import { dashboardViewer, listRegisteredRepos } from "../data";
 
 export const dynamic = "force-dynamic";
@@ -8,22 +8,23 @@ export default async function ReposPage() {
   await dashboardViewer();
   const repos = await listRegisteredRepos();
   return <div className="space-y-6">
-    <PageHeader title="Repositories" description="Public GitHub repositories opened in this space." />
-    <PublicRepoForm />
-    {repos.length ? <Card title="Previously opened">
-      <ul className="divide-y divide-line">
-        {repos.map((repo) => <li key={repo.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
-          <div className="min-w-0 flex-1">
-          <a href={`https://github.com/${repo.owner}/${repo.name}`} className="text-sm break-all hover:text-gold">
-            {repo.owner}/{repo.name}
-          </a>
-          <p className="mt-1 text-xs break-all text-muted">{repo.defaultBranch}</p>
-          </div>
-          <form action={`/new/${repo.owner}/${repo.name}`} method="get">
-            <button className={buttonClass()}>New workspace →</button>
-          </form>
-        </li>)}
-      </ul>
-    </Card> : <EmptyState title="No repositories yet">Open a public GitHub repository above.</EmptyState>}
+    <PageHeader title="Repositories" description="Public repositories opened in Zedspaces." actions={<PublicRepoForm modal />} />
+    {repos.length ? <div className="table-scroll" tabIndex={0} role="region" aria-label="Repository list">
+      <table className="data-table min-w-[32rem]">
+        <caption className="sr-only">Previously opened repositories</caption>
+        <thead><tr><th scope="col">Repository</th><th scope="col">Default branch</th><th scope="col" className="text-right">Actions</th></tr></thead>
+        <tbody>{repos.map((repo) => <tr key={repo.id}>
+          <th scope="row" className="w-full font-medium">
+            <a href={`https://github.com/${repo.owner}/${repo.name}`} className="table-name" title={`${repo.owner}/${repo.name}`} translate="no">{repo.owner}/{repo.name}</a>
+          </th>
+          <td><span className="block max-w-44 truncate" title={repo.defaultBranch} translate="no">{repo.defaultBranch}</span></td>
+          <td className="text-right whitespace-nowrap">
+            <form action={`/new/${repo.owner}/${repo.name}`} method="get">
+              <button className="table-action rounded border border-line px-3 hover:border-muted hover:bg-raised" aria-label={`Create workspace from ${repo.owner}/${repo.name}`}>New workspace</button>
+            </form>
+          </td>
+        </tr>)}</tbody>
+      </table>
+    </div> : <EmptyState title="No repositories yet">Select New workspace to open a public GitHub repository.</EmptyState>}
   </div>;
 }

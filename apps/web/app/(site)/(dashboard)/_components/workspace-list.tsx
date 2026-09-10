@@ -1,33 +1,39 @@
 import Link from "next/link";
 import type { WorkspaceView } from "@/lib/types";
-import { formatMachine, formatRef, formatRelative, formatRepo, STATE_LABELS, stateTone } from "./format";
-import { Badge, buttonClass, EmptyState } from "./ui";
+import { formatRef, formatRelative, formatRepo, formatTimestamp, STATE_LABELS, stateTone } from "./format";
+import { Badge, EmptyState } from "./ui";
 
 export function WorkspaceList({ workspaces, now }: { workspaces: WorkspaceView[]; now?: number }) {
-  if (!workspaces.length) return <EmptyState title="Your next idea starts here.">
-    Open a repository above. You’ll get a real terminal, your files, and a link to invite someone in.
+  if (!workspaces.length) return <EmptyState title="No workspaces yet">
+    Select New workspace to open a public GitHub repository.
   </EmptyState>;
 
-  return <ul aria-label="Shared workspaces" className="divide-y divide-line rounded border border-line">
-    {workspaces.map(workspace => <li key={workspace.id} data-workspace={workspace.id}
-      className="flex flex-col gap-4 bg-panel p-5 first:rounded-t last:rounded-b sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href={`/w/${workspace.id}`} className="font-medium break-all hover:text-gold">{workspace.name}</Link>
-          <Badge tone={stateTone(workspace.state)}>{STATE_LABELS[workspace.state]}</Badge>
-        </div>
-        <p className="text-sm break-all text-muted">{formatRepo(workspace.repo)} <span aria-hidden="true">/</span> {formatRef(workspace)}</p>
-        <p className="text-xs leading-relaxed text-muted">
-          {formatMachine(workspace.machine)} · {workspace.region} · Active <time dateTime={workspace.lastActiveAt}>{formatRelative(workspace.lastActiveAt, now)}</time>
-        </p>
-        {workspace.stateReason && <p className="text-xs break-words text-muted">{workspace.stateReason}</p>}
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <Link href={`/workspaces/${workspace.id}`} className={buttonClass()} aria-label={`Manage ${workspace.name}`}>Manage</Link>
-        <Link href={`/w/${workspace.id}`} className={buttonClass("primary")} aria-label={`Open ${workspace.name} in the editor`}>
-          {workspace.state === "stopped" ? "Resume" : "Open"} →
-        </Link>
-      </div>
-    </li>)}
-  </ul>;
+  return <div className="table-scroll" tabIndex={0} role="region" aria-label="Workspace list">
+    <table className="data-table min-w-[44rem]">
+      <caption className="sr-only">Shared workspaces</caption>
+      <thead><tr>
+        <th scope="col">Workspace</th><th scope="col">Branch</th><th scope="col">Status</th>
+        <th scope="col">Last active</th><th scope="col" className="text-right">Actions</th>
+      </tr></thead>
+      <tbody>{workspaces.map(workspace => <tr key={workspace.id} data-workspace={workspace.id}>
+        <th scope="row" className="w-full min-w-56 font-normal">
+          <Link href={`/workspaces/${workspace.id}`} className="table-name font-medium" title={workspace.name}>{workspace.name}</Link>
+          <span className="block max-w-80 truncate text-xs text-muted" title={formatRepo(workspace.repo)} translate="no">{formatRepo(workspace.repo)}</span>
+        </th>
+        <td><span className="block max-w-44 truncate" title={formatRef(workspace)} translate="no">{formatRef(workspace)}</span></td>
+        <td><Badge tone={stateTone(workspace.state)}>{STATE_LABELS[workspace.state]}</Badge></td>
+        <td className="whitespace-nowrap tabular-nums text-muted"><time dateTime={workspace.lastActiveAt} title={formatTimestamp(workspace.lastActiveAt)}>{formatRelative(workspace.lastActiveAt, now)}</time></td>
+        <td className="text-right whitespace-nowrap">
+          <div className="flex items-center justify-end gap-3">
+            <Link href={`/workspaces/${workspace.id}`} className="table-action" aria-label={`Manage ${workspace.name}`}>
+              {workspace.state === "error" ? "View error" : "Manage"}
+            </Link>
+            {workspace.state !== "error" && workspace.state !== "deleting" && <Link href={`/w/${workspace.id}`} className="table-action rounded border border-line px-3 hover:border-muted hover:bg-raised" aria-label={`${workspace.state === "stopped" ? "Resume" : "Open"} ${workspace.name}`}>
+              {workspace.state === "stopped" ? "Resume" : "Open"}
+            </Link>}
+          </div>
+        </td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
 }

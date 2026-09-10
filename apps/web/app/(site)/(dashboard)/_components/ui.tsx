@@ -19,7 +19,7 @@ export function buttonClass(variant: "primary" | "secondary" | "danger" = "secon
 
 /** Shared classes of every text input, select and textarea. */
 export const FIELD_CLASS =
-  "min-h-10 w-full rounded border border-line bg-ink px-3 py-2 text-sm text-text placeholder:text-muted disabled:opacity-50";
+  "min-h-10 w-full rounded border border-line bg-ink px-3 py-2 text-base text-text placeholder:text-muted disabled:opacity-50 sm:text-sm";
 
 /** The title block at the top of a page. */
 export function PageHeader({
@@ -33,11 +33,11 @@ export function PageHeader({
 }): ReactNode {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 space-y-3">
-        <h1 className="text-3xl font-medium tracking-tight break-words sm:text-4xl">{title}</h1>
+      <div className="min-w-0 space-y-1">
+        <h1 className="text-2xl font-medium tracking-tight text-balance break-words">{title}</h1>
         {description ? <p className="max-w-2xl text-sm leading-relaxed text-muted">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -62,7 +62,7 @@ export function Card({
       {title ? (
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="space-y-0.5">
-            <h2 className="brand-label text-gold">{title}</h2>
+            <h2 className="text-sm font-medium">{title}</h2>
             {description ? <p className="mt-2 text-xs leading-relaxed text-muted">{description}</p> : null}
           </div>
           {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

@@ -27,6 +27,19 @@ body {
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
 button, summary { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
+a, button, summary { touch-action: manipulation; }
+html { scrollbar-gutter: stable; }
+body:has(.repo-dialog[open]) { overflow: hidden; }
+
+.table-scroll { overflow-x: auto; border-block: 1px solid var(--line); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; text-align: left; }
+.data-table :is(th, td) { padding: 0.625rem 1rem; vertical-align: baseline; }
+.data-table thead th { color: var(--muted); font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+.data-table tbody tr { border-top: 1px solid var(--line); }
+.data-table tbody tr:hover { background: var(--panel); }
+.table-name { display: block; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-action { display: inline-flex; align-items: center; min-height: 2rem; }
+.table-name:hover, .table-action:hover { color: var(--gold); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

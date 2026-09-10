@@ -1,13 +1,17 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { parsePublicRepo } from "@/lib/github-repo";
 import { buttonClass, FIELD_CLASS } from "./ui";
 
 /** Anonymous public clones. A stable idempotency key survives a network-error retry. */
-export function PublicRepoForm() {
+export function PublicRepoForm({ modal = false }: { modal?: boolean }) {
   const router = useRouter();
+  const id = useId();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const repoInput = useRef<HTMLInputElement>(null);
   const [repo, setRepo] = useState("");
   const [branch, setBranch] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,9 +22,17 @@ export function PublicRepoForm() {
     event.preventDefault();
     if (busy) return;
     setError(null);
+    let parsedRepo;
+    try {
+      parsedRepo = parsePublicRepo(repo);
+    } catch {
+      setError("Enter a public GitHub URL or owner/repo, such as purduehackers/wack-hacker.");
+      repoInput.current?.focus();
+      return;
+    }
     setBusy(true);
     try {
-      const body = JSON.stringify({ repo: parsePublicRepo(repo), ...(branch.trim() ? { ref: { branch: branch.trim() } } : {}) });
+      const body = JSON.stringify({ repo: parsedRepo, ...(branch.trim() ? { ref: { branch: branch.trim() } } : {}) });
       if (attempt.current?.body !== body) attempt.current = { body, key: crypto.randomUUID() };
       const response = await fetch("/api/workspaces", {
         method: "POST",
@@ -28,39 +40,60 @@ export function PublicRepoForm() {
         body,
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error?.message ?? `Workspace creation failed (HTTP ${response.status})`);
-      if (!result.workspace?.id) throw new Error("The server did not return a workspace");
+      if (!response.ok) throw new Error(result.error?.message ?? "Couldn’t create the workspace. Try again.");
+      if (!result.workspace?.id) throw new Error("The server didn’t return a workspace. Try again.");
       router.push(`/w/${result.workspace.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the workspace");
+      setError(err instanceof Error ? err.message : "Couldn’t create the workspace. Check your connection and try again.");
       setBusy(false);
     }
   }
 
-  return <form onSubmit={submit} aria-busy={busy} className="space-y-5 rounded border border-line border-t-gold bg-panel p-5 sm:p-6">
-    <div>
-      <h2 className="brand-label text-gold">From repository to workspace</h2>
-      <p className="mt-2 text-sm text-muted">Paste a public GitHub repo. We’ll clone it, start a sandbox, and open Zed.</p>
-    </div>
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <label className="flex-1 space-y-1 text-sm">
-        <span className="font-medium">Public GitHub repository</span>
-        <input required name="repo" value={repo} onChange={(e) => setRepo(e.target.value)}
-          placeholder="github.com/purduehackers/wack-hacker" autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy}
-          className={FIELD_CLASS} />
-      </label>
-      <button type="submit" disabled={busy} className={buttonClass("primary")}>{busy ? "Creating workspace…" : "Open in Zed →"}</button>
-    </div>
+  const form = <form onSubmit={submit} aria-busy={busy} className="space-y-5">
+    <label className="block space-y-2 text-sm">
+      <span className="font-medium">GitHub repository</span>
+      <input ref={repoInput} required name="repo" value={repo} onChange={(e) => setRepo(e.target.value)}
+        placeholder="github.com/owner/repo…" autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy}
+        aria-describedby={`${id}-privacy${error ? ` ${id}-error` : ""}`} className={FIELD_CLASS} />
+    </label>
+    {error && <p id={`${id}-error`} role="alert" className="text-sm break-words text-danger">{error}</p>}
     <details className="text-sm text-muted">
       <summary className="w-fit hover:text-text">Choose a branch <span className="text-xs">(optional)</span></summary>
-      <label className="mt-3 block max-w-sm space-y-1">
+      <label className="mt-3 block space-y-2">
         <span>Branch</span>
         <input name="branch" value={branch} onChange={(e) => setBranch(e.target.value)}
-          placeholder="Default branch" maxLength={255} autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy}
+          placeholder="Default branch…" maxLength={255} autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy}
           className={FIELD_CLASS} />
       </label>
     </details>
-    <p className="border-t border-line pt-4 text-xs leading-relaxed text-muted">This is a shared space, not a private account. Anyone can edit, stop, or delete these workspaces. Public repos only; don’t add secrets.</p>
-    {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
+    <p id={`${id}-privacy`} className="text-sm leading-relaxed text-muted">Public repos only. Anyone can edit, stop, or delete this workspace. Don’t add secrets.</p>
+    <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+      {modal && <button type="button" disabled={busy} onClick={() => dialog.current?.close()} className={buttonClass()}>Cancel</button>}
+      <button type="submit" disabled={busy} className={buttonClass("primary")}>
+        {busy && <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />}
+        <span aria-live="polite">{busy ? "Creating workspace…" : "Create workspace"}</span>
+      </button>
+    </div>
   </form>;
+
+  if (!modal) return form;
+
+  return <>
+    <button type="button" className={buttonClass("primary")} aria-haspopup="dialog" onClick={(event) => {
+      // Safari does not focus clicked buttons; establish the dialog's return target.
+      event.currentTarget.focus();
+      dialog.current?.showModal();
+      if (window.matchMedia("(min-width: 640px) and (pointer: fine)").matches) repoInput.current?.focus();
+      else heading.current?.focus();
+    }}>New workspace</button>
+    <dialog ref={dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
+      onCancel={(event) => { if (busy) event.preventDefault(); }}
+      className="repo-dialog m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto overscroll-contain rounded-lg border border-line bg-panel p-6 text-text backdrop:bg-black/65">
+      <div className="mb-6 space-y-2">
+        <h2 ref={heading} id={`${id}-title`} tabIndex={-1} className="text-xl font-medium tracking-tight">New workspace</h2>
+        <p id={`${id}-description`} className="text-sm text-muted">Clone a public repository and open it in Zed.</p>
+      </div>
+      {form}
+    </dialog>
+  </>;
 }

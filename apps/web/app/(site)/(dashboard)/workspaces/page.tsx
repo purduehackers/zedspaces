@@ -16,19 +16,13 @@ export default async function WorkspacesPage(): Promise<ReactNode> {
   const busy = workspaces.some((workspace) => isBusyState(workspace.state));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Workspaces"
-        description="A shared space to build. Your repo, a real terminal, and Zed in a browser tab."
+        description={<span className="tabular-nums">{running} of {env().ZS_MAX_RUNNING_WORKSPACES} running</span>}
+        actions={<PublicRepoForm modal />}
       />
-      <PublicRepoForm />
-      <section className="space-y-4" aria-label="Workspace management">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="brand-label">Pick up where you left off</h2>
-          <p className="text-xs text-muted">{running} / {env().ZS_MAX_RUNNING_WORKSPACES} sandboxes running</p>
-        </div>
-        <WorkspaceList workspaces={workspaces} />
-      </section>
+      <WorkspaceList workspaces={workspaces} />
       <AutoRefresh enabled={busy} />
     </div>
   );
