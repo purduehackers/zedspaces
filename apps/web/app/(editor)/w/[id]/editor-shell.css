@@ -5,13 +5,13 @@
    dynamic value (`--zs-progress`) is written through the CSSOM after mount. */
 
 .zs-shell {
-  --zs-bg: #17181c;
-  --zs-panel: #1f2127;
-  --zs-border: #33363f;
-  --zs-text: #e7e8ea;
-  --zs-muted: #9aa0aa;
-  --zs-accent: #64a0ff;
-  --zs-danger: #ff6f6f;
+  --zs-bg: var(--ink);
+  --zs-panel: var(--panel);
+  --zs-border: var(--line);
+  --zs-text: var(--text);
+  --zs-muted: var(--muted);
+  --zs-accent: var(--gold);
+  --zs-danger: var(--danger);
   --zs-progress: 0;
 
   position: fixed;
@@ -32,11 +32,12 @@
 .zs-button {
   appearance: none;
   border: 1px solid var(--zs-border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: inherit;
   font: inherit;
-  padding: 3px 9px;
+  min-height: 38px;
+  padding: 6px 12px;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
@@ -53,7 +54,20 @@
 
 .zs-button--primary {
   border-color: var(--zs-accent);
-  background: color-mix(in srgb, var(--zs-accent) 20%, transparent);
+  background: var(--zs-accent);
+  color: var(--zs-bg);
+}
+
+.zs-button:focus-visible { outline: 2px solid var(--zs-accent); outline-offset: 3px; }
+.zs-button--primary:hover:not(:disabled) { background: var(--gold-hover); }
+
+.zs-card__brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  margin-bottom: 32px;
+  color: var(--zs-muted);
 }
 
 /* Overlay ---------------------------------------------------------------- */
@@ -64,26 +78,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
   background: color-mix(in srgb, var(--zs-bg) 92%, transparent);
 }
+
+.zs-overlay[data-phase="booting"] { background: var(--zs-bg); }
 
 .zs-overlay[data-phase="ready"] {
   display: none;
 }
 
 .zs-card {
-  width: min(480px, calc(100vw - 32px));
-  padding: 22px 24px;
+  box-sizing: border-box;
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: clamp(20px, 5vw, 32px);
   border: 1px solid var(--zs-border);
-  border-radius: 12px;
+  border-top-color: var(--zs-accent);
+  border-radius: 4px;
   background: var(--zs-panel);
   text-align: left;
 }
 
 .zs-card__title {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 600;
+  margin: 0 0 16px;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -.03em;
+  overflow-wrap: anywhere;
 }
 
 .zs-card__body {
@@ -93,6 +116,7 @@
 
 .zs-card__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 18px;
 }
@@ -113,8 +137,7 @@
 
 .zs-progress {
   height: 3px;
-  margin-top: 16px;
-  border-radius: 999px;
+  margin-top: 24px;
   background: var(--zs-border);
   overflow: hidden;
 }
@@ -125,6 +148,10 @@
   border-radius: inherit;
   background: var(--zs-accent);
   transition: width 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zs-progress__bar { transition: none; }
 }
 
 /* Toasts ----------------------------------------------------------------- */

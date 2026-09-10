@@ -7,6 +7,7 @@ export const githubName = z.string().min(1).max(100).regex(/^[a-zA-Z0-9_.-]+$/, 
 /** Only github.com HTTPS URLs or owner/repo, never arbitrary clone hosts or credentials. */
 export function parsePublicRepo(value: string): { owner: string; name: string } {
   let path = value.trim();
+  if (path.startsWith("github.com/")) path = `https://${path}`;
   if (path.startsWith("https://")) {
     const url = new URL(path);
     if (url.hostname !== "github.com" || url.port || url.username || url.password || url.search || url.hash) {

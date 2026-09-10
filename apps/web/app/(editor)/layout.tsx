@@ -7,7 +7,8 @@ import "./editor.css";
  * "install"; it carries no `next/font` and no analytics.
  */
 export const metadata: Metadata = {
-  title: "Zed Codespaces",
+  title: "Zedspaces",
+  icons: { icon: "/icons/zs.svg" },
   manifest: "/manifest.webmanifest",
 };
 

@@ -1,5 +1,5 @@
 import { PublicRepoForm } from "../_components/public-repo-form";
-import { Card, EmptyState, PageHeader } from "../_components/ui";
+import { buttonClass, Card, EmptyState, PageHeader } from "../_components/ui";
 import { dashboardViewer, listRegisteredRepos } from "../data";
 
 export const dynamic = "force-dynamic";
@@ -11,14 +11,16 @@ export default async function ReposPage() {
     <PageHeader title="Repositories" description="Public GitHub repositories opened in this space." />
     <PublicRepoForm />
     {repos.length ? <Card title="Previously opened">
-      <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-        {repos.map((repo) => <li key={repo.id} className="flex items-center justify-between gap-4 py-3">
-          <a href={`https://github.com/${repo.owner}/${repo.name}`} className="underline underline-offset-2">
+      <ul className="divide-y divide-line">
+        {repos.map((repo) => <li key={repo.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
+          <div className="min-w-0 flex-1">
+          <a href={`https://github.com/${repo.owner}/${repo.name}`} className="text-sm break-all hover:text-gold">
             {repo.owner}/{repo.name}
           </a>
-          <span className="text-sm text-zinc-500">{repo.defaultBranch}</span>
+          <p className="mt-1 text-xs break-all text-muted">{repo.defaultBranch}</p>
+          </div>
           <form action={`/new/${repo.owner}/${repo.name}`} method="get">
-            <button className="rounded border px-3 py-1 text-sm">Open workspace</button>
+            <button className={buttonClass()}>New workspace →</button>
           </form>
         </li>)}
       </ul>

@@ -1,0 +1,37 @@
+/* Kintsugi Dark, shared by the dashboard and browser loading chrome only. */
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #131314;
+  --panel: #1a1a1b;
+  --raised: #252523;
+  --line: #2a2a28;
+  --text: #c9c4b8;
+  --muted: #a09b8d;
+  --gold: #dbad49;
+  --gold-hover: #ebcb8b;
+  --success: #a3be8c;
+  --danger: #d9a6a6;
+  --info: #8fa3b3;
+  --font-pixel: "Departure Mono", ui-monospace, monospace;
+}
+
+.brand-label {
+  font: 400 11px/1.6 var(--font-pixel);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.brand-wordmark {
+  color: var(--gold);
+  font: 400 22px/1.5 var(--font-pixel);
+  letter-spacing: -.04em;
+  text-decoration: none;
+}

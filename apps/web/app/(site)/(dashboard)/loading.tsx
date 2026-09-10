@@ -5,7 +5,7 @@ import { Skeleton } from "./_components/ui";
 export default function DashboardLoading(): ReactNode {
   return (
     <div className="space-y-4" role="status" aria-live="polite" aria-busy="true">
-      <span className="sr-only">Loading…</span>
+      <p className="brand-label text-gold">Loading your shared space…</p>
       <Skeleton className="h-7 w-48" />
       <Skeleton className="h-4 w-72" />
       <div className="space-y-2 pt-4">

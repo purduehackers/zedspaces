@@ -1,23 +1,15 @@
 import { cloneElement, isValidElement, type ReactNode } from "react";
 import type { Tone } from "./format";
 
-/**
- * The dashboard's presentational primitives (BUILD-SPEC §7.7). They hold no
- * state and perform no I/O, so server components and client components can
- * both render them and the component tests need no runtime. Styling is
- * Tailwind 4 utilities over the `--background`/`--foreground` tokens of
- * `app/globals.css`, with a `dark:` variant for every colour.
- */
-
 /** Shared button classes, so every action in the dashboard looks the same. */
 export const BUTTON = {
-  base: "inline-flex items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600",
+  base: "inline-flex min-h-10 items-center justify-center gap-2 rounded border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
   primary:
-    "border-transparent bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white",
+    "border-gold bg-gold text-ink hover:border-gold-hover hover:bg-gold-hover",
   secondary:
-    "border-zinc-300 bg-transparent text-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800",
+    "border-line bg-transparent text-text hover:border-muted hover:bg-raised",
   danger:
-    "border-red-300 bg-transparent text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950",
+    "border-danger/40 bg-transparent text-danger hover:bg-danger/10",
 } as const;
 
 /** `className` of a button in the given variant. */
@@ -27,7 +19,7 @@ export function buttonClass(variant: "primary" | "secondary" | "danger" = "secon
 
 /** Shared classes of every text input, select and textarea. */
 export const FIELD_CLASS =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 shadow-xs placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
+  "min-h-10 w-full rounded border border-line bg-ink px-3 py-2 text-sm text-text placeholder:text-muted disabled:opacity-50";
 
 /** The title block at the top of a page. */
 export function PageHeader({
@@ -40,10 +32,10 @@ export function PageHeader({
   actions?: ReactNode;
 }): ReactNode {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        {description ? <p className="text-sm text-zinc-600 dark:text-zinc-400">{description}</p> : null}
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0 space-y-3">
+        <h1 className="text-3xl font-medium tracking-tight break-words sm:text-4xl">{title}</h1>
+        {description ? <p className="max-w-2xl text-sm leading-relaxed text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -65,28 +57,28 @@ export function Card({
   return (
     <section
       aria-label={title}
-      className="rounded-lg border border-zinc-200 bg-white/60 dark:border-zinc-800 dark:bg-zinc-900/40"
+      className="min-w-0 rounded border border-line bg-panel"
     >
       {title ? (
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="space-y-0.5">
-            <h2 className="text-sm font-semibold">{title}</h2>
-            {description ? <p className="text-xs text-zinc-600 dark:text-zinc-400">{description}</p> : null}
+            <h2 className="brand-label text-gold">{title}</h2>
+            {description ? <p className="mt-2 text-xs leading-relaxed text-muted">{description}</p> : null}
           </div>
           {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
         </div>
       ) : null}
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
 
 const TONE_CLASS: Record<Tone, string> = {
-  green: "border-green-300 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300",
-  amber: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300",
-  gray: "border-zinc-300 bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  red: "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300",
-  blue: "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300",
+  green: "border-success/25 bg-success/10 text-success",
+  amber: "border-gold/25 bg-gold/10 text-gold",
+  gray: "border-line bg-raised text-muted",
+  red: "border-danger/25 bg-danger/10 text-danger",
+  blue: "border-info/25 bg-info/10 text-info",
 };
 
 /** A small status pill. */
@@ -119,9 +111,9 @@ export function Alert({ kind, children }: { kind: "error" | "success" | "info"; 
 /** What a list shows when it has nothing to show. */
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }): ReactNode {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
-      <p className="text-sm font-medium">{title}</p>
-      {children ? <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{children}</div> : null}
+    <div className="rounded border border-dashed border-line px-6 py-10 text-center">
+      <p className="font-medium">{title}</p>
+      {children ? <div className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted">{children}</div> : null}
     </div>
   );
 }
@@ -155,7 +147,7 @@ export function Field({
       </label>
       {control}
       {hint ? (
-        <p id={hintId} className="text-xs text-zinc-600 dark:text-zinc-400">
+        <p id={hintId} className="text-xs text-muted">
           {hint}
         </p>
       ) : null}
@@ -166,22 +158,14 @@ export function Field({
 /** A `<dl>` row of a definition list; used by the workspace and repo detail pages. */
 export function DetailRow({ term, children }: { term: string; children: ReactNode }): ReactNode {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-100 py-1.5 last:border-b-0 dark:border-zinc-800">
-      <dt className="text-xs text-zinc-600 dark:text-zinc-400">{term}</dt>
-      <dd className="text-sm">{children}</dd>
+    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line py-2 last:border-b-0">
+      <dt className="text-xs text-muted">{term}</dt>
+      <dd className="min-w-0 text-sm break-all">{children}</dd>
     </div>
   );
 }
 
-/** Table classes shared by the list pages, so every table scrolls the same way. */
-export const TABLE = {
-  wrapper: "overflow-x-auto",
-  table: "w-full min-w-[40rem] border-collapse text-left text-sm",
-  th: "border-b border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400",
-  td: "border-b border-zinc-100 px-3 py-2 align-middle dark:border-zinc-800",
-} as const;
-
 /** A skeleton block used by the `loading.tsx` files. */
 export function Skeleton({ className = "h-4 w-full" }: { className?: string }): ReactNode {
-  return <div aria-hidden="true" className={`animate-pulse rounded bg-zinc-200 dark:bg-zinc-800 ${className}`} />;
+  return <div aria-hidden="true" className={`animate-pulse rounded bg-raised ${className}`} />;
 }

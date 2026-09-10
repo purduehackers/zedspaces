@@ -32,7 +32,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         confirm="Stop this workspace? Unsaved editor state is flushed first." inline />
     </>} />
     {view.stateReason && <Alert kind="info">{view.stateReason}</Alert>}
-    {view.image.stale && <Alert kind="info">A newer editor build is available. Rebuild to update this workspace.</Alert>}
+    {view.image.stale && <Alert kind="info">A newer editor is available. Open this workspace to download the update in the background, then choose when to restart.</Alert>}
     <div className="grid gap-6 lg:grid-cols-2">
       <Card title="Overview"><dl>
         <DetailRow term="Revision">{view.revision?.slice(0, 12) ?? "—"}</DetailRow>
@@ -91,7 +91,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         <ActionForm action={rebuildWorkspaceAction} fields={fields} submitLabel="Rebuild"
           confirm="Rebuild on the current base image? Your files will be archived and restored." inline />
         <ActionForm action={deleteWorkspaceAction} fields={fields} submitLabel="Delete workspace" variant="danger"
-          confirm="Delete this workspace and all snapshots? Files that have not been pushed will be lost." inline />
+          confirm="Delete this workspace and all snapshots? Download any files you want to keep first. This cannot be undone." inline />
       </div>
     </Card>
     <AutoRefresh enabled={isBusyState(view.state)} />

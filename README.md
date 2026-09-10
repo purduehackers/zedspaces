@@ -27,6 +27,15 @@ User kernelspecs survive upgrades; keep their interpreters/environments under
 Notebook input prompts, widgets, and external kernel provisioners are not supported.
 Accessibility support is still in progress.
 
+Multiplayer retains up to 32 live/replay connections per workspace. Disconnected
+slots are reclaimed when someone joins; they no longer impose a lifetime visitor
+limit. Rejoining keeps saved editor state and terminal ownership. If a replay was
+reclaimed, the tab needs a fresh snapshot rather than replaying old edits.
+
+The dashboard, onboarding, and loading screens share Kintsugi Dark colors and
+Purdue Hackers typography. Departure Mono is bundled under the SIL Open Font
+License; its notice is in `apps/web/public/fonts/departure-mono/OFL.txt`.
+
 Existing workspaces open their matching editor while updates download in the
 background. Zed's **Restart to Update** replaces the VM and browser together.
 Files and editor state survive; terminal commands must be restarted.

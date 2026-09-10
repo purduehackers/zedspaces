@@ -10,13 +10,13 @@ import type { ReactNode } from "react";
  */
 export function NavLink({ href, children }: { href: string; children: ReactNode }): ReactNode {
   const pathname = usePathname();
-  const active = pathname === href || (href !== "/workspaces" && pathname?.startsWith(`${href}/`)) === true;
+  const active = pathname === href || pathname.startsWith(`${href}/`) || (href === "/workspaces" && pathname === "/");
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`rounded-md px-2 py-1 text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-        active ? "bg-zinc-100 font-medium dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"
+      className={`brand-label border-b-2 px-3 py-2 transition-colors hover:text-gold ${
+        active ? "border-gold text-gold" : "border-transparent text-muted"
       }`}
     >
       {children}

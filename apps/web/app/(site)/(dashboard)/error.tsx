@@ -26,7 +26,7 @@ export default function DashboardError({
       <div className="space-y-3">
         <Alert kind="error">{error.message || "The page could not be loaded."}</Alert>
         {error.digest ? (
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">Reference: {error.digest}</p>
+          <p className="text-xs text-muted">Reference: {error.digest}</p>
         ) : null}
         <div className="flex gap-2">
           <button type="button" className={buttonClass("primary")} onClick={reset}>

@@ -50,7 +50,7 @@ function BootProgress({ stage }: { stage: ZsBootStage }): ReactNode {
     ref.current?.style.setProperty("--zs-progress", String(ratio));
   }, [ratio]);
   return (
-    <div className="zs-progress" data-progress={ratio.toFixed(2)} ref={ref}>
+    <div className="zs-progress" data-progress={ratio.toFixed(2)} ref={ref} role="progressbar" aria-label={BOOT_STAGE_LABELS[stage]}>
       <div className="zs-progress__bar" />
     </div>
   );
@@ -59,6 +59,7 @@ function BootProgress({ stage }: { stage: ZsBootStage }): ReactNode {
 function Card({ title, children, actions }: { title: string; children: ReactNode; actions?: ReactNode }): ReactNode {
   return (
     <div className="zs-card" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+      <div className="zs-card__brand"><span className="brand-wordmark">zedspaces</span><span className="brand-label">Purdue Hackers</span></div>
       <h1 className="zs-card__title">{title}</h1>
       <div className="zs-card__body">{children}</div>
       {actions ? <div className="zs-card__actions">{actions}</div> : null}
@@ -145,6 +146,7 @@ function overlayCard(phase: ShellPhase, workspace: ShellWorkspace, actions: Shel
     case "booting":
       return (
         <Card title={`Opening ${workspace.name}`}>
+          <p className="zs-card__hint zs-code">{workspace.repo} / {workspace.branch ?? "default branch"}</p>
           <p className="zs-card__body">{BOOT_STAGE_LABELS[phase.stage]}</p>
           {phase.detail ? <p className="zs-card__hint zs-code">{phase.detail}</p> : null}
           <BootProgress stage={phase.stage} />

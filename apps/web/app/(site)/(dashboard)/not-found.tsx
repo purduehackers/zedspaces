@@ -7,8 +7,8 @@ export default function DashboardNotFound(): ReactNode {
   return (
     <Card title="Not found">
       <div className="space-y-3">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          This page does not exist, or your account cannot see it.
+        <p className="text-sm text-muted">
+          This page doesn’t exist, or the workspace has been deleted.
         </p>
         <Link href="/workspaces" className={buttonClass("primary")}>
           Back to workspaces
