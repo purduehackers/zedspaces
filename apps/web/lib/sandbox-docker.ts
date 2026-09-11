@@ -248,7 +248,15 @@ export const dockerSandboxApi: SandboxApi = {
     const values = { ...input.env, ZS_INSECURE_COOKIES: "1", ZS_DOCKER_TIMEOUT: String(input.timeoutMs / 1000) };
     for (const key of Object.keys(values)) args.push("--env", key);
     try { await docker([...args, image, "-c", KEEPALIVE], values); }
-    catch (err) { if (!await inspect(input.name)) throw err; }
+    catch (err) {
+      // Docker reserves the name before inspect can see the new container.
+      // A second workflow worker must wait for that create to finish.
+      const deadline = Date.now() + (err instanceof SandboxError && err.message.includes("already in use by container") ? 10_000 : 0);
+      while (!await inspect(input.name)) {
+        if (Date.now() >= deadline) throw err;
+        await delay(100);
+      }
+    }
     return (await this.get(input.name, { resume: true }))!;
   },
   async get(name, opts) {
