@@ -9,5 +9,5 @@ body {
   overflow: hidden;
   background: var(--ink);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body);
 }

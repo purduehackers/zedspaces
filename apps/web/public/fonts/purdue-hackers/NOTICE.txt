@@ -1,0 +1,13 @@
+PixelHackers and PolySans are the unmodified webfonts used by Purdue Hackers:
+https://github.com/purduehackers/site2026/tree/3a0972a4f4069dbe2665e933b79d9984556f49ea/src/assets/fonts
+
+These brand assets retain their original rights and are not licensed under
+Zedspaces' MIT license. The source repository does not include a redistribution
+license for these fonts. Forks should supply their own licensed fonts before
+using this branding on another deployment.
+
+Inconsolata is distributed under the SIL Open Font License, Version 1.1.
+Copyright 2006 The Inconsolata Project Authors
+See Inconsolata-OFL.txt for the full license.
+Font source: https://www.purduehackers.com/_astro/fonts/33928f7bab4e74e0.woff2
+License source: https://github.com/google/fonts/tree/main/ofl/inconsolata

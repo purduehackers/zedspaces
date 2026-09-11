@@ -3,11 +3,11 @@ import type { Tone } from "./format";
 
 /** Shared button classes, so every action in the dashboard looks the same. */
 export const BUTTON = {
-  base: "inline-flex min-h-10 items-center justify-center gap-2 rounded border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+  base: "inline-flex min-h-10 items-center justify-center gap-2 border px-4 py-2 font-mono text-base font-bold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-50",
   primary:
-    "border-gold bg-gold text-ink hover:border-gold-hover hover:bg-gold-hover",
+    "border-accent bg-accent text-ink hover:border-accent-hover hover:bg-accent-hover",
   secondary:
-    "border-line bg-transparent text-text hover:border-muted hover:bg-raised",
+    "border-text bg-transparent text-text hover:bg-text hover:text-yellow",
   danger:
     "border-danger/40 bg-transparent text-danger hover:bg-danger/10",
 } as const;
@@ -19,7 +19,7 @@ export function buttonClass(variant: "primary" | "secondary" | "danger" = "secon
 
 /** Shared classes of every text input, select and textarea. */
 export const FIELD_CLASS =
-  "min-h-10 w-full rounded border border-line bg-ink px-3 py-2 text-base text-text placeholder:text-muted disabled:opacity-50 sm:text-sm";
+  "min-h-10 w-full border border-line bg-ink px-3 py-2 text-base text-text placeholder:text-muted disabled:opacity-50 sm:text-sm";
 
 /** The title block at the top of a page. */
 export function PageHeader({
@@ -34,7 +34,7 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0 space-y-1">
-        <h1 className="text-2xl font-medium tracking-tight text-balance break-words">{title}</h1>
+        <h1 className="font-display text-4xl leading-tight text-balance break-words sm:text-5xl">{title}</h1>
         {description ? <p className="max-w-2xl text-sm leading-relaxed text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -57,7 +57,7 @@ export function Card({
   return (
     <section
       aria-label={title}
-      className="min-w-0 rounded border border-line bg-panel"
+      className="min-w-0 border border-line bg-panel"
     >
       {title ? (
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
@@ -75,7 +75,7 @@ export function Card({
 
 const TONE_CLASS: Record<Tone, string> = {
   green: "border-success/25 bg-success/10 text-success",
-  amber: "border-gold/25 bg-gold/10 text-gold",
+  amber: "border-accent/25 bg-accent/10 text-accent",
   gray: "border-line bg-raised text-muted",
   red: "border-danger/25 bg-danger/10 text-danger",
   blue: "border-info/25 bg-info/10 text-info",
@@ -101,7 +101,7 @@ export function Alert({ kind, children }: { kind: "error" | "success" | "info"; 
   return (
     <p
       role={kind === "info" ? undefined : "alert"}
-      className={`rounded-md border px-3 py-2 text-sm ${TONE_CLASS[tone]}`}
+      className={`border px-3 py-2 text-sm ${TONE_CLASS[tone]}`}
     >
       {children}
     </p>
@@ -111,7 +111,7 @@ export function Alert({ kind, children }: { kind: "error" | "success" | "info"; 
 /** What a list shows when it has nothing to show. */
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }): ReactNode {
   return (
-    <div className="rounded border border-dashed border-line px-6 py-10 text-center">
+    <div className="border border-dashed border-line px-6 py-10 text-center">
       <p className="font-medium">{title}</p>
       {children ? <div className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted">{children}</div> : null}
     </div>
@@ -167,5 +167,5 @@ export function DetailRow({ term, children }: { term: string; children: ReactNod
 
 /** A skeleton block used by the `loading.tsx` files. */
 export function Skeleton({ className = "h-4 w-full" }: { className?: string }): ReactNode {
-  return <div aria-hidden="true" className={`animate-pulse rounded bg-raised ${className}`} />;
+  return <div aria-hidden="true" className={`animate-pulse bg-raised ${className}`} />;
 }

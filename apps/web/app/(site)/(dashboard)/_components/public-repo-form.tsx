@@ -93,9 +93,9 @@ export function PublicRepoForm({ modal = false }: { modal?: boolean }) {
     }}>New workspace</button>
     <dialog ref={dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
       onCancel={(event) => { if (busy) event.preventDefault(); }}
-      className="repo-dialog m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto overscroll-contain rounded-lg border border-line bg-panel p-6 text-text backdrop:bg-black/65">
+      className="repo-dialog m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto overscroll-contain border border-line bg-panel p-6 text-text backdrop:bg-black/65">
       <div className="mb-6 space-y-2">
-        <h2 ref={heading} id={`${id}-title`} tabIndex={-1} className="text-xl font-medium tracking-tight">New workspace</h2>
+        <h2 ref={heading} id={`${id}-title`} tabIndex={-1} className="font-display text-4xl leading-tight">New workspace</h2>
         <p id={`${id}-description`} className="text-sm text-muted">Clone a public repository and open it in Zed.</p>
       </div>
       {form}

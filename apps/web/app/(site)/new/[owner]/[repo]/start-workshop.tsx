@@ -28,13 +28,13 @@ export function StartWorkshop({ workshop, account }: { workshop: Workshop; accou
 
   return <div className="space-y-4">
     {error ? <>
-      <p role="alert" className="rounded border border-danger/30 bg-danger/5 p-4 text-sm text-danger">{error}</p>
+      <p role="alert" className="border border-danger/30 bg-danger/5 p-4 text-sm text-danger">{error}</p>
       {signInRequired ? <Link className={`${buttonClass("primary")} w-full`} href={`/login?next=${encodeURIComponent(workshopPath(workshop))}`}>Sign in again</Link>
         : <button type="button" className={`${buttonClass("primary")} w-full`} onClick={() => {
           setError(null); setSignInRequired(false); void start();
         }}>Try again</button>}
-    </> : <div role="status" className="flex items-center gap-3 rounded border border-gold/25 bg-gold/5 p-4 text-sm">
-      <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-gold border-r-transparent" />
+    </> : <div role="status" className="flex items-center gap-3 border border-accent/25 bg-accent/5 p-4 text-sm">
+      <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-accent border-r-transparent" />
       <div><p>Getting your workspace ready…</p><p className="mt-1 text-xs text-muted">We’ll open Zed as soon as it’s ready.</p></div>
     </div>}
     <p className="text-xs text-muted">Signed in as <span className="text-text">{account}</span>. Opening this link again returns to the same workspace.</p>

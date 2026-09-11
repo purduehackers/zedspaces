@@ -1,37 +1,69 @@
-/* Kintsugi Dark, shared by the dashboard and browser loading chrome only. */
+/* Purdue Hackers' site2026 brand, scoped to web UI and loading chrome.
+   The native Zed canvas owns its own theme and fonts. */
 @font-face {
-  font-family: "Departure Mono";
-  src: url("/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");
+  font-family: "PixelHackers";
+  src: url("/fonts/purdue-hackers/PixelHackers.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PolySans";
+  src: url("/fonts/purdue-hackers/PolySans-Neutral.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PolySans";
+  src: url("/fonts/purdue-hackers/PolySans-Median.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inconsolata";
+  src: url("/fonts/purdue-hackers/Inconsolata.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 :root {
-  color-scheme: dark;
-  --ink: #131314;
-  --panel: #1a1a1b;
-  --raised: #252523;
-  --line: #2a2a28;
-  --text: #c9c4b8;
-  --muted: #a09b8d;
-  --gold: #dbad49;
-  --gold-hover: #ebcb8b;
-  --success: #a3be8c;
-  --danger: #d9a6a6;
-  --info: #8fa3b3;
-  --font-pixel: "Departure Mono", ui-monospace, monospace;
+  color-scheme: light;
+  --ink: #fffbf1;
+  --panel: #fff;
+  --raised: #f0eade;
+  --line: #c5c1b8;
+  --text: #000;
+  --muted: #58564f;
+  --accent: #7d3bff;
+  --accent-hover: #000;
+  --yellow: #ffee00;
+  --success: #216339;
+  --danger: #ae2020;
+  --info: #0059ac;
+  --font-body: "PolySans", Arial, sans-serif;
+  --font-label: "Inconsolata", ui-monospace, monospace;
+  --font-pixel: "PixelHackers", ui-monospace, monospace;
 }
 
 .brand-label {
-  font: 400 11px/1.6 var(--font-pixel);
+  font: 600 13px/1.5 var(--font-label);
   letter-spacing: .06em;
   text-transform: uppercase;
 }
 
 .brand-wordmark {
-  color: var(--gold);
-  font: 400 22px/1.5 var(--font-pixel);
-  letter-spacing: -.04em;
+  color: var(--text);
+  font: 400 32px/1 var(--font-pixel);
   text-decoration: none;
+}
+
+.brand-grid {
+  background-image: linear-gradient(to right, rgb(0 0 0 / 7%) 1px, transparent 1px), linear-gradient(to bottom, rgb(0 0 0 / 7%) 1px, transparent 1px);
+  background-size: 10px 10px;
 }

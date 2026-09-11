@@ -20,7 +20,7 @@ export default async function ReposPage() {
           <td><span className="block max-w-44 truncate" title={repo.defaultBranch} translate="no">{repo.defaultBranch}</span></td>
           <td className="text-right whitespace-nowrap">
             <form action={`/new/${repo.owner}/${repo.name}`} method="get">
-              <button className="table-action rounded border border-line px-3 hover:border-muted hover:bg-raised" aria-label={`Create workspace from ${repo.owner}/${repo.name}`}>New workspace</button>
+              <button className="table-action border border-line px-3 hover:border-muted hover:bg-raised" aria-label={`Create workspace from ${repo.owner}/${repo.name}`}>New workspace</button>
             </form>
           </td>
         </tr>)}</tbody>

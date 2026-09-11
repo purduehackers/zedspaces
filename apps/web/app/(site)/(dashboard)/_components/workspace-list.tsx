@@ -28,7 +28,7 @@ export function WorkspaceList({ workspaces, now }: { workspaces: WorkspaceView[]
             <Link href={`/workspaces/${workspace.id}`} className="table-action" aria-label={`Manage ${workspace.name}`}>
               {workspace.state === "error" ? "View error" : "Manage"}
             </Link>
-            {workspace.state !== "error" && workspace.state !== "deleting" && <Link href={`/w/${workspace.id}`} className="table-action rounded border border-line px-3 hover:border-muted hover:bg-raised" aria-label={`${workspace.state === "stopped" ? "Resume" : "Open"} ${workspace.name}`}>
+            {workspace.state !== "error" && workspace.state !== "deleting" && <Link href={`/w/${workspace.id}`} className="table-action border border-line px-3 hover:border-muted hover:bg-raised" aria-label={`${workspace.state === "stopped" ? "Resume" : "Open"} ${workspace.name}`}>
               {workspace.state === "stopped" ? "Resume" : "Open"}
             </Link>}
           </div>

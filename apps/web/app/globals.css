@@ -8,23 +8,25 @@
   --color-line: var(--line);
   --color-text: var(--text);
   --color-muted: var(--muted);
-  --color-gold: var(--gold);
-  --color-gold-hover: var(--gold-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-yellow: var(--yellow);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-info: var(--info);
-  --font-sans: var(--font-space-grotesk);
-  --font-mono: var(--font-pixel);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-label);
+  --font-display: var(--font-pixel);
 }
 
 body {
   background: var(--ink);
   color: var(--text);
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
-::selection { background: var(--gold); color: var(--ink); }
-:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+::selection { background: var(--yellow); color: var(--text); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 button, summary { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 a, button, summary { touch-action: manipulation; }
@@ -34,12 +36,12 @@ body:has(.repo-dialog[open]) { overflow: hidden; }
 .table-scroll { overflow-x: auto; border-block: 1px solid var(--line); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; text-align: left; }
 .data-table :is(th, td) { padding: 0.625rem 1rem; vertical-align: baseline; }
-.data-table thead th { color: var(--muted); font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+.data-table thead th { background: var(--text); color: var(--ink); font: 600 0.875rem/1.5 var(--font-label); text-transform: uppercase; white-space: nowrap; }
 .data-table tbody tr { border-top: 1px solid var(--line); }
-.data-table tbody tr:hover { background: var(--panel); }
+.data-table tbody tr:hover { background: var(--raised); }
 .table-name { display: block; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table-action { display: inline-flex; align-items: center; min-height: 2rem; }
-.table-name:hover, .table-action:hover { color: var(--gold); }
+.table-name:hover, .table-action:hover { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
