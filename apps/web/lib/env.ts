@@ -28,8 +28,10 @@ export const envSchema = z.object({
   ZS_JWT_PREVIOUS_KID: z.string().optional(),
   ZS_JWT_ISSUER: z.string().default("zs"),
 
-  // Editor cookie (HS256) – base64, 32 bytes.
-  ZS_EDITOR_COOKIE_SECRET: z.string().optional(),
+  // GitHub identity only: no repository permissions or tokens in sandboxes.
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  BETTER_AUTH_SECRET: z.string().min(32).optional(),
 
   // Builds and images.
   ZS_CLIENT_BUILD_ID: z.string().optional(),

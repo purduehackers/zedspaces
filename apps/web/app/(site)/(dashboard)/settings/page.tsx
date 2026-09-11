@@ -9,7 +9,7 @@ export default async function SettingsPage() {
   const { viewer } = await dashboardViewer();
   const { settings, keymap, dotfiles } = await settingsPageData(viewer);
   return <div className="space-y-6">
-    <PageHeader title="Settings" description="Shared settings for every workspace. Editor changes sync here too." />
+    <PageHeader title="Your settings" description="Applied to your workspaces. Editor changes sync here too." />
     {(["settings", "keymap"] as const).map((kind) => {
       const doc = kind === "settings" ? settings : keymap;
       return <Card key={kind} title={`${kind}.json`} description={`Version ${doc.version}. Stale edits report a conflict.`}>

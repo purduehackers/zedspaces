@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { handler, json } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { mapConcurrent } from "@/lib/concurrency";
@@ -8,7 +8,7 @@ import { env } from "@/lib/env";
 import { runStatus, startLifecycle } from "@/lib/lifecycle";
 import { keys, kv, withLock, sweepExpiredKv } from "@/lib/kv";
 import { sandboxApi } from "@/lib/sandbox";
-import { sessions, users, workspaces, type Workspace } from "@/lib/schema";
+import { authSessions, authVerifications, sessions, users, workspaces, type Workspace } from "@/lib/schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -246,6 +246,10 @@ async function sweep(now: number): Promise<SweepResult> {
  */
 export const GET = handler(async (req: Request) => {
   requireCronSecret(req);
+  const db = await dbReady();
+  const now = new Date();
+  await db.delete(authSessions).where(lte(authSessions.expiresAt, now));
+  await db.delete(authVerifications).where(lte(authVerifications.expiresAt, now));
   await sweepExpiredKv();
   const result = await withLock(keys.lock("sweep"), LOCK_MS, () => sweep(Date.now()));
   return result ? json({ ran: true, ...result }) : json({ ran: false, reason: "locked" });

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { requireViewer, requireWorkspaceAccess, type Viewer } from "@/lib/auth";
+import { requirePageViewer, requireWorkspaceAccess, type Viewer } from "@/lib/auth";
 import { refusesTestClientBuild } from "@/lib/env";
 import { canDeferUpgrade, currentRelease } from "@/lib/release";
 import { assertWorkspaceId } from "@/lib/route-context";
@@ -9,7 +9,7 @@ import type { Workspace } from "@/lib/schema";
 import { EditorShell } from "./editor-shell";
 
 /**
- * Public editor document. The shell requests its short-lived VM token from
+ * Account-owned editor document. The shell requests its short-lived VM token from
  * `POST /connect`; signing keys never reach the browser.
  */
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ async function loadWorkspace(viewer: Viewer, id: string): Promise<Workspace | nu
 
 export default async function EditorPage({ params }: { params: Promise<{ id: string }> }): Promise<ReactNode> {
   const { id } = await params;
-  const viewer = await requireViewer();
+  const viewer = await requirePageViewer(`/w/${encodeURIComponent(id)}`);
 
   const workspace = await loadWorkspace(viewer, id);
   if (!workspace) notFound();

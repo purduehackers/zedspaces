@@ -3,9 +3,10 @@
 import { useId, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { parsePublicRepo } from "@/lib/github-repo";
+import { workshopPath } from "@/lib/workshop";
 import { buttonClass, FIELD_CLASS } from "./ui";
 
-/** Anonymous public clones. A stable idempotency key survives a network-error retry. */
+/** Personal public clones. A stable idempotency key survives a network-error retry. */
 export function PublicRepoForm({ modal = false }: { modal?: boolean }) {
   const router = useRouter();
   const id = useId();
@@ -40,6 +41,10 @@ export function PublicRepoForm({ modal = false }: { modal?: boolean }) {
         body,
       });
       const result = await response.json();
+      if (response.status === 401) {
+        router.push(`/login?next=${encodeURIComponent(workshopPath({ owner: parsedRepo.owner, repo: parsedRepo.name, branch: branch.trim() || undefined }))}`);
+        return;
+      }
       if (!response.ok) throw new Error(result.error?.message ?? "Couldn’t create the workspace. Try again.");
       if (!result.workspace?.id) throw new Error("The server didn’t return a workspace. Try again.");
       router.push(`/w/${result.workspace.id}`);
@@ -66,7 +71,7 @@ export function PublicRepoForm({ modal = false }: { modal?: boolean }) {
           className={FIELD_CLASS} />
       </label>
     </details>
-    <p id={`${id}-privacy`} className="text-sm leading-relaxed text-muted">Public repos only. Anyone can edit, stop, or delete this workspace. Don’t add secrets.</p>
+    <p id={`${id}-privacy`} className="text-sm leading-relaxed text-muted">Clones a public repo into your own sandbox. Changes stay in your workspace; they aren’t pushed to GitHub.</p>
     <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
       {modal && <button type="button" disabled={busy} onClick={() => dialog.current?.close()} className={buttonClass()}>Cancel</button>}
       <button type="submit" disabled={busy} className={buttonClass("primary")}>

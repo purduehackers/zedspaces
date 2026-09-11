@@ -3,9 +3,7 @@ import { diagnosticText } from "@/lib/redact";
 
 /**
  * Browser-side calls the editor shell makes against the control plane
- * (b9 §3.26 bullets 4-8). Every call is same-origin and authenticated by the
- * `zs_editor` cookie the proxy mints on the document request, so no token
- * ever passes through this module.
+ * Every call is same-origin and authenticated by the HttpOnly account cookie.
  */
 
 /** The `{ error: { code, message } }` envelope every route returns on failure. */
@@ -68,7 +66,7 @@ export const connectDebugAdapter = (workspaceId: string, launch: string) => conn
 export const connectKernel = (workspaceId: string, kernel: string, cwd: string) => connectProcess(workspaceId, "kernel", { kernel: JSON.parse(kernel), cwd });
 
 /**
- * Re-mints the internal editor cookie. Returns false when renewal failed.
+ * Refreshes the account session. Returns false when renewal failed.
  */
 export async function refreshEditorSession(workspaceId: string): Promise<boolean> {
   try {
@@ -162,7 +160,8 @@ export function openExternal(url: string): void {
   globalThis.open?.(url, "_blank", "noopener,noreferrer");
 }
 
-/** Reloading the public editor document mints fresh internal session cookies; no login route. */
+/** Reauthenticate without losing the editor's return path. */
 export function sessionReloadUrl(returnTo: string): string {
-  return returnTo.startsWith("/w/") && !returnTo.includes("\\") ? returnTo : "/";
+  const path = returnTo.startsWith("/w/") && !returnTo.includes("\\") ? returnTo : "/workspaces";
+  return `/login?next=${encodeURIComponent(path)}`;
 }

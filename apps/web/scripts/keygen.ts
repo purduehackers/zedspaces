@@ -4,7 +4,7 @@
  *   pnpm zs:keygen >> .env.local
  *
  * Generates an ES256 signing key (`ZS_JWT_PRIVATE_KEY` / `ZS_JWT_KID`), the
- * editor-cookie secret and a cron secret. Never commit the output.
+ * account-session secret and a cron secret. Never commit the output.
  */
 import { randomBytes } from "node:crypto";
 import { exportPKCS8, generateKeyPair } from "jose";
@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     envLine("ZS_JWT_PRIVATE_KEY", privatePem.trim()),
     envLine("ZS_JWT_KID", "k1"),
     envLine("ZS_JWT_ISSUER", "zs"),
-    envLine("ZS_EDITOR_COOKIE_SECRET", randomBytes(32).toString("base64")),
+    envLine("BETTER_AUTH_SECRET", randomBytes(32).toString("base64")),
     envLine("CRON_SECRET", randomBytes(24).toString("base64url")),
     "",
   ];

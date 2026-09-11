@@ -7,8 +7,8 @@ import { visibleWorkspaces, workspaceViews } from "@/lib/views";
 export const runtime = "nodejs";
 
 export const GET = handler(async () => {
-  await requireViewer();
-  const rows = await visibleWorkspaces();
+  const viewer = await requireViewer();
+  const rows = await visibleWorkspaces(viewer.userId);
   return json({ workspaces: await workspaceViews(rows) });
 });
 

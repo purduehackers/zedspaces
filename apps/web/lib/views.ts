@@ -1,4 +1,4 @@
-import { desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { dbReady } from "./db";
 import { sameRelease } from "./builds";
 import { currentRelease } from "./release";
@@ -56,7 +56,15 @@ export async function workspaceView(row: Workspace): Promise<WorkspaceView> {
   return (await workspaceViews([row]))[0];
 }
 
-export async function visibleWorkspaces(): Promise<Workspace[]> {
+export async function visibleWorkspaces(userId: string): Promise<Workspace[]> {
   const db = await dbReady();
-  return db.select().from(workspaces).where(isNull(workspaces.deletedAt)).orderBy(desc(workspaces.createdAt));
+  return db.select().from(workspaces).where(and(eq(workspaces.ownerUserId, userId), isNull(workspaces.deletedAt))).orderBy(desc(workspaces.lastActiveAt));
+}
+
+export async function visibleRepos(userId: string): Promise<RepoView[]> {
+  const rows = await (await dbReady()).selectDistinct({ repo: repos }).from(repos)
+    .innerJoin(workspaces, eq(workspaces.repoId, repos.id))
+    .where(and(eq(workspaces.ownerUserId, userId), isNull(workspaces.deletedAt), eq(repos.private, false)))
+    .orderBy(repos.owner, repos.name);
+  return rows.map(({ repo }) => toRepoView(repo));
 }

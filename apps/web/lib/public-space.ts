@@ -1,4 +1,2 @@
-/** One shared, login-free space. These are internal row IDs, not credentials. */
-export const PUBLIC_USER_ID = "user_public";
-
+/** Foreign-key anchor for public GitHub metadata, not an authentication identity. */
 export const PUBLIC_INSTALLATION_ID = 0;

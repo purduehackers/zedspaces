@@ -5,12 +5,12 @@ import { Badge, EmptyState } from "./ui";
 
 export function WorkspaceList({ workspaces, now }: { workspaces: WorkspaceView[]; now?: number }) {
   if (!workspaces.length) return <EmptyState title="No workspaces yet">
-    Select New workspace to open a public GitHub repository.
+    Open your workshop’s repo link to start. Your workspaces will be waiting here when you come back.
   </EmptyState>;
 
   return <div className="table-scroll" tabIndex={0} role="region" aria-label="Workspace list">
     <table className="data-table min-w-[44rem]">
-      <caption className="sr-only">Shared workspaces</caption>
+      <caption className="sr-only">Your workspaces</caption>
       <thead><tr>
         <th scope="col">Workspace</th><th scope="col">Branch</th><th scope="col">Status</th>
         <th scope="col">Last active</th><th scope="col" className="text-right">Actions</th>

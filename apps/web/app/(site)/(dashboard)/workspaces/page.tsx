@@ -5,7 +5,6 @@ import { WorkspaceList } from "../_components/workspace-list";
 import { PageHeader } from "../_components/ui";
 import { dashboardViewer, listWorkspaceViews } from "../data";
 import { PublicRepoForm } from "../_components/public-repo-form";
-import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +17,12 @@ export default async function WorkspacesPage(): Promise<ReactNode> {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Workspaces"
-        description={<span className="tabular-nums">{running} of {env().ZS_MAX_RUNNING_WORKSPACES} running</span>}
+        title="Your workspaces"
+        description={workspaces.length ? <span className="tabular-nums">{workspaces.length} {workspaces.length === 1 ? "workspace" : "workspaces"} · {running} running</span> : "Ready when you are."}
         actions={<PublicRepoForm modal />}
       />
       <WorkspaceList workspaces={workspaces} />
+      <p className="text-xs text-muted">Joining a workshop? Open the repo link from your organizer to get started.</p>
       <AutoRefresh enabled={busy} />
     </div>
   );

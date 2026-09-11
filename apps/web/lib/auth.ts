@@ -1,48 +1,61 @@
-import { eq } from "drizzle-orm";
+import "server-only";
+import { and, eq } from "drizzle-orm";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { cache } from "react";
 import { ApiError } from "./api";
 import { dbReady } from "./db";
-import { PUBLIC_USER_ID, PUBLIC_INSTALLATION_ID } from "./public-space";
-import { ensureLocalInstallation, localBackendEnabled } from "./sandbox-local";
-import { githubInstallations, repos, users, workspaces, type User, type Workspace, type WorkspaceState } from "./schema";
+import { login } from "./login";
+import { repos, users, workspaces, type User, type Workspace, type WorkspaceState } from "./schema";
 
 export interface Viewer {
   userId: string;
   flaggedAt: Date | null;
+  name: string;
+  image: string | null;
 }
 
-// One shared space, deliberately without login. The legacy installation row
-// is a local foreign-key anchor, not a GitHub App installation.
+export const getViewer = cache(async (): Promise<Viewer | null> => {
+  const incoming = await headers();
+  if (!incoming.get("cookie")?.includes("zedspaces.session_token=")) return null;
+  const session = await (await login()).api.getSession({ headers: incoming, query: { disableRefresh: true } });
+  if (!session) return null;
+  const [user] = await (await dbReady()).select().from(users).where(eq(users.id, session.user.id)).limit(1);
+  if (!user || user.deletedAt) return null;
+  return { userId: user.id, flaggedAt: user.flaggedAt, name: user.name, image: user.image };
+});
+
 export async function requireViewer(): Promise<Viewer> {
-  const db = await dbReady();
-  await db.insert(users).values({ id: PUBLIC_USER_ID, email: null, plan: "pro" }).onConflictDoNothing();
-  await db.insert(githubInstallations).values({
-    installationId: PUBLIC_INSTALLATION_ID, accountId: 0, accountLogin: "public",
-    accountType: "User", repositorySelection: "all", ownerUserId: PUBLIC_USER_ID,
-  }).onConflictDoNothing();
-  if (localBackendEnabled()) await ensureLocalInstallation(PUBLIC_USER_ID);
-  const [account] = await db.select().from(users).where(eq(users.id, PUBLIC_USER_ID)).limit(1);
-  if (account.deletedAt) throw new ApiError(403, "account_deleted", "The shared space is disabled");
-  return { userId: PUBLIC_USER_ID, flaggedAt: account.flaggedAt };
+  const viewer = await getViewer();
+  if (!viewer) throw new ApiError(401, "sign_in_required", "Sign in with GitHub to continue");
+  return viewer;
+}
+
+export async function requirePageViewer(returnTo = "/workspaces"): Promise<Viewer> {
+  const viewer = await getViewer();
+  if (!viewer) redirect(`/login?next=${encodeURIComponent(returnTo)}`);
+  return viewer;
 }
 
 export function assertNotFlagged(viewer: Viewer): void {
-  if (viewer.flaggedAt) throw new ApiError(403, "account_flagged", "The shared space is disabled by the abuse guard");
+  if (viewer.flaggedAt) throw new ApiError(403, "account_flagged", "Your account is disabled by the abuse guard. Ask a workshop organizer for help.");
 }
 
 export async function ensureUser(viewer: Viewer): Promise<User> {
   const db = await dbReady();
-  await db.insert(users).values({ id: viewer.userId }).onConflictDoNothing();
   const [row] = await db.select().from(users).where(eq(users.id, viewer.userId)).limit(1);
+  if (!row || row.deletedAt) throw new ApiError(401, "sign_in_required", "Sign in with GitHub to continue");
   return row;
 }
 
 export async function requireWorkspaceAccess(
-  _viewer: Viewer,
+  viewer: Viewer,
   workspaceId: string,
   opts?: { allowStates?: WorkspaceState[]; control?: boolean },
 ): Promise<Workspace> {
   const db = await dbReady();
-  const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+  const [workspace] = await db.select().from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.ownerUserId, viewer.userId))).limit(1);
   if (!workspace) throw new ApiError(404, "not_found", "Workspace not found");
   if (workspace.deletedAt) throw new ApiError(410, "workspace_deleted", "Workspace was deleted");
   if (opts?.allowStates && !opts.allowStates.includes(workspace.state)) {

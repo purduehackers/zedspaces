@@ -15,6 +15,13 @@
       "when": 1788677095173,
       "tag": "0001_multiplayer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789146784579,
+      "tag": "0002_workshop_accounts",
+      "breakpoints": true
     }
   ]
 }

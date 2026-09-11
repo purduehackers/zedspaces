@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 /**
  * `GET /api/workspaces/{id}/keymap` – the viewer's `keymap.json` for the
- * editor shell; accepts the `zs_editor` cookie like its `settings` sibling.
+ * editor shell, authenticated with the account session.
  */
 export const GET = handler<Request, WorkspaceParams>(async (_req, ctx) => {
   const { viewer } = await requireWorkspaceParam(ctx);

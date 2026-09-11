@@ -1,7 +1,7 @@
 # Zedspaces
 
 [Zed in your browser](https://code.purduehackers.com), backed by Vercel Sandboxes.
-Paste a public GitHub repository, get a workspace, and share its URL to edit together.
+Open a workshop link, sign in with GitHub, and get your own ready-to-code workspace.
 
 Zed's Rust UI runs as WebAssembly in the tab. The sandbox runs the remote server,
 Git, terminals, language servers, debugger adapters, and Jupyter kernels.
@@ -9,11 +9,27 @@ The Next.js control plane uses Drizzle ORM with SQLite/libSQL on Turso.
 
 ## Before you host it
 
-**There is no login or workspace ownership boundary.** Anyone who can reach the
-app can read, edit, stop, or delete any workspace and change shared settings.
-Automatically exposed preview ports are public. Never put secrets or sensitive
-repositories here. Set provider spending limits before sharing a deployment.
-Internal VM tokens, signed connections, and cron authentication still apply.
+GitHub sign-in is required. Workspaces, settings, and management actions are scoped
+to their owner; sharing a workspace URL does not grant another account access.
+Automatically exposed preview ports are still public. Never put secrets in previews.
+Set provider spending limits and `ZS_MAX_RUNNING_WORKSPACES` for your workshop size
+before sharing a deployment (default: 5 concurrent sandboxes across all accounts).
+
+## Run a workshop
+
+Prepare a public GitHub repository, then give students a link:
+
+~~~text
+https://code.purduehackers.com/new/OWNER/REPO
+https://code.purduehackers.com/new/OWNER/REPO?branch=workshop
+~~~
+
+Students sign in with GitHub, then the repo is cloned into a sandbox owned by
+their account. Opening the same link again resumes their workspace instead of
+making another copy. Students can also find their workspaces from the homepage.
+GitHub is used only for identity (`read:user`, `user:email`); tokens are discarded
+after sign-in. Cloning is public and unauthenticated; edits are not pushed to GitHub.
+Older anonymous workspaces remain stored but are not exposed to newly created accounts.
 
 Public GitHub cloning, multiplayer cursors, stop/resume, file-preserving upgrades,
 port previews, extensions, clipboard, uploads, ZIP export, debugging, and the
@@ -27,7 +43,7 @@ User kernelspecs survive upgrades; keep their interpreters/environments under
 Notebook input prompts, widgets, and external kernel provisioners are not supported.
 Accessibility support is still in progress.
 
-Multiplayer retains up to 32 live/replay connections per workspace. Disconnected
+The editor retains up to 32 live/replay connections per workspace for the owner’s tabs. Disconnected
 slots are reclaimed when someone joins; they no longer impose a lifetime visitor
 limit. Rejoining keeps saved editor state and terminal ownership. If a replay was
 reclaimed, the tab needs a fresh snapshot rather than replaying old edits.
@@ -80,7 +96,10 @@ ZS_CLIENT_BUILD_ID=dev-local pnpm dev:local
 
 The local launcher builds the native server and supervisor, generates development
 keys, and uses a dedicated SQLite file. It binds to http://127.0.0.1:3100.
-It does not need cloud credentials. Do not expose this local process backend
+Configure a separate GitHub OAuth app with callback
+`http://127.0.0.1:3100/api/auth/callback/github`, and provide its `GITHUB_CLIENT_ID`
+and `GITHUB_CLIENT_SECRET` in `apps/web/.env.local`. Sandbox/cloud credentials
+are not needed. Do not expose this local process backend
 to the internet. `ZS_SKIP_BUILD=1` reuses existing native binaries.
 
 Use **F1** or **Alt/Option+Shift+P** for commands, **Alt/Option+P** for files,
@@ -131,6 +150,10 @@ a private Blob store for rebuild archives, and a public Blob store for editor
 assets. The configured sandbox duration and cron schedule require Vercel Pro.
 Use [the environment template](apps/web/.env.example) for production values.
 Generate signing material with `pnpm zs:keygen`; never commit it.
+Create a GitHub OAuth app with your public homepage and callback
+`https://YOUR-DOMAIN/api/auth/callback/github`. Set `GITHUB_CLIENT_ID`,
+`GITHUB_CLIENT_SECRET`, and a random `BETTER_AUTH_SECRET` in Vercel.
+Use separate OAuth apps and databases for local development and production.
 
 The **Release Zedspaces** workflow builds matching Linux and browser artifacts.
 Enable its **deploy** input to publish an image, upload assets, migrate the

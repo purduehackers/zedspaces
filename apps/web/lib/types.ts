@@ -4,6 +4,7 @@
  * on zod and type-only imports.
  */
 import { z } from "zod";
+import { githubBranch } from "./github-repo";
 import type {
   MachineType,
   PortVisibility,
@@ -107,7 +108,7 @@ export const createWorkspaceInput = z.object({
   ]),
   ref: z
     .union([
-      z.object({ branch: z.string().min(1).max(255) }),
+      z.object({ branch: githubBranch }),
       z.object({ pullRequest: z.number().int().positive() }),
       z.object({ revision: z.string().regex(/^[0-9a-f]{7,40}$/) }),
     ])

@@ -4,6 +4,12 @@ export const githubOwner = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}$/, "
 export const githubName = z.string().min(1).max(100).regex(/^[a-zA-Z0-9_.-]+$/, "Invalid GitHub repository")
   .refine((s) => s !== "." && s !== "..", "Invalid GitHub repository");
 
+export const githubBranch = z.string().min(1).max(255).refine((branch) =>
+  branch !== "HEAD" && !branch.startsWith("-") && !branch.endsWith(".") &&
+  !branch.includes("..") && !branch.includes("@{") &&
+  ![...branch].some((char) => char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127 || "~^:?*[\\".includes(char)) &&
+  branch.split("/").every((part) => part && !part.startsWith(".") && !part.endsWith(".lock")), "Invalid Git branch");
+
 /** Only github.com HTTPS URLs or owner/repo, never arbitrary clone hosts or credentials. */
 export function parsePublicRepo(value: string): { owner: string; name: string } {
   let path = value.trim();

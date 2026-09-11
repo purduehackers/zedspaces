@@ -21,11 +21,13 @@
     "editor:pack": "tsx scripts/pack-editor-bundle.ts"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.4",
     "@libsql/client": "0.18.0",
     "@octokit/rest": "22.0.1",
     "@vercel/blob": "2.8.0",
     "@vercel/functions": "3.9.5",
     "@vercel/sandbox": "3.2.1",
+    "better-auth": "1.7.4",
     "drizzle-orm": "0.45.2",
     "jose": "6.2.10",
     "jsonc-parser": "3.3.1",

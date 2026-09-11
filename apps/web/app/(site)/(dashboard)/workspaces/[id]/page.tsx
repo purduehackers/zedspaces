@@ -54,7 +54,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         </ActionForm>
       </Card>
     </div>
-    <Card title="Ports" description={`${slotsFree} authenticated proxy slots free. With no login, everyone in this space can open them.`}>
+    <Card title="Ports" description={`${slotsFree} preview slots available. Public previews can be opened by anyone with the link.`}>
       <div className="space-y-4">
         {view.forwards.length ? <ul className="space-y-2">{view.forwards.map((forward) =>
           <li key={forward.port} className="flex flex-wrap items-center gap-3 text-sm">
@@ -71,7 +71,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
           </Field>
           <Field label="Visibility" htmlFor="forward-visibility">
             <select id="forward-visibility" name="visibility" className={FIELD_CLASS} defaultValue="private">
-              <option value="private">Shared-space proxy</option>
+              <option value="private">Only me</option>
               <option value="public">Public URL</option>
             </select>
           </Field>

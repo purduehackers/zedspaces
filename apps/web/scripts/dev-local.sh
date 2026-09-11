@@ -143,7 +143,7 @@ resolve_dev_db() {
 
 gen_keys() {
   mkdir -p "$DEV_DIR"
-  if [ -f "$DEV_DIR/keys.env" ] && [ -f "$DEV_DIR/jwt-private.pem" ]; then
+  if [ -f "$DEV_DIR/keys.env" ] && [ -f "$DEV_DIR/jwt-private.pem" ] && grep -q BETTER_AUTH_SECRET "$DEV_DIR/keys.env"; then
     return
   fi
   log "generating dev ES256 keys into $DEV_DIR"
@@ -163,7 +163,7 @@ const lines = [
   `export ZS_JWT_PRIVATE_KEY=${quote(privatePem)}`,
   `export ZS_JWT_KID='k1'`,
   `export ZS_JWT_ISSUER='zs'`,
-  `export ZS_EDITOR_COOKIE_SECRET=${quote(randomBytes(32).toString("base64"))}`,
+  `export BETTER_AUTH_SECRET=${quote(randomBytes(32).toString("base64"))}`,
   `export CRON_SECRET=${quote(randomBytes(24).toString("base64url"))}`,
   "",
 ];
@@ -179,7 +179,7 @@ export_env() {
   local db_target="$1"
   # shellcheck disable=SC1091
   source "$DEV_DIR/keys.env"
-  unset TURSO_DATABASE_URL TURSO_AUTH_TOKEN VERCEL_ENV VERCEL_URL
+  export TURSO_DATABASE_URL="" TURSO_AUTH_TOKEN="" VERCEL_ENV="" VERCEL_URL=""
   export ZS_DB_URL="file:$db_target"
   mkdir -p "$(dirname "$db_target")"
   export ZS_SANDBOX_BACKEND=local
@@ -214,7 +214,7 @@ write_env_files() {
       for name in ZS_SANDBOX_BACKEND \
         ZS_LOCAL_ROOT ZS_LOCAL_REPOS_DIR ZS_AGENT_BIN ZS_SERVE_BIN ZS_DB_URL \
         ZS_CONTROL_URL ZS_CLIENT_BUILD_ID ZS_SERVER_BUILD_ID ZS_IMAGE_REF ZS_CSP_UNSAFE_EVAL \
-        ZS_JWT_PRIVATE_KEY ZS_JWT_KID ZS_JWT_ISSUER ZS_EDITOR_COOKIE_SECRET CRON_SECRET; do
+        ZS_JWT_PRIVATE_KEY ZS_JWT_KID ZS_JWT_ISSUER BETTER_AUTH_SECRET CRON_SECRET; do
         printf '%s="%s"\n' "$name" "${!name:-}"
       done
     } > "$dotenv.tmp"

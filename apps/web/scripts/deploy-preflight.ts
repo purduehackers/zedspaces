@@ -9,7 +9,7 @@ export function deploymentProblems(e: Variables): string[] {
   const problems: string[] = [];
   const requireValue = (key: string) => { if (!e[key]?.trim()) problems.push(`${key} is required`); };
   for (const key of ["TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "ZS_CONTROL_URL", "ZS_JWT_PRIVATE_KEY",
-    "ZS_EDITOR_COOKIE_SECRET", "CRON_SECRET",
+    "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "BETTER_AUTH_SECRET", "CRON_SECRET",
     "ZS_CLIENT_BUILD_ID", "ZS_SERVER_BUILD_ID", "ZS_IMAGE_REF", "ZS_EDITOR_BUNDLE_SOURCE", "ZS_EDITOR_BUNDLES", "ZS_EDITOR_UPDATE_BUILDS",
     "BLOB_READ_WRITE_TOKEN"]) requireValue(key);
   if (e.TURSO_DATABASE_URL && !/^(libsql|https):\/\//.test(e.TURSO_DATABASE_URL)) problems.push("TURSO_DATABASE_URL must be a remote libsql:// or https:// database");
@@ -44,7 +44,7 @@ export function deploymentProblems(e: Variables): string[] {
   }
   for (const key of ["ZS_DB_URL", "ZS_LOCAL_ROOT", "ZS_SERVE_BIN", "ZS_AGENT_BIN"]) if (e[key]) problems.push(`${key} is local-only; remove it from deployment variables`);
   if (e.CRON_SECRET && e.CRON_SECRET.length < 16) problems.push("CRON_SECRET must have at least 16 characters");
-  if (e.ZS_EDITOR_COOKIE_SECRET && Buffer.from(e.ZS_EDITOR_COOKIE_SECRET, "base64").length !== 32) problems.push("ZS_EDITOR_COOKIE_SECRET must encode 32 bytes in base64");
+  if (e.BETTER_AUTH_SECRET && e.BETTER_AUTH_SECRET.length < 32) problems.push("BETTER_AUTH_SECRET must contain at least 32 random characters");
   if (e.ZS_JWT_PRIVATE_KEY) {
     try {
       const key = createPrivateKey(e.ZS_JWT_PRIVATE_KEY.replace(/\\n/g, "\n"));

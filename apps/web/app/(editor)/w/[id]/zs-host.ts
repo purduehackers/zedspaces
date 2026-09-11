@@ -34,7 +34,7 @@ export interface ShellController {
   updateAction(action: ZsUpdateAction): void;
   /** Mints a fresh connection; throws {@link ConnectError}. */
   refreshConnectInfo(): Promise<ZsConnectInfo>;
-  /** Where a settings document is written (`/api/workspaces/{id}/settings` or `…/keymap`, editor-cookie routes). */
+  /** Account-authenticated settings document route (`/api/workspaces/{id}/settings` or `…/keymap`). */
   documentUrl(kind: ZsDocumentKind): string;
   /** Last version the control plane reported for that document, for optimistic concurrency. */
   documentVersion(kind: ZsDocumentKind): number | null;

@@ -1,18 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { editorCsp, newCspNonce } from "@/lib/csp";
 import { devRequestRefusal } from "@/lib/dev-auth";
-import { EDITOR_COOKIE, editorCookieAttributes, mintEditorCookie } from "@/lib/editor-cookie";
 import { env } from "@/lib/env";
-import { WORKSPACE_ID_RE } from "@/lib/ids";
-import { PUBLIC_USER_ID } from "@/lib/public-space";
 
-/** Login-free proxy: local-machine origin protection and the editor's isolation/CSP. */
+/** Origin protection and editor isolation. Account authorization lives at the data boundary. */
 export default async function proxy(req: NextRequest): Promise<NextResponse> {
   if (env().ZS_SANDBOX_BACKEND === "local") {
     const refusal = devRequestRefusal(req.headers);
     if (refusal) return NextResponse.json({ error: { code: "dev_origin_refused", message: refusal } }, { status: 403 });
   }
-  // Public access is intentional, but third-party forms must not spend the Sandbox budget.
+  // Third-party forms must not spend the Sandbox budget.
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     const origin = req.headers.get("origin");
     const site = req.headers.get("sec-fetch-site");
@@ -30,11 +27,11 @@ export default async function proxy(req: NextRequest): Promise<NextResponse> {
     }
   }
   if (!/^\/w\//.test(req.nextUrl.pathname)) return NextResponse.next();
-  return editorDocumentResponse(req, PUBLIC_USER_ID);
+  return editorDocumentResponse(req);
 }
 
-/** The `/w/:id` document response: nonce CSP plus the `zs_editor` cookie for `userId`. */
-async function editorDocumentResponse(req: NextRequest, userId: string): Promise<NextResponse> {
+/** The `/w/:id` document response uses a per-request nonce CSP. */
+function editorDocumentResponse(req: NextRequest): NextResponse {
   const nonce = newCspNonce();
   const csp = editorCsp(nonce, {
     dev: process.env.NODE_ENV === "development",
@@ -48,13 +45,6 @@ async function editorDocumentResponse(req: NextRequest, userId: string): Promise
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("Content-Security-Policy", csp);
 
-  const wsId = req.nextUrl.pathname.split("/")[2] ?? "";
-  // Document requests only: the cookie proves "userId"; workspace access is checked in page.tsx.
-  if (WORKSPACE_ID_RE.test(wsId) && req.headers.get("sec-fetch-dest") !== "empty") {
-    // A fresh lineage: `page.tsx` re-stamps the cookie with the user's current auth epoch.
-    const cookie = await mintEditorCookie(userId, wsId);
-    res.cookies.set(EDITOR_COOKIE, cookie.value, editorCookieAttributes(wsId, cookie.expires));
-  }
   return res;
 }
 

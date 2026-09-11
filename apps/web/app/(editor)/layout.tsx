@@ -13,9 +13,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Root layout #2 for `/w/*`: no ClerkProvider, no analytics, no next/font
- * (fonts come from the asset tarball) and no globals.css (b9 §3.26). The
- * editor page authenticates with the `zs_editor` cookie minted by proxy.ts.
+ * Isolated root for `/w/*`: no analytics, next/font, or site CSS.
+ * Fonts come from the asset tarball. The page checks the account session.
  */
 export default function EditorRootLayout({ children }: { children: ReactNode }) {
   return (

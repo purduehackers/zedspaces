@@ -19,8 +19,7 @@ export const runtime = "nodejs";
  * verifier can never accept it — which the supervisor's proxy exchanges for
  * its own `zs_port_session` cookie on that slot host.
  *
- * Private means cookie-gated at the proxy, not private to a person: anyone
- * in this public shared space can mint a port token.
+ * Only the signed-in workspace owner can mint a private port token.
  */
 export const GET = handler<Request, PortParams>(async (_req, ctx) => {
   const params = await ctx.params;

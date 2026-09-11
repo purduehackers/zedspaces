@@ -49,7 +49,7 @@ export const restoreKindEnum = sqliteEnum("restore_kind", ["fresh", "snapshot", 
 const ts = (name: string) => integer(name, { mode: "timestamp_ms" });
 const nowMs = sql`(cast((julianday('now') - 2440587.5) * 86400000 as integer))`;
 
-/** Settings ownership and the shared-space abuse flag. Legacy identities remain readable. */
+/** GitHub accounts and their personal workspace settings. */
 export const users = sqliteTable(
   "users",
   {
@@ -57,21 +57,58 @@ export const users = sqliteTable(
     githubId: integer("github_id"),
     githubLogin: text("github_login"),
     email: text("email"),
+    name: text("name").notNull().default(""),
+    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+    image: text("image"),
     plan: planEnum("plan").notNull().default("free"),
     idleMinutesDefault: integer("idle_minutes_default").notNull().default(30),
     /** Abuse rule (§4.10); creation refused while set. */
     flaggedAt: ts("flagged_at"),
     flagReason: text("flag_reason"),
-    /**
-     * Internal editor-cookie epoch, retained for the existing browser protocol.
-     */
+    /** Historical column; account sessions now live in auth_sessions. */
     authEpoch: integer("auth_epoch").notNull().default(0),
     createdAt: ts("created_at").notNull().default(nowMs),
     updatedAt: ts("updated_at").notNull().default(nowMs),
     deletedAt: ts("deleted_at"),
   },
-  (t) => [uniqueIndex("users_github_id_idx").on(t.githubId)],
+  (t) => [uniqueIndex("users_github_id_idx").on(t.githubId), uniqueIndex("users_email_idx").on(t.email)],
 );
+
+export const authSessions = sqliteTable("auth_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: ts("expires_at").notNull(),
+  createdAt: ts("created_at").notNull().default(nowMs),
+  updatedAt: ts("updated_at").notNull().default(nowMs),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+}, (t) => [index("auth_sessions_user_idx").on(t.userId)]);
+
+export const authAccounts = sqliteTable("auth_accounts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: ts("access_token_expires_at"),
+  refreshTokenExpiresAt: ts("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: ts("created_at").notNull().default(nowMs),
+  updatedAt: ts("updated_at").notNull().default(nowMs),
+}, (t) => [index("auth_accounts_user_idx").on(t.userId), uniqueIndex("auth_accounts_provider_idx").on(t.providerId, t.accountId)]);
+
+export const authVerifications = sqliteTable("auth_verifications", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  createdAt: ts("created_at").notNull().default(nowMs),
+  updatedAt: ts("updated_at").notNull().default(nowMs),
+}, (t) => [index("auth_verifications_identifier_idx").on(t.identifier)]);
 
 /** Legacy ownership anchors; no organization UI or access policy remains. */
 export const orgs = sqliteTable(
@@ -165,6 +202,8 @@ export const workspaces = sqliteTable(
       .references(() => repos.id),
     name: text("name").notNull(),
     branch: text("branch"),
+    /** Stable prepared-repo link identity; rescanning resumes the same personal workspace. */
+    workshopKey: text("workshop_key"),
     /** Resolved commit sha. */
     revision: text("revision"),
     /** "refs/pull/N/head" for PR workspaces (manifest repo.ref). */
@@ -226,6 +265,7 @@ export const workspaces = sqliteTable(
     index("workspaces_state_active_idx").on(t.state, t.lastActiveAt),
     index("workspaces_retention_idx").on(t.retentionUntil),
     index("workspaces_run_idx").on(t.workflowRunId),
+    uniqueIndex("workspaces_workshop_idx").on(t.ownerUserId, t.workshopKey).where(sql`deleted_at IS NULL`),
   ],
 );
 

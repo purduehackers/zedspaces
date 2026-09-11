@@ -10,11 +10,11 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Zedspaces",
-  description: "A shared space to build. Zed in your browser, by Purdue Hackers.",
+  description: "Open your workshop repo and start making. Zed in your browser, by Purdue Hackers.",
   icons: { icon: "/icons/zs.svg" },
 };
 
-/** Dashboard root. The isolated editor has its own minimal root layout. No login provider. */
+/** Site root. The isolated editor has its own minimal root layout. */
 export default function SiteRootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} h-full antialiased`}>
