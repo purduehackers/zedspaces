@@ -53,11 +53,7 @@ slots are reclaimed when someone joins; they no longer impose a lifetime visitor
 limit. Rejoining keeps saved editor state and terminal ownership. If a replay was
 reclaimed, the tab needs a fresh snapshot rather than replaying old edits.
 
-The dashboard, onboarding, and loading screens use Purdue Hackers’ cream, black,
-purple, and yellow palette with PixelHackers, PolySans, and Inconsolata. This
-branding does not change Zed’s editor theme. Bundled font sources and license
-information are in `apps/web/public/fonts/purdue-hackers/NOTICE.txt`; brand fonts
-are not covered by this project’s MIT license.
+The dashboard, onboarding, and loading screens use Purdue Hackers’ fonts and the dark palette from Purdue Hackers Events. This branding does not change Zed’s editor theme. Bundled font sources and license information are in `apps/web/public/fonts/purdue-hackers/NOTICE.txt`; brand fonts are not covered by this project’s MIT license.
 
 Existing workspaces open their matching editor while updates download in the
 background. Zed's **Restart to Update** replaces the VM and browser together.

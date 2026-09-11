@@ -7,50 +7,45 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const viewer = await getViewer();
-  return <SiteShell>
-    <article className="mx-auto w-full max-w-4xl pb-8">
-      <header className="brand-grid -mx-5 space-y-6 border-b border-text px-5 py-10 sm:-mx-8 sm:px-8 sm:py-16">
-        <p className="brand-label text-accent">An open-source browser workspace</p>
-        <h1 className="max-w-3xl font-display text-6xl leading-[0.95] text-balance sm:text-8xl">Zed, in your browser.</h1>
-        <p className="max-w-2xl text-lg leading-relaxed text-muted">A cloud development environment with the Zed editor. Open a public GitHub repository and get a real terminal, language tools, and a sandbox of your own—without setting up a local development environment.</p>
-        <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Link href={viewer ? "/workspaces" : "/login?next=%2Fworkspaces%2Fnew"} className={buttonClass("primary")}>
-            {viewer ? "Your workspaces" : "Open a repository"}
-          </Link>
-          <a href="https://github.com/purduehackers/zedspaces" className={buttonClass()}>View source</a>
-        </div>
-        <p className="text-sm text-muted">GitHub sign-in · Public repositories · No permission to push code requested</p>
-      </header>
+  return <SiteShell reading>
+    <article className="project-readme">
+      <h1>Zedspaces</h1>
+      <p>Zedspaces runs the <a href="https://zed.dev">Zed editor</a> in your browser. A <a href="https://vercel.com/docs/vercel-sandbox">Vercel Sandbox</a>, an isolated Linux environment, runs your development tools.</p>
 
-      <section aria-labelledby="how-it-works" className="py-8 sm:py-10">
-        <h2 id="how-it-works" className="mb-6 font-display text-4xl">How it works</h2>
-        <dl className="grid gap-6 sm:grid-cols-2 sm:gap-10">
-          <div>
-            <dt className="mb-2 font-medium text-accent">The editor runs in your tab.</dt>
-            <dd className="leading-relaxed text-muted">Zed’s Rust UI is compiled to WebAssembly. This is Zed running in the browser, not a separate editor made to look like it.</dd>
-          </div>
-          <div>
-            <dt className="mb-2 font-medium text-accent">Your tools run in a sandbox.</dt>
-            <dd className="leading-relaxed text-muted">A Vercel Sandbox runs the remote server, Git, terminals, language servers, debugger adapters, and Jupyter kernels.</dd>
-          </div>
-        </dl>
+      <section aria-labelledby="open-a-repository">
+        <h2 id="open-a-repository">Open a repository</h2>
+        <p>Sign in with GitHub and choose a public repository. Zedspaces clones it into a workspace owned by your account.</p>
+        <Link href={viewer ? "/workspaces" : "/login?next=%2Fworkspaces%2Fnew"} className={buttonClass("primary")}>
+          {viewer ? "Your workspaces" : "Open a repository"}
+        </Link>
+        <p>To open a repository directly, replace <code>repo_owner</code> and <code>repo_name</code> in this path:</p>
+        <pre><code className="language-text">/new/repo_owner/repo_name</code></pre>
+        <p>Add <code>?branch=branch_name</code> to choose a branch. Reopening the same link returns to your existing workspace.</p>
       </section>
 
-      <section aria-labelledby="workspace-tools" className="grid gap-4 border-t border-line py-8 sm:grid-cols-[12rem_1fr] sm:gap-10">
-        <h2 id="workspace-tools" className="font-display text-4xl">What’s included</h2>
-        <div className="space-y-4 leading-relaxed text-muted">
-          <p>Public repo cloning, terminals, language support, extensions, debugging, and an inline REPL. Preview running apps through exposed ports, upload files, or export your project as a ZIP.</p>
-          <p>Stop and resume your workspaces. Editor updates download in the background and preserve your files when you restart.</p>
-          <p className="text-sm">Workspaces belong to your account. Preview ports are public. Private repositories, AI assistants, and calls aren’t included.</p>
-        </div>
+      <section aria-labelledby="supported-features">
+        <h2 id="supported-features">Supported features</h2>
+        <p>The browser workspace includes:</p>
+        <ul>
+          <li><strong>Editor</strong>: syntax highlighting, language servers, and extensions</li>
+          <li><strong>Tools</strong>: terminals, debugging, and interactive code execution with Jupyter kernels</li>
+          <li><strong>Files</strong>: uploads, project exports as ZIP archives, and app previews</li>
+          <li><strong>Workspaces</strong>: stop, resume, and editor updates that preserve your files</li>
+        </ul>
       </section>
 
-      <section aria-labelledby="open-source" className="grid gap-4 border-t border-line py-8 sm:grid-cols-[12rem_1fr] sm:gap-10">
-        <h2 id="open-source" className="font-display text-4xl">Run your own</h2>
-        <div className="space-y-4 leading-relaxed text-muted">
-          <p>The web app and sandbox supervisor are MIT licensed; the Zed fork retains its own licenses. The control plane uses Next.js, Drizzle, and SQLite on Turso. Fork the project and deploy it to your own Vercel account.</p>
-          <a href="https://github.com/purduehackers/zedspaces#deploy-your-fork" className="inline-block text-text underline decoration-line underline-offset-4 hover:text-accent">Read the setup guide</a>
-        </div>
+      <section aria-labelledby="access-and-limits">
+        <h2 id="access-and-limits">Access and limits</h2>
+        <p>You can clone public repositories only. GitHub sign-in doesn’t grant permission to push code, and Zedspaces doesn’t push your edits.</p>
+        <p>Your workspace belongs to your account, but app previews are public. Don’t expose secrets through preview ports.</p>
+        <p>Calls and built-in coding assistants aren’t included. Accessibility support is incomplete.</p>
+      </section>
+
+      <section aria-labelledby="self-hosting">
+        <h2 id="self-hosting">Self-hosting</h2>
+        <p>The web app runs on Next.js and stores data in SQLite on Turso. Production workspaces run on Vercel Sandboxes.</p>
+        <p>The local process backend is for development. There’s no Docker backend yet.</p>
+        <p>See the <a href="https://github.com/purduehackers/zedspaces#deploy-your-fork">deployment instructions</a> or browse the <a href="https://github.com/purduehackers/zedspaces">source code</a>.</p>
       </section>
     </article>
   </SiteShell>;

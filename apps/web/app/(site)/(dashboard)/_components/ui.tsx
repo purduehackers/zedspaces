@@ -5,9 +5,9 @@ import type { Tone } from "./format";
 export const BUTTON = {
   base: "inline-flex min-h-10 items-center justify-center gap-2 border px-4 py-2 font-mono text-base font-bold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-50",
   primary:
-    "border-accent bg-accent text-ink hover:border-accent-hover hover:bg-accent-hover",
+    "border-primary bg-primary text-text hover:border-accent hover:bg-accent hover:text-ink",
   secondary:
-    "border-text bg-transparent text-text hover:bg-text hover:text-yellow",
+    "border-line bg-transparent text-text hover:border-text hover:bg-text hover:text-ink",
   danger:
     "border-danger/40 bg-transparent text-danger hover:bg-danger/10",
 } as const;

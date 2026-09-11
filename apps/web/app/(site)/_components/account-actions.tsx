@@ -38,7 +38,7 @@ export function SignOut() {
   const [failed, setFailed] = useState(false);
   return <div className="flex items-center gap-2">
     {failed && <span role="alert" className="text-xs text-danger">Try again</span>}
-    <button type="button" disabled={busy} className="brand-label px-3 py-2 text-text hover:bg-text hover:text-yellow disabled:opacity-50" onClick={async () => {
+    <button type="button" disabled={busy} className="brand-label px-3 py-2 text-text hover:bg-raised hover:text-yellow disabled:opacity-50" onClick={async () => {
       setBusy(true);
       setFailed(false);
       try {

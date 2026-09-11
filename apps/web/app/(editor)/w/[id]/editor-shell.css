@@ -54,13 +54,13 @@
 }
 
 .zs-button--primary {
-  border-color: var(--zs-accent);
-  background: var(--zs-accent);
-  color: var(--zs-bg);
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--zs-text);
 }
 
 .zs-button:focus-visible { outline: 2px solid var(--zs-accent); outline-offset: 3px; }
-.zs-button--primary:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
+.zs-button--primary:hover:not(:disabled) { border-color: var(--zs-accent); background: var(--zs-accent); color: var(--zs-bg); }
 
 .zs-card__brand {
   display: flex;
@@ -173,7 +173,7 @@
   border: 1px solid var(--zs-border);
   border-radius: 0;
   background: var(--zs-panel);
-  box-shadow: 4px 4px 0 var(--zs-text);
+  box-shadow: 4px 4px 0 #000;
 }
 
 .zs-toast__text {

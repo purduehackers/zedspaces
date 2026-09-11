@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/workspaces",
     scope: "/",
     display: "standalone",
-    background_color: "#fffbf1",
-    theme_color: "#fffbf1",
+    background_color: "#101013",
+    theme_color: "#101013",
     orientation: "any",
     icons: [
       { src: "/icons/zs.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },

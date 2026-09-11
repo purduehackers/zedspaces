@@ -1,4 +1,4 @@
-/* Purdue Hackers' site2026 brand, scoped to web UI and loading chrome.
+/* Purdue Hackers typography and Events dark colors, scoped to web UI and loading chrome.
    The native Zed canvas owns its own theme and fonts. */
 @font-face {
   font-family: "PixelHackers";
@@ -33,37 +33,32 @@
 }
 
 :root {
-  color-scheme: light;
-  --ink: #fffbf1;
-  --panel: #fff;
-  --raised: #f0eade;
-  --line: #c5c1b8;
-  --text: #000;
-  --muted: #58564f;
-  --accent: #7d3bff;
-  --accent-hover: #000;
-  --yellow: #ffee00;
-  --success: #216339;
-  --danger: #ae2020;
-  --info: #0059ac;
+  color-scheme: dark;
+  --ink: #101013;
+  --panel: #1e1e23;
+  --raised: #29292f;
+  --line: #424242;
+  --text: #f5f5f5;
+  --muted: #aaa79f;
+  --accent: #fdfa4a;
+  --primary: #7d3bff;
+  --yellow: #fdfa4a;
+  --success: #86cc71;
+  --danger: #ff8a8a;
+  --info: #74a7ff;
   --font-body: "PolySans", Arial, sans-serif;
   --font-label: "Inconsolata", ui-monospace, monospace;
   --font-pixel: "PixelHackers", ui-monospace, monospace;
 }
 
 .brand-label {
-  font: 600 13px/1.5 var(--font-label);
+  font: 600 14px/1.5 var(--font-label);
   letter-spacing: .06em;
   text-transform: uppercase;
 }
 
 .brand-wordmark {
   color: var(--text);
-  font: 400 32px/1 var(--font-pixel);
+  font: 400 24px/1 var(--font-pixel);
   text-decoration: none;
-}
-
-.brand-grid {
-  background-image: linear-gradient(to right, rgb(0 0 0 / 7%) 1px, transparent 1px), linear-gradient(to bottom, rgb(0 0 0 / 7%) 1px, transparent 1px);
-  background-size: 10px 10px;
 }
