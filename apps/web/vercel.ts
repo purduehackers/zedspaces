@@ -5,7 +5,7 @@ import type { VercelConfig } from "@vercel/config/v1";
  * Per-route `maxDuration` is declared with the Next route-segment export, not
  * through `functions` globs; COOP/COEP/CORP headers live in `next.config.ts`
  * so `next dev` honours them too. This configuration requires Vercel Pro
- * (minute sweep cron). The app itself is deliberately login-free.
+ * (minute sweep cron). GitHub sign-in scopes workspaces to their owners.
  */
 export const config: VercelConfig = {
   framework: "nextjs",

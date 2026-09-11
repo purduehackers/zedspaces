@@ -10,7 +10,7 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Zedspaces",
-  description: "Open your workshop repo and start making. Zed in your browser, by Purdue Hackers.",
+  description: "Zed in your browser, backed by Vercel Sandboxes. An open-source development environment for public GitHub repositories.",
   icons: { icon: "/icons/zs.svg" },
 };
 

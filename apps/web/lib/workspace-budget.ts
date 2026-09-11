@@ -13,5 +13,5 @@ export async function assertWorkspaceCapacity(db: DbLike, excludeId?: string): P
     or(inArray(workspaces.state, [...ACTIVE_WORKSPACE_STATES]), isNotNull(workspaces.workflowRunId)),
   ));
   if (count >= env().ZS_MAX_RUNNING_WORKSPACES) throw new ApiError(429, "workspace_limit",
-    "All workshop sandboxes are in use. Try again shortly or ask your organizer for help.", { maxWorkspaces: env().ZS_MAX_RUNNING_WORKSPACES });
+    "This instance has reached its running sandbox limit. Stop an unused workspace or try again later.", { maxWorkspaces: env().ZS_MAX_RUNNING_WORKSPACES });
 }

@@ -59,7 +59,7 @@ function BootProgress({ stage }: { stage: ZsBootStage }): ReactNode {
 function Card({ title, children, actions }: { title: string; children: ReactNode; actions?: ReactNode }): ReactNode {
   return (
     <div className="zs-card" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-      <div className="zs-card__brand"><span className="brand-wordmark">zedspaces</span><span className="brand-label">Purdue Hackers</span></div>
+      <div className="zs-card__brand"><span className="brand-wordmark">zedspaces</span></div>
       <h1 className="zs-card__title">{title}</h1>
       <div className="zs-card__body">{children}</div>
       {actions ? <div className="zs-card__actions">{actions}</div> : null}

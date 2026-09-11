@@ -5,7 +5,7 @@ import { Badge, EmptyState } from "./ui";
 
 export function WorkspaceList({ workspaces, now }: { workspaces: WorkspaceView[]; now?: number }) {
   if (!workspaces.length) return <EmptyState title="No workspaces yet">
-    Open your workshop’s repo link to start. Your workspaces will be waiting here when you come back.
+    Create a workspace from a public GitHub repository. You can return to it here whenever you’re ready.
   </EmptyState>;
 
   return <div className="table-scroll" tabIndex={0} role="region" aria-label="Workspace list">

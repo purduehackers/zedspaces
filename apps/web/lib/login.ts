@@ -5,7 +5,7 @@ import { dbReady } from "./db";
 import { controlPlaneUrl, requireEnv } from "./env";
 import { authAccounts, authSessions, authVerifications, users } from "./schema";
 
-// Public clones never need a student's GitHub token after identity verification.
+// Public clones never need a user's GitHub token after identity verification.
 const discardedTokens = { accessToken: null, refreshToken: null, idToken: null };
 
 async function createAuth() {
@@ -13,7 +13,7 @@ async function createAuth() {
     "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "BETTER_AUTH_SECRET",
   );
   return betterAuth({
-    appName: "Zedspaces · Purdue Hackers",
+    appName: "Zedspaces",
     baseURL: controlPlaneUrl(),
     secret: BETTER_AUTH_SECRET,
     database: drizzleAdapter(await dbReady(), {

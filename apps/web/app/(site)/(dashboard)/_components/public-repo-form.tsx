@@ -27,7 +27,7 @@ export function PublicRepoForm({ modal = false }: { modal?: boolean }) {
     try {
       parsedRepo = parsePublicRepo(repo);
     } catch {
-      setError("Enter a public GitHub URL or owner/repo, such as purduehackers/wack-hacker.");
+      setError("Enter a public GitHub URL or a repository in owner/repo format.");
       repoInput.current?.focus();
       return;
     }

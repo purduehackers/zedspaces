@@ -1,7 +1,8 @@
 # Zedspaces
 
 [Zed in your browser](https://code.purduehackers.com), backed by Vercel Sandboxes.
-Open a workshop link, sign in with GitHub, and get your own ready-to-code workspace.
+An open-source cloud development environment: sign in with GitHub, open a public
+repository, and get your own ready-to-code workspace. Think Codespaces, with Zed.
 
 Zed's Rust UI runs as WebAssembly in the tab. The sandbox runs the remote server,
 Git, terminals, language servers, debugger adapters, and Jupyter kernels.
@@ -12,24 +13,28 @@ The Next.js control plane uses Drizzle ORM with SQLite/libSQL on Turso.
 GitHub sign-in is required. Workspaces, settings, and management actions are scoped
 to their owner; sharing a workspace URL does not grant another account access.
 Automatically exposed preview ports are still public. Never put secrets in previews.
-Set provider spending limits and `ZS_MAX_RUNNING_WORKSPACES` for your workshop size
+Set provider spending limits and `ZS_MAX_RUNNING_WORKSPACES` for your expected usage
 before sharing a deployment (default: 5 concurrent sandboxes across all accounts).
 
-## Run a workshop
+## Open a repository
 
-Prepare a public GitHub repository, then give students a link:
+Create a workspace from the dashboard, or open a public GitHub repository directly:
 
 ~~~text
 https://code.purduehackers.com/new/OWNER/REPO
-https://code.purduehackers.com/new/OWNER/REPO?branch=workshop
+https://code.purduehackers.com/new/OWNER/REPO?branch=main
 ~~~
 
-Students sign in with GitHub, then the repo is cloned into a sandbox owned by
-their account. Opening the same link again resumes their workspace instead of
-making another copy. Students can also find their workspaces from the homepage.
+Sign in with GitHub, then the repo is cloned into a sandbox owned by your account.
+Opening the same repo link again returns to your workspace instead of making
+another copy. Each account gets its own workspace, so these links also work for
+workshops, tutorials, and shared starter projects. On your own deployment,
+replace `code.purduehackers.com` with your domain.
 GitHub is used only for identity (`read:user`, `user:email`); tokens are discarded
 after sign-in. Cloning is public and unauthenticated; edits are not pushed to GitHub.
 Older anonymous workspaces remain stored but are not exposed to newly created accounts.
+
+## What’s supported
 
 Public GitHub cloning, multiplayer cursors, stop/resume, file-preserving upgrades,
 port previews, extensions, clipboard, uploads, ZIP export, debugging, and the
@@ -48,8 +53,8 @@ slots are reclaimed when someone joins; they no longer impose a lifetime visitor
 limit. Rejoining keeps saved editor state and terminal ownership. If a replay was
 reclaimed, the tab needs a fresh snapshot rather than replaying old edits.
 
-The dashboard, onboarding, and loading screens share Kintsugi Dark colors and
-Purdue Hackers typography. Departure Mono is bundled under the SIL Open Font
+The dashboard, onboarding, and loading screens share Kintsugi Dark colors,
+Space Grotesk, and Departure Mono. Departure Mono is bundled under the SIL Open Font
 License; its notice is in `apps/web/public/fonts/departure-mono/OFL.txt`.
 
 Existing workspaces open their matching editor while updates download in the

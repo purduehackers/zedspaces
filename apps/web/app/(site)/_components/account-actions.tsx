@@ -18,7 +18,7 @@ export function SignIn({ returnTo = "/workspaces", label = "Continue with GitHub
       const errorURL = new URL(returnTo.startsWith("/new/") ? returnTo : `/login?next=${encodeURIComponent(returnTo)}`, window.location.origin);
       errorURL.searchParams.set("authError", "1");
       const result = await auth.signIn.social({ provider: "github", callbackURL: returnTo, errorCallbackURL: errorURL.pathname + errorURL.search });
-      if (result.error) throw new Error("Couldn’t connect to GitHub. Try again or ask a workshop organizer for help.");
+      if (result.error) throw new Error("Couldn’t connect to GitHub. Try again in a moment.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn’t connect to GitHub. Check your connection and try again.");
       setBusy(false);

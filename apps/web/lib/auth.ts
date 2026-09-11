@@ -38,7 +38,7 @@ export async function requirePageViewer(returnTo = "/workspaces"): Promise<Viewe
 }
 
 export function assertNotFlagged(viewer: Viewer): void {
-  if (viewer.flaggedAt) throw new ApiError(403, "account_flagged", "Your account is disabled by the abuse guard. Ask a workshop organizer for help.");
+  if (viewer.flaggedAt) throw new ApiError(403, "account_flagged", "Your account is disabled by the abuse guard. Contact the instance administrator for help.");
 }
 
 export async function ensureUser(viewer: Viewer): Promise<User> {

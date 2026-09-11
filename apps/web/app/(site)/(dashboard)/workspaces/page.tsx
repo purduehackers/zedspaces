@@ -22,7 +22,6 @@ export default async function WorkspacesPage(): Promise<ReactNode> {
         actions={<PublicRepoForm modal />}
       />
       <WorkspaceList workspaces={workspaces} />
-      <p className="text-xs text-muted">Joining a workshop? Open the repo link from your organizer to get started.</p>
       <AutoRefresh enabled={busy} />
     </div>
   );

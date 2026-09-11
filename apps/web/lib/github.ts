@@ -58,7 +58,7 @@ async function loadRef(owner: string, repo: string, ref: RefRequest): Promise<Re
   return { branch, sha: data.commit.sha, gitRef: null };
 }
 
-/** Coalesce a roomful of students onto one unauthenticated GitHub lookup per minute. */
+/** Coalesce concurrent requests onto one unauthenticated GitHub lookup per minute. */
 async function cachedLookup<T>(identity: unknown[], fetchValue: () => Promise<T>): Promise<T> {
   const key = `zs:github:${JSON.stringify(identity)}`;
   const store = kv();
@@ -76,5 +76,5 @@ async function cachedLookup<T>(identity: unknown[], fetchValue: () => Promise<T>
     if (result) return result.value;
     await new Promise(resolve => setTimeout(resolve, 500));
   } while (Date.now() < deadline);
-  throw new ApiError(503, "repository_busy", "The workshop repository is being checked. Try again in a moment.", undefined, { "Retry-After": "2" });
+  throw new ApiError(503, "repository_busy", "The repository is being checked. Try again in a moment.", undefined, { "Retry-After": "2" });
 }
