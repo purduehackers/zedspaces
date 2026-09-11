@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError, handler, parseBody } from "@/lib/api";
 import { keys, withLock } from "@/lib/kv";
 import { limit } from "@/lib/ratelimit";
+import { originMatchesHost } from "@/lib/origin";
 import { requireWorkspaceParam, type WorkspaceParams } from "@/lib/route-context";
 import { sandboxApi } from "@/lib/sandbox";
 import { localBackendEnabled, localSandboxDir } from "@/lib/sandbox-local";
@@ -23,8 +24,7 @@ const archiveSchema = z.object({
 });
 
 export const POST = handler<Request, WorkspaceParams>(async (req, ctx) => {
-  const origin = req.headers.get("origin");
-  if ((origin && origin !== new URL(req.url).origin) || req.headers.get("sec-fetch-site") === "cross-site") {
+  if (!originMatchesHost(req.headers) || req.headers.get("sec-fetch-site") === "cross-site") {
     throw new ApiError(403, "cross_origin", "Start downloads from this workspace.");
   }
   const { workspace, viewer } = await requireWorkspaceParam(ctx, {

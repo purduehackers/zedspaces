@@ -81,13 +81,12 @@ export const envSchema = z.object({
   ZS_SESSION_TIMEOUT_MS: z.coerce.number().int().default(4 * 3600_000),
   /** Platform session cap (controlled stop and resume at this age). */
   ZS_SESSION_CAP_MS: z.coerce.number().int().default(24 * 3600_000),
-  /**
-   * What backs the sandbox: the Vercel Sandbox SDK, or (`local`, refused
-   * in production) child processes on this machine driven by
-   * `lib/sandbox-local.ts` — the supervisor and `zed-remote-server serve` on
-   * `127.0.0.1` with no Vercel account.
-   */
-  ZS_SANDBOX_BACKEND: z.enum(["vercel", "local"]).default("vercel"),
+  /** Vercel in production; Docker containers or host processes for local development. */
+  ZS_SANDBOX_BACKEND: z.enum(["vercel", "local", "docker"]).default("vercel"),
+  /** Docker instance state directory; also scopes container ownership. */
+  ZS_DOCKER_ROOT: z.string().optional(),
+  /** Container-reachable relay to the host's authenticated sandbox API. */
+  ZS_DOCKER_CONTROL_URL: z.url().optional(),
   /** Local backend: parent directory of the per-sandbox directories (default `$TMPDIR/zs-local`). */
   ZS_LOCAL_ROOT: z.string().optional(),
   /** Local backend: directory whose subdirectories are the `local/<name>` repositories. */
@@ -100,7 +99,7 @@ export const envSchema = z.object({
   // Blob store for rebuild tarballs (Marketplace: Vercel Blob injects the token).
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
   /** Defaults to `vercel` when `BLOB_READ_WRITE_TOKEN` is set and `memory` otherwise. */
-  ZS_BLOB_DRIVER: z.enum(["vercel", "memory"]).optional(),
+  ZS_BLOB_DRIVER: z.enum(["vercel", "memory", "file"]).optional(),
 
   // Log sink for supervisor and client error reports.
   ZS_LOG_SINK_URL: z.url().optional(),

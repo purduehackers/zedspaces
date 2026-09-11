@@ -1,6 +1,6 @@
 # Zedspaces
 
-[Zed in your browser](https://code.purduehackers.com), backed by Vercel Sandboxes.
+[Zed in your browser](https://code.purduehackers.com), backed by Vercel Sandboxes or local Docker containers.
 An open-source cloud development environment: sign in with GitHub, open a public
 repository, and get your own ready-to-code workspace. Think Codespaces, with Zed.
 
@@ -81,7 +81,52 @@ cd zedspaces
 When updating an existing clone, run `git submodule update --init --recursive`.
 Editor bundles and server binaries are build artifacts, not committed source.
 
-## Local development
+## Run locally with Docker
+
+Run workspaces on your machine with Docker Desktop, OrbStack, or Docker Engine. You need Node 24 and pnpm 11.20.0 on the host. The launcher downloads matching editor/server binaries and builds the workspace image from public base images. You don’t need Rust, Vercel, Turso, or Blob credentials.
+
+Clone this repository, then install the web dependencies. Docker mode doesn’t need the Zed submodule:
+
+~~~sh
+git clone https://github.com/purduehackers/zedspaces.git
+cd zedspaces/apps/web
+pnpm install --frozen-lockfile
+~~~
+
+Create a separate [GitHub OAuth app](https://github.com/settings/developers) for local sign-in. Set its homepage to `http://127.0.0.1:3100` and callback to `http://127.0.0.1:3100/api/auth/callback/github`. Save its credentials in `apps/web/.env.docker.local`:
+
+~~~dotenv
+GITHUB_CLIENT_ID=your_local_client_id
+GITHUB_CLIENT_SECRET=your_local_client_secret
+~~~
+
+Start the app and open [localhost:3100](http://127.0.0.1:3100):
+
+~~~sh
+pnpm dev:docker
+~~~
+
+Sign in, then open a public repo from the dashboard or `/new/repo_owner/repo_name`. The first startup downloads the release and builds an image. Later starts reuse both. Linux x86-64 images run through Docker’s emulation on Apple Silicon.
+
+The launcher keeps SQLite, signing keys, workflow state, and rebuild archives in `apps/web/.zs-dev/docker`. Project files and editor settings stay in each container’s writable layer. **Stop** preserves them; **Delete** removes the container and its files. Don’t prune stopped Zedspaces containers if you want to keep their workspaces.
+
+The app, editor connections, and previews bind to `127.0.0.1`. A second listener on port 3101 accepts only authenticated sandbox callbacks and signed archive requests. Workspace containers receive no Docker socket, host-directory mounts, GitHub tokens, or cloud credentials. Run repositories you trust: local containers aren’t Vercel’s VM isolation, and they can reach your network.
+
+Use **Stop** in the dashboard before shutting down. Ctrl+C stops the web app, not running containers. Idle workspaces stop while the app runs; a container also stops when its session timeout expires. Restarting the launcher keeps existing workspaces available.
+
+To fetch the latest editor release, stop the launcher and run:
+
+~~~sh
+pnpm dev:docker --update
+~~~
+
+Existing workspaces retain their matching editor until you choose **Restart to Update**. Rebuild archives stay on disk and preserve project files across replacement containers.
+
+Set `ZS_DEV_PORT` to change the web port; the callback relay uses the next port. Update the OAuth app’s callback too. Set `ZS_DOCKER_ROOT` to use another state directory. Keep that directory with its containers: it holds their ownership scope and signing keys. `ZS_DOCKER_RELEASE_URL` can point to your fork’s `docker-release.json`.
+
+The local image includes Node.js, Python, common web language servers, and the Python REPL. Install other tools inside the workspace. Privileged Docker-in-Docker, devcontainer images/Compose services, and domain-based network allowlists aren’t supported locally. Production still uses Vercel Sandboxes; Docker mode refuses production builds.
+
+## Develop the native runtime locally
 
 Requires Node 24, pnpm 11.20.0, the pinned Rust 1.97.1 toolchain, and the Zed
 build dependencies. The Linux toolchain setup is in

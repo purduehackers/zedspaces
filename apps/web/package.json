@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:local": "scripts/dev-local.sh",
+    "dev:docker": "tsx scripts/dev-docker.ts",
     "prebuild": "tsx scripts/prebuild.ts",
     "build": "next build",
     "postbuild": "tsx scripts/check-server-traces.ts",

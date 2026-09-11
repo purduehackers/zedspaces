@@ -31,7 +31,7 @@ export async function allocateSlot(db: DbLike, workspaceId: string, port: number
 
 export function publicSlotUrl(workspace: Pick<Workspace, "currentSlotHosts">, slot: number): string | null {
   const host = slotHost(workspace, slot);
-  return host ? `${env().ZS_SANDBOX_BACKEND === "local" ? "http" : "https"}://${host}` : null;
+  return host ? `${env().ZS_SANDBOX_BACKEND !== "vercel" ? "http" : "https"}://${host}` : null;
 }
 
 /** The public host of `slot` for the workspace's current session, or `null` while stopped. */
@@ -53,5 +53,5 @@ export function privateForwardUrl(workspaceId: string, port: number): string {
  * 303 target of the `/open` route (b8 §3.11 `AUTH_PATH`).
  */
 export function authRedirect(slotHostname: string, token: string, next = "/"): string {
-  return `https://${slotHostname}/__zs/auth?zs_port_token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
+  return `${env().ZS_SANDBOX_BACKEND !== "vercel" ? "http" : "https"}://${slotHostname}/__zs/auth?zs_port_token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
 }

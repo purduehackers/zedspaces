@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# Local Docker runtime. No private Vercel base image or host Rust toolchain.
+FROM rust:1.97.1-bookworm AS agent
+WORKDIR /build
+COPY sandbox/supervisor/Cargo.toml sandbox/supervisor/Cargo.lock ./
+COPY sandbox/supervisor/src ./src
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    cargo build --locked --release && cp target/release/zs-agent /zs-agent
+
+FROM node:24.19.0-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo python3 python3-venv python3-pip ripgrep rsync unzip tmux \
+    && rm -rf /var/lib/apt/lists/* \
+    && usermod --login ubuntu --home /vercel node \
+    && groupmod --new-name ubuntu node \
+    && mkdir -p /vercel /workspaces /usr/local/lib/zedspaces \
+    && chown ubuntu:ubuntu /vercel /workspaces \
+    && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu
+RUN npm install -g --no-fund --no-audit \
+    typescript@5.9.3 typescript-language-server@5.1.3 \
+    vscode-langservers-extracted@4.10.0 yaml-language-server@1.19.2 \
+    bash-language-server@5.6.0 dockerfile-language-server-nodejs@0.15.0 \
+    pyright@1.1.407 @astrojs/language-server@2.16.16 @astrojs/ts-plugin@1.10.11 \
+    prettier@3.8.2 prettier-plugin-astro@0.14.1 \
+    && npm cache clean --force
+COPY sandbox/image/repl-requirements.txt /opt/zedspaces/repl-requirements.txt
+RUN python3 -m venv /opt/zedspaces/repl \
+    && /opt/zedspaces/repl/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: -r /opt/zedspaces/repl-requirements.txt
+COPY sandbox/image/patch-astro.mjs /opt/zedspaces/patch-astro.mjs
+RUN node /opt/zedspaces/patch-astro.mjs /usr/local/lib/node_modules
+COPY --chmod=0755 sandbox/image/dist/zed-remote-server /usr/local/bin/zed-remote-server
+COPY --from=agent --chmod=0755 /zs-agent /usr/local/bin/zs-agent
+COPY sandbox/image/export-project.py sandbox/image/kernel.py /usr/local/lib/zedspaces/
+RUN git config --system safe.directory '*' && git config --system init.defaultBranch main
+ARG ZS_BUILD_ID
+ENV HOME=/vercel USER=ubuntu SHELL=/bin/bash \
+    ZS_BUILD_ID=${ZS_BUILD_ID} \
+    ZS_NODE_MODULES_DIR=/usr/local/lib/node_modules \
+    ZS_WORKSPACES_DIR=/workspaces \
+    ZS_SERVER_BIN=/usr/local/bin/zed-remote-server \
+    ZS_SUPERVISOR_URL=http://127.0.0.1:8450 \
+    ZS_CONTROL_SECRET_FILE=/vercel/.zs/run/control.secret \
+    ZS_HEALTH_PORT=8448
+USER ubuntu
+WORKDIR /workspaces

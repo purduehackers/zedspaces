@@ -7,6 +7,10 @@ on:
         description: Publish matching image/assets and deploy the configured Vercel project
         type: boolean
         default: false
+      docker:
+        description: Publish matching editor/server downloads for local Docker
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -85,6 +89,32 @@ jobs:
           path: ${{ matrix.target == 'server' && 'sandbox/image/dist/zed-remote-server' || 'apps/web/public/editor' }}
           if-no-files-found: error
           retention-days: 14
+
+  docker:
+    if: inputs.docker && github.ref == 'refs/heads/main'
+    needs: [identity, build, web, supervisor]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-web
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: server-${{ needs.identity.outputs.build }}
+          path: sandbox/image/dist
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: browser-${{ needs.identity.outputs.build }}
+          path: apps/web/public/editor
+      - name: Publish local runtime downloads
+        working-directory: apps/web
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZS_BUILD_ID: ${{ needs.identity.outputs.build }}
+        run: pnpm exec tsx scripts/publish-docker-release.ts "$ZS_BUILD_ID" ../../sandbox/image/dist/zed-remote-server "$RUNNER_TEMP/docker-release"
 
   deploy:
     if: inputs.deploy && github.ref == 'refs/heads/main'

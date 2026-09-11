@@ -1,10 +1,11 @@
 /**
  * The rebuild tarball store (b9 §3.19 `stepArchiveWorkspaceDir`, §4.7
- * `manifest.restore`). Vercel Blob in production; an in-process map when no
- * store is attached (`ZS_BLOB_DRIVER=memory`) for local development.
+ * `manifest.restore`). Vercel Blob in production, signed disk archives for
+ * Docker, or an in-process development fixture when no store is attached.
  */
 import { BlobNotFoundError, del, head, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import { env } from "./env";
+import { FileBlobStore } from "./blob-file";
 
 /** What a stored archive reports back to the caller. */
 export interface StoredBlob {
@@ -161,6 +162,6 @@ export function blobStore(): BlobStore {
   if (cached) return cached;
   const e = env();
   const driver = e.ZS_BLOB_DRIVER ?? (e.BLOB_READ_WRITE_TOKEN ? "vercel" : "memory");
-  cached = driver === "vercel" ? new VercelBlobStore() : new MemoryBlobStore();
+  cached = driver === "file" ? new FileBlobStore() : driver === "vercel" ? new VercelBlobStore() : new MemoryBlobStore();
   return cached;
 }

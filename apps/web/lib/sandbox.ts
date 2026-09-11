@@ -1,8 +1,9 @@
-/** Vercel Sandbox SDK adapter, with a local process backend for development. */
+/** Sandbox interface with Vercel, local Docker, and native-process adapters. */
 import { Readable } from "node:stream";
 import { APIError, Sandbox, Snapshot } from "@vercel/sandbox";
 import { SandboxError } from "./sandbox-error";
 import { localBackendEnabled, localSandboxApi } from "./sandbox-local";
+import { dockerBackendEnabled, dockerSandboxApi } from "./sandbox-docker";
 import type { Region } from "./schema";
 
 /** `SessionMetaData.status` of the sandbox's current session. */
@@ -388,28 +389,25 @@ class RealSandboxApi implements SandboxApi {
 
 let cached: SandboxApi | null = null;
 
-/**
- * The platform behind the `real` driver: `vercel` (the SDK) or `local`
- * (`ZS_SANDBOX_BACKEND=local`: child processes on this machine, refused in
- * production by {@link localBackendEnabled}).
- */
-export function sandboxBackend(): "vercel" | "local" {
-  return localBackendEnabled() ? "local" : "vercel";
+/** Local adapters fail closed in production. Vercel remains the default. */
+export function sandboxBackend(): "vercel" | "local" | "docker" {
+  return dockerBackendEnabled() ? "docker" : localBackendEnabled() ? "local" : "vercel";
 }
 
 /** `https` for Vercel sandboxes, `http` for the local backend's loopback listeners. */
 export function sandboxHttpScheme(): "https" | "http" {
-  return sandboxBackend() === "local" ? "http" : "https";
+  return sandboxBackend() === "vercel" ? "https" : "http";
 }
 
 /** `wss` for Vercel sandboxes, `ws` for the local backend's loopback rpc listener (D26 `wsUrl`). */
 export function sandboxWsScheme(): "wss" | "ws" {
-  return sandboxBackend() === "local" ? "ws" : "wss";
+  return sandboxBackend() === "vercel" ? "wss" : "ws";
 }
 
-/** The Vercel SDK or local process backend, memoized per process. */
+/** The selected adapter, memoized per process. */
 export function sandboxApi(): SandboxApi {
   if (cached) return cached;
-  cached = sandboxBackend() === "local" ? localSandboxApi() : new RealSandboxApi();
+  const backend = sandboxBackend();
+  cached = backend === "docker" ? dockerSandboxApi : backend === "local" ? localSandboxApi() : new RealSandboxApi();
   return cached;
 }

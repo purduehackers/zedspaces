@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 import { withWorkflow } from "workflow/next";
 
+// The Docker launcher masks .env.local's deployment variables with empty
+// strings. Workflow distinguishes an absent VERCEL_URL from an empty one.
+if (process.env.ZS_SANDBOX_BACKEND === "docker" && process.env.VERCEL_URL === "") {
+  delete process.env.VERCEL_URL;
+}
+
 // The editor document and every file it loads must be cross-origin isolated
 // (SharedArrayBuffer for the wasm threads); the bundle is therefore same-origin.
 const isolation = [

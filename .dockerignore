@@ -11,6 +11,7 @@ sandbox/supervisor/*
 !sandbox/image
 sandbox/image/*
 !sandbox/image/Dockerfile
+!sandbox/image/Dockerfile.local
 !sandbox/image/dist
 sandbox/image/dist/*
 !sandbox/image/dist/zed-remote-server

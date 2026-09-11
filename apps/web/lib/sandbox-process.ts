@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import { SignJWT } from "jose";
 import { ApiError, type RouteCtx } from "./api";
 import { limit } from "./ratelimit";
+import { originMatchesHost } from "./origin";
 import { requireWorkspaceParam, type WorkspaceParams } from "./route-context";
 import { sandboxApi, sandboxWsScheme } from "./sandbox";
 import { loadSigningKeys } from "./tokens";
 
 /** DAP and kernels share the same private, one-use sandbox byte tunnel. */
 export async function connectSandboxProcess(req: Request, ctx: RouteCtx<WorkspaceParams>, readLaunch: () => Promise<string>): Promise<Response> {
-  const origin = req.headers.get("origin");
-  if ((origin && origin !== new URL(req.url).origin) || req.headers.get("sec-fetch-site") === "cross-site") {
+  if (!originMatchesHost(req.headers) || req.headers.get("sec-fetch-site") === "cross-site") {
     throw new ApiError(403, "cross_origin", "Start this session from the workspace.");
   }
   const { workspace, viewer } = await requireWorkspaceParam(ctx, { control: true, allowStates: ["running"] });

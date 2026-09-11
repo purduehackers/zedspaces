@@ -44,7 +44,7 @@ export default async function Home() {
       <section aria-labelledby="self-hosting">
         <h2 id="self-hosting">Self-hosting</h2>
         <p>The web app runs on Next.js and stores data in SQLite on Turso. Production workspaces run on Vercel Sandboxes.</p>
-        <p>The local process backend is for development. There’s no Docker backend yet.</p>
+        <p>For local use, <code>pnpm dev:docker</code> runs workspaces in Docker containers with a local SQLite database. See the <a href="https://github.com/purduehackers/zedspaces#run-locally-with-docker">Docker setup instructions</a>.</p>
         <p>See the <a href="https://github.com/purduehackers/zedspaces#deploy-your-fork">deployment instructions</a> or browse the <a href="https://github.com/purduehackers/zedspaces">source code</a>.</p>
       </section>
     </article>
