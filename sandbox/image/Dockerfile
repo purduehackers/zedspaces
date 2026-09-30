@@ -137,9 +137,16 @@ COPY --from=agent-builder /out-zs-agent /usr/local/bin/zs-agent
 COPY --chmod=0644 sandbox/image/export-project.py /usr/local/lib/zedspaces/export-project.py
 COPY --chmod=0644 sandbox/image/kernel.py /usr/local/lib/zedspaces/kernel.py
 RUN chmod 0755 /usr/local/lib/zedspaces
+COPY --chmod=0644 sandbox/image/bash-prompt.sh /etc/zedspaces/bash-prompt.sh
 
 # 5. users, paths, git. Nothing above wrote under /vercel; hand the tree back to ubuntu anyway.
-RUN mkdir -p /workspaces && chown ubuntu:ubuntu /workspaces \
+RUN printf '\n. /etc/zedspaces/bash-prompt.sh\n' >> /vercel/.bashrc \
+ && profile=/vercel/.profile \
+ && for candidate in /vercel/.bash_profile /vercel/.bash_login /vercel/.profile; do \
+      if [ -f "$candidate" ]; then profile="$candidate"; break; fi; \
+    done \
+ && printf '\n. /etc/zedspaces/bash-prompt.sh\n' >> "$profile" \
+ && mkdir -p /workspaces && chown ubuntu:ubuntu /workspaces \
  && chown -R ubuntu:ubuntu /vercel \
  && git config --system safe.directory '*' \
  && git config --system init.defaultBranch main

@@ -33,6 +33,14 @@ RUN node /opt/zedspaces/patch-astro.mjs /usr/local/lib/node_modules
 COPY --chmod=0755 sandbox/image/dist/zed-remote-server /usr/local/bin/zed-remote-server
 COPY --from=agent --chmod=0755 /zs-agent /usr/local/bin/zs-agent
 COPY sandbox/image/export-project.py sandbox/image/kernel.py /usr/local/lib/zedspaces/
+COPY --chmod=0644 sandbox/image/bash-prompt.sh /etc/zedspaces/bash-prompt.sh
+RUN printf '\n. /etc/zedspaces/bash-prompt.sh\n' >> /vercel/.bashrc \
+ && profile=/vercel/.profile \
+ && for candidate in /vercel/.bash_profile /vercel/.bash_login /vercel/.profile; do \
+      if [ -f "$candidate" ]; then profile="$candidate"; break; fi; \
+    done \
+ && printf '\n. /etc/zedspaces/bash-prompt.sh\n' >> "$profile" \
+ && chown ubuntu:ubuntu /vercel/.bashrc "$profile"
 RUN git config --system safe.directory '*' && git config --system init.defaultBranch main
 ARG ZS_BUILD_ID
 ENV HOME=/vercel USER=ubuntu SHELL=/bin/bash \

@@ -153,6 +153,7 @@ to the internet. `ZS_SKIP_BUILD=1` reuses existing native binaries.
 Use **F1** or **Alt/Option+Shift+P** for commands, **Alt/Option+P** for files,
 and **Ctrl+`** for the terminal. The editor uses regular editing mode by default.
 Focus follows the mouse between panes, and files autosave when focus changes.
+The terminal prompt shows only the current directory.
 The bundled theme and Nerd Fonts can be changed in Zed settings.
 Run **web: toggle screen reader mode** for full-document text access and Tab
 navigation. Focused numeric controls support Up/Down and Home/End; dropdowns

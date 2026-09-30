@@ -18,4 +18,5 @@ sandbox/image/dist/*
 !sandbox/image/export-project.py
 !sandbox/image/kernel.py
 !sandbox/image/patch-astro.mjs
+!sandbox/image/bash-prompt.sh
 !sandbox/image/repl-requirements.txt
