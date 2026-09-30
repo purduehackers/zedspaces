@@ -140,7 +140,8 @@ RUN chmod 0755 /usr/local/lib/zedspaces
 COPY --chmod=0644 sandbox/image/bash-prompt.sh /etc/zedspaces/bash-prompt.sh
 
 # 5. users, paths, git. Nothing above wrote under /vercel; hand the tree back to ubuntu anyway.
-RUN printf '\n. /etc/zedspaces/bash-prompt.sh\n' >> /vercel/.bashrc \
+RUN chmod 0755 /etc/zedspaces \
+ && printf '\n. /etc/zedspaces/bash-prompt.sh\n' >> /vercel/.bashrc \
  && profile=/vercel/.profile \
  && for candidate in /vercel/.bash_profile /vercel/.bash_login /vercel/.profile; do \
       if [ -f "$candidate" ]; then profile="$candidate"; break; fi; \
